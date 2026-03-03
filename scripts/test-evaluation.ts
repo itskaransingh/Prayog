@@ -1,3 +1,5 @@
+//@ts-nocheck
+
 import { evaluateRegistration } from "../lib/evaluation";
 import { GROUND_TRUTH } from "../lib/simulation/constants";
 
