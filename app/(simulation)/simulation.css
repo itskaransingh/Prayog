@@ -1,0 +1,612 @@
+/* ============================================================
+   SIMULATION PORTAL – Vanilla CSS (no Tailwind)
+   Scoped under .sim-portal to prevent style leakage.
+   Replicates the Indian Income Tax e-Filing Portal design.
+   ============================================================ */
+
+/* ---------- Reset & Base ---------- */
+.sim-portal {
+  all: initial;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #333;
+  background-color: #f4f7f9;
+  box-sizing: border-box;
+}
+
+.sim-portal *,
+.sim-portal *::before,
+.sim-portal *::after {
+  box-sizing: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+.sim-portal a {
+  text-decoration: none;
+}
+
+.sim-portal ul {
+  list-style: none;
+}
+
+.sim-portal img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ---------- Utility Bar (Top) ---------- */
+.sim-utility-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 40px;
+  background-color: #f0f0f0;
+  border-bottom: 1px solid #ddd;
+  font-size: 13px;
+  color: #555;
+}
+
+.sim-utility-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sim-utility-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sim-utility-right .sim-util-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #555;
+}
+
+.sim-util-divider {
+  width: 1px;
+  height: 18px;
+  background-color: #ccc;
+}
+
+.sim-font-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sim-font-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid #bbb;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  transition: background 0.15s;
+}
+
+.sim-font-btn:hover {
+  background: #e0e0e0;
+}
+
+.sim-font-btn.active {
+  background: #1b3281;
+  color: #fff;
+  border-color: #1b3281;
+}
+
+.sim-btn-outline {
+  display: inline-block;
+  padding: 5px 20px;
+  border: 1px solid #1b3281;
+  border-radius: 3px;
+  color: #1b3281;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.sim-btn-outline:hover {
+  background: #1b3281;
+  color: #fff;
+}
+
+.sim-btn-filled {
+  display: inline-block;
+  padding: 5px 20px;
+  border: 1px solid #1b3281;
+  border-radius: 3px;
+  color: #fff;
+  background: #1b3281;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.sim-btn-filled:hover {
+  background: #142868;
+}
+
+/* ---------- Educational Banner ---------- */
+.sim-edu-banner {
+  background: #e8e8e8;
+  text-align: center;
+  padding: 6px 0;
+  font-size: 13px;
+  color: #555;
+  letter-spacing: 0.3px;
+}
+
+/* ---------- Main Navigation ---------- */
+.sim-main-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #1b3281;
+  padding: 0 40px;
+}
+
+.sim-nav-links {
+  display: flex;
+  align-items: stretch;
+}
+
+.sim-nav-link {
+  display: flex;
+  align-items: center;
+  padding: 14px 18px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+
+.sim-nav-link:hover,
+.sim-nav-link.active {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: #fff;
+}
+
+.sim-nav-link.active {
+  border-bottom-color: #4a90d9;
+}
+
+.sim-nav-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: #2b5dd4;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-size: 16px;
+  transition: background 0.15s;
+}
+
+.sim-nav-search:hover {
+  background: #3a6ee5;
+}
+
+/* ---------- Page Body ---------- */
+.sim-page-body {
+  flex: 1;
+  padding: 20px 60px 40px;
+  max-width: 1320px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ---------- Breadcrumb ---------- */
+.sim-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 24px;
+}
+
+.sim-breadcrumb a {
+  color: #1b3281;
+}
+
+.sim-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.sim-breadcrumb .sim-breadcrumb-sep {
+  color: #999;
+}
+
+/* ---------- Progress Stepper ---------- */
+.sim-stepper {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  gap: 0;
+}
+
+.sim-step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: relative;
+}
+
+.sim-step-row {
+  display: flex;
+  align-items: center;
+}
+
+.sim-step-number {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ccc;
+  border-radius: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #999;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.sim-step.active .sim-step-number {
+  border-color: #1b3281;
+  color: #1b3281;
+}
+
+.sim-step.completed .sim-step-number {
+  border-color: #28a745;
+  color: #fff;
+  background: #28a745;
+}
+
+.sim-step-connector {
+  width: 100px;
+  height: 2px;
+  background: #ccc;
+  position: relative;
+}
+
+.sim-step-connector::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid #ccc;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+
+.sim-step-label {
+  font-size: 12px;
+  color: #999;
+  margin-top: 6px;
+  white-space: nowrap;
+}
+
+.sim-step.active .sim-step-label {
+  color: #1b3281;
+  font-weight: 600;
+}
+
+/* ---------- Heading subtitle ---------- */
+.sim-page-heading {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.sim-mandatory-note {
+  text-align: right;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+.sim-mandatory-note span {
+  color: #e53935;
+  font-weight: 700;
+}
+
+/* ---------- Form Card ---------- */
+.sim-form-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 420px;
+}
+
+.sim-form-left {
+  padding: 36px 40px;
+}
+
+.sim-form-right {
+  background: #f0f3f7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 20px;
+}
+
+.sim-form-right-icon {
+  width: 120px;
+  height: 120px;
+  background: #2b3a67;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.sim-form-right-icon svg {
+  width: 60px;
+  height: 60px;
+  color: #fff;
+}
+
+.sim-form-right-text {
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* ---------- Form Elements ---------- */
+.sim-form-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 20px;
+}
+
+.sim-field-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.sim-field-label .required {
+  color: #e53935;
+  margin-left: 2px;
+}
+
+/* Toggle Group */
+.sim-toggle-group {
+  display: flex;
+  margin-bottom: 24px;
+}
+
+.sim-toggle-btn {
+  padding: 8px 28px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid #ccc;
+  background: #fff;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sim-toggle-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.sim-toggle-btn:last-child {
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+}
+
+.sim-toggle-btn.active {
+  background: #1b3281;
+  color: #fff;
+  border-color: #1b3281;
+}
+
+/* Input Row */
+.sim-input-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sim-input {
+  padding: 9px 12px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 240px;
+  font-family: inherit;
+}
+
+.sim-input:focus {
+  border-color: #1b3281;
+  box-shadow: 0 0 0 2px rgba(27, 50, 129, 0.1);
+}
+
+.sim-input.error {
+  border-color: #e53935;
+}
+
+.sim-validate-btn {
+  padding: 9px 24px;
+  background: #3d4f8f;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.sim-validate-btn:hover {
+  background: #2e3d73;
+}
+
+/* Error message */
+.sim-error-msg {
+  background: #fce4e4;
+  border: 1px solid #f5c6c6;
+  border-radius: 3px;
+  padding: 8px 12px;
+  margin-bottom: 24px;
+  font-size: 13px;
+}
+
+.sim-error-msg .error-label {
+  color: #e53935;
+  font-weight: 700;
+}
+
+.sim-error-msg .error-text {
+  color: #c62828;
+}
+
+/* Action Buttons */
+.sim-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 32px;
+}
+
+.sim-continue-btn {
+  width: 100%;
+  padding: 12px;
+  background: #d5d5d5;
+  border: none;
+  border-radius: 3px;
+  font-size: 14px;
+  color: #999;
+  cursor: not-allowed;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.sim-continue-btn.enabled {
+  background: #1b3281;
+  color: #fff;
+  cursor: pointer;
+}
+
+.sim-continue-btn.enabled:hover {
+  background: #142868;
+}
+
+.sim-cancel-btn {
+  width: 100%;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.sim-cancel-btn:hover {
+  background: #f5f5f5;
+}
+
+/* ---------- Footer ---------- */
+.sim-footer {
+  background: #1b213a;
+  color: #8892a7;
+  padding: 48px 60px 24px;
+  margin-top: auto;
+}
+
+.sim-footer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.sim-footer-col h4 {
+  color: #dde2ec;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.sim-footer-col a {
+  display: block;
+  color: #8892a7;
+  font-size: 13px;
+  margin-bottom: 8px;
+  transition: color 0.15s;
+}
+
+.sim-footer-col a:hover {
+  color: #c5cde0;
+}
+
+.sim-footer-bottom {
+  max-width: 1200px;
+  margin: 0 auto;
+  border-top: 1px solid #2d3555;
+  margin-top: 36px;
+  padding-top: 20px;
+  text-align: center;
+  font-size: 12px;
+  color: #6b7690;
+}
+
+.sim-footer-bottom p {
+  margin-bottom: 6px;
+}
+
+.sim-footer-updated {
+  text-align: right;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #6b7690;
+}
