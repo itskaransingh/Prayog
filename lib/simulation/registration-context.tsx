@@ -45,6 +45,7 @@ export interface RegistrationData {
     personalDetails: PersonalDetails;
     addressDetails: AddressDetails;
     contactDetails: ContactDetails;
+    employer: string;
 }
 
 // ---------- Context Shape ----------
@@ -90,6 +91,7 @@ const INITIAL_DATA: RegistrationData = {
         email: "",
         alternateContact: "",
     },
+    employer: "",
 };
 
 // ---------- Provider ----------
