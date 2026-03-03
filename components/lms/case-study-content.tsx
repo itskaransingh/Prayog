@@ -114,6 +114,94 @@ export function CaseStudyContent() {
                 </Card>
             </div>
 
+            {/* Question Section */}
+            <Card className="border-blue-200 bg-blue-50/30">
+                <CardHeader className="flex flex-row items-center gap-3 pb-3">
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-blue-500 text-white">
+                        <span className="text-lg font-bold">?</span>
+                    </div>
+                    <div>
+                        <CardTitle className="text-lg text-blue-900">Question: Registration Details</CardTitle>
+                        <p className="text-sm text-blue-700/70">
+                            Use the following details to complete the registration simulation
+                        </p>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="grid gap-6 md:grid-cols-2">
+                        {/* Personal & Portal Details */}
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-800/60">
+                                    Personal Details
+                                </h4>
+                                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                                    <span className="text-muted-foreground">First Name:</span>
+                                    <span className="font-medium">Rajesh</span>
+                                    <span className="text-muted-foreground">Middle Name:</span>
+                                    <span className="font-medium">---</span>
+                                    <span className="text-muted-foreground">Last Name:</span>
+                                    <span className="font-medium">Kumar</span>
+                                    <span className="text-muted-foreground">Date of Birth:</span>
+                                    <span className="font-medium">15/08/1993</span>
+                                    <span className="text-muted-foreground">Gender:</span>
+                                    <span className="font-medium">Male</span>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-800/60">
+                                    Contact Details
+                                </h4>
+                                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                                    <span className="text-muted-foreground">Mobile Number:</span>
+                                    <span className="font-medium">9876543210</span>
+                                    <span className="text-muted-foreground">Email ID:</span>
+                                    <span className="font-medium">rajesh.kumar@email.com</span>
+                                    <span className="text-muted-foreground">Alt. Contact:</span>
+                                    <span className="font-medium">---</span>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-800/60">
+                                    Other Info
+                                </h4>
+                                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                                    <span className="text-muted-foreground">PAN:</span>
+                                    <span className="font-medium">ABCPK1234D</span>
+                                    <span className="text-muted-foreground">Employer:</span>
+                                    <span className="font-medium">Infosys Ltd.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Address Details */}
+                        <div>
+                            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-800/60">
+                                Address Details
+                            </h4>
+                            <div className="space-y-2 rounded-lg border border-blue-100 bg-white p-3 text-sm shadow-xs">
+                                <div className="grid grid-cols-[100px_1fr] gap-y-1.5">
+                                    <span className="text-muted-foreground">Flat/Door:</span>
+                                    <span className="font-medium">Flat 302</span>
+                                    <span className="text-muted-foreground">Building:</span>
+                                    <span className="font-medium">Prestige Towers</span>
+                                    <span className="text-muted-foreground">Road/Street:</span>
+                                    <span className="font-medium">Koramangala</span>
+                                    <span className="text-muted-foreground">Area/Locality:</span>
+                                    <span className="font-medium">Koramangala</span>
+                                    <span className="text-muted-foreground">City/Town:</span>
+                                    <span className="font-medium">Bengaluru</span>
+                                    <span className="text-muted-foreground">State:</span>
+                                    <span className="font-medium">Karnataka</span>
+                                    <span className="text-muted-foreground">Pincode:</span>
+                                    <span className="font-medium">560034</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* Hint Section */}
             <Card className="border-dashed">
                 <CardHeader className="flex flex-row items-center gap-3 pb-3">
