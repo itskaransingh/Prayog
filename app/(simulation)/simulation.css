@@ -610,3 +610,520 @@
   font-size: 12px;
   color: #6b7690;
 }
+
+/* ---------- Fill Details Form (Step 2) ---------- */
+
+/* Full-width card (no right info panel) */
+.sim-form-card.sim-form-card-full {
+  grid-template-columns: 1fr;
+}
+
+.sim-form-card.sim-form-card-full .sim-form-left {
+  padding: 36px 48px 40px;
+}
+
+/* Section heading */
+.sim-section {
+  margin-bottom: 28px;
+}
+
+.sim-section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1b3281;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e0e4ec;
+  margin-bottom: 20px;
+}
+
+/* 2-column grid for form fields */
+.sim-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 28px;
+}
+
+/* Individual form row (label + input stacked) */
+.sim-form-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+}
+
+/* Full-width input (fills parent column) */
+.sim-input-full {
+  width: 100%;
+}
+
+/* Styled select matching sim-input */
+.sim-select {
+  padding: 9px 12px;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+  font-family: inherit;
+  background: #fff;
+  color: #333;
+  appearance: auto;
+}
+
+.sim-select:focus {
+  border-color: #1b3281;
+  box-shadow: 0 0 0 2px rgba(27, 50, 129, 0.1);
+}
+
+.sim-select.error {
+  border-color: #e53935;
+}
+
+/* Radio group (gender) */
+.sim-radio-group {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 2px;
+}
+
+.sim-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #444;
+  cursor: pointer;
+}
+
+.sim-radio {
+  width: 16px;
+  height: 16px;
+  accent-color: #1b3281;
+  cursor: pointer;
+}
+
+/* Horizontal action row (Back + Continue side by side) */
+.sim-actions.sim-actions-row {
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 36px;
+}
+
+/* Back button */
+.sim-back-btn {
+  padding: 12px 32px;
+  background: #fff;
+  border: 1px solid #1b3281;
+  border-radius: 3px;
+  font-size: 14px;
+  color: #1b3281;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.sim-back-btn:hover {
+  background: #f0f3f7;
+}
+
+/* Success message (replaces inline style in reg form) */
+.sim-success-msg {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 3px;
+  padding: 8px 12px;
+  margin-bottom: 24px;
+  font-size: 13px;
+  color: #2e7d32;
+  font-weight: 500;
+}
+
+/* Completed step connector color */
+.sim-step.completed .sim-step-connector {
+  background: #28a745;
+}
+
+.sim-step.completed .sim-step-connector::after {
+  border-left-color: #28a745;
+}
+
+/* ---------- OTP Verification & Summary (Step 3) ---------- */
+
+.sim-verify-summary {
+  background: #f8f9fc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 20px 24px;
+  margin-bottom: 32px;
+}
+
+.sim-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.sim-summary-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.sim-summary-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #718096;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.sim-summary-value {
+  font-size: 14px;
+  color: #2d3748;
+  font-weight: 500;
+}
+
+.sim-otp-container {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.sim-otp-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.sim-otp-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sim-otp-label span {
+  font-weight: 400;
+  color: #666;
+}
+
+.sim-otp-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sim-otp-input {
+  width: 180px;
+  letter-spacing: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sim-resend-timer {
+  font-size: 12px;
+  color: #e53935;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.sim-resend-link {
+  font-size: 13px;
+  color: #1b3281;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.sim-resend-link:disabled {
+  color: #999;
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
+/* ---------- Password Creation (Step 4) ---------- */
+
+.sim-password-checklist {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  padding: 16px;
+  background: #fcfcfd;
+  border: 1px solid #edf2f7;
+  border-radius: 4px;
+}
+
+.sim-rule-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #718096;
+}
+
+.sim-rule-item.met {
+  color: #2f855a;
+}
+
+.sim-rule-icon {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cbd5e0;
+}
+
+.sim-rule-item.met .sim-rule-icon {
+  background: #48bb78;
+}
+
+.sim-strength-container {
+  margin-top: 8px;
+  margin-bottom: 24px;
+}
+
+.sim-strength-meter {
+  height: 4px;
+  background: #edf2f7;
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+  gap: 2px;
+}
+
+.sim-strength-segment {
+  flex: 1;
+  height: 100%;
+  background: transparent;
+  transition: background 0.3s;
+}
+
+.strength-1 .seg-1 {
+  background: #e53e3e;
+}
+
+.strength-2 .seg-1,
+.strength-2 .seg-2 {
+  background: #dd6b20;
+}
+
+.strength-3 .seg-1,
+.strength-3 .seg-2,
+.strength-3 .seg-3 {
+  background: #d69e2e;
+}
+
+.strength-4 .seg-1,
+.strength-4 .seg-2,
+.strength-4 .seg-4,
+.strength-4 .seg-3 {
+  background: #38a169;
+}
+
+.sim-strength-label {
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+.sim-password-field {
+  position: relative;
+}
+
+.sim-password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #1b3281;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Success Modal/Screen */
+.sim-success-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.sim-success-icon {
+  width: 80px;
+  height: 80px;
+  background: #28a745;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 32px;
+  color: #fff;
+  font-size: 40px;
+}
+
+.sim-success-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1b3281;
+  margin-bottom: 16px;
+}
+
+.sim-success-subtitle {
+  font-size: 16px;
+  color: #666;
+  margin-bottom: 40px;
+  max-width: 500px;
+}
+/* ---------- Evaluation Results ---------- */
+
+.sim-eval-container {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.sim-eval-score-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 30px;
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  margin-bottom: 30px;
+}
+
+.sim-eval-ring-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.sim-eval-ring-svg {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.sim-eval-ring-bg {
+  fill: none;
+  stroke: #edf2f7;
+  stroke-width: 8;
+}
+
+.sim-eval-ring-fill {
+  fill: none;
+  stroke: #1b3281;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dasharray 1s ease-out;
+}
+
+.sim-eval-percentage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  font-weight: 700;
+  color: #1b3281;
+}
+
+.sim-eval-stats {
+  flex: 1;
+}
+
+.sim-eval-stat-item {
+  margin-bottom: 12px;
+}
+
+.sim-eval-stat-label {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.sim-eval-stat-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.sim-eval-breakdown {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sim-eval-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.sim-eval-table th {
+  background: #f1f5f9;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sim-eval-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.sim-eval-table tr:last-child td {
+  border-bottom: none;
+}
+
+.sim-eval-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 14px;
+}
+
+.sim-eval-status.correct {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.sim-eval-status.partial {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+.sim-eval-status.incorrect {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.sim-eval-entered {
+  font-family: monospace;
+  background: #f8fafc;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.sim-eval-expected {
+  color: #64748b;
+  font-style: italic;
+}

@@ -82,6 +82,24 @@ const courseTopics = [
 export function CourseTopicsSidebar({
     ...props
 }: React.ComponentProps<typeof Sidebar>) {
+    const [isItrCompleted, setIsItrCompleted] = React.useState(false);
+
+    React.useEffect(() => {
+        const completed = localStorage.getItem("itr-registration-completed");
+        if (completed === "true") {
+            setIsItrCompleted(true);
+        }
+    }, []);
+
+    // Clone and map to add completion status
+    const topics = courseTopics.map(topic => ({
+        ...topic,
+        subtopics: topic.subtopics.map(sub => ({
+            ...sub,
+            isTaskCompleted: sub.title === "ITR Registration" && isItrCompleted
+        }))
+    }));
+
     return (
         <Sidebar collapsible="icon" className="border-r" {...props}>
             {/* Sidebar Header */}
@@ -112,7 +130,7 @@ export function CourseTopicsSidebar({
                     <SidebarGroup>
                         <SidebarGroupLabel>Course Topics</SidebarGroupLabel>
                         <SidebarMenu>
-                            {courseTopics.map((topic) => (
+                            {topics.map((topic) => (
                                 <Collapsible
                                     key={topic.title}
                                     asChild
@@ -136,7 +154,14 @@ export function CourseTopicsSidebar({
                                                             isActive={sub.isActive}
                                                         >
                                                             <a href={sub.href}>
-                                                                <span>{sub.title}</span>
+                                                                <span>
+                                                                    {sub.title}
+                                                                    {sub.isTaskCompleted && (
+                                                                        <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                                                            Completed
+                                                                        </span>
+                                                                    )}
+                                                                </span>
                                                             </a>
                                                         </SidebarMenuSubButton>
                                                     </SidebarMenuSubItem>
