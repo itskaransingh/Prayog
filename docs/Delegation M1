@@ -1,0 +1,34 @@
+# Delegation Strategy: Milestone 1 (Scaffold & Core Layouts)
+
+**Project:** Prayog Prototype: ITR Registration
+**Milestone:** 1 - Scaffold & Core Layouts
+**Assigned Agents:** 2 Sequential Agents
+
+This document defines the sequential execution plan for coding agents to complete Milestone 1. The user will spin up these agents sequentially.
+
+---
+
+## Agent Name: `ui-scaffolder`
+**Order:** 1
+**Linear Issue Assigned:** [PRA-1] Build LMS Wrapper UI for Context View
+**Instructions:**
+- Role: Build the UI wrapper using Next.js App Router, Tailwind CSS, and Shadcn UI.
+- Context: The application splits into an LMS section and a simulation section. You are responsible for setting up the `(lms)` layout.
+- Tasks:
+  - Create the root layout for the LMS.
+  - Build a left sidebar for "Course Topics".
+  - Build a central content area for "Case Studies".
+  - Build a bottom navigation bar with a "Start Task" button routing to the simulation view.
+- Success: The layout routes correctly and components are responsive. Mark PRA-1 as **Completed** in Linear and comment on your changes when finished.
+
+## Agent Name: `simulation-scaffolder`
+**Order:** 2
+**Linear Issue Assigned:** [PRA-2] Implement ITR Registration Simulation Portal
+**Instructions:**
+- Role: Build the core structure of the high-fidelity government portal clone.
+- Context: This section of the app must sit inside the `(simulation)` route group and NOT use Tailwind styling that bleeds over (Vanilla CSS preferred).
+- Tasks:
+  - Create the layout for the simulation portal (header, footer, central form area mimicking real Income Tax portal).
+  - Scaffold `Step 1` of the registration form with standard HTML inputs.
+  - Implement client-side validation logic for PAN and address info.
+- Success: The simulation portal visually mirrors the real interface closely, with isolated styling. Mark PRA-2 as **Completed** in Linear and comment on your changes when finished.

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRegistration } from "@/lib/simulation/registration-context";
 
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
@@ -10,10 +11,11 @@ interface RegistrationFormProps {
 }
 
 export function RegistrationForm({ onContinue, onCancel }: RegistrationFormProps) {
-    const [registerAs, setRegisterAs] = useState<"taxpayer" | "others">("taxpayer");
-    const [pan, setPan] = useState("");
+    const { data } = useRegistration();
+    const [registerAs, setRegisterAs] = useState<"taxpayer" | "others">(data.registerAs);
+    const [pan, setPan] = useState(data.pan);
     const [panError, setPanError] = useState("");
-    const [panValidated, setPanValidated] = useState(false);
+    const [panValidated, setPanValidated] = useState(data.pan.length === 10 && PAN_REGEX.test(data.pan));
 
     const handlePanChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
