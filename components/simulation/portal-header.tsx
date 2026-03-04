@@ -1,4 +1,4 @@
-"use client";
+import Link from "next/link";
 
 export function PortalHeader() {
     return (
@@ -47,8 +47,26 @@ export function PortalHeader() {
                         </svg>
                     </span>
                     <div className="sim-util-divider" />
-                    <button className="sim-btn-outline" type="button">Login</button>
-                    <button className="sim-btn-filled" type="button">Register</button>
+                    <button className="sim-btn-outline" type="button" onClick={() => alert("Login simulation not implemented. Please use Register.")}>Login</button>
+                    <Link href="/simulation" className="sim-btn-filled" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}>
+                        Register
+                    </Link>
+                </div>
+            </div>
+
+            {/* Logo Section */}
+            <div className="sim-logo-section">
+                <div className="sim-logo-container">
+                    <div className="sim-logo-placeholder">
+                        <div className="sim-logo-icon">🏛️</div>
+                        <div className="sim-logo-text">
+                            <span className="sim-dept">Income Tax Department</span>
+                            <span className="sim-gov">Government of India</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="sim-logo-right">
+                    <div className="sim-tagline">efiling Anywhere, Anytime</div>
                 </div>
             </div>
 

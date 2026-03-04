@@ -1,11 +1,13 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { BookOpen, Target, Lightbulb, FileText } from "lucide-react";
+import { BookOpen, Target, Lightbulb, FileText, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export function CaseStudyContent() {
     return (
-        <div className="flex flex-1 flex-col gap-6 p-6">
+        <div className="flex flex-1 flex-col gap-6 p-6 pb-24">
             {/* Page Title */}
             <div>
                 <h1 className="text-2xl font-bold tracking-tight">
@@ -220,6 +222,21 @@ export function CaseStudyContent() {
                     </p>
                 </CardContent>
             </Card>
+
+            {/* Action Bar at Bottom */}
+            <div className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white/80 p-4 backdrop-blur-md md:left-64">
+                <div className="mx-auto flex max-w-5xl items-center justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-gray-900">Ready to begin?</p>
+                        <p className="text-xs text-muted-foreground">This task will take approximately 15-20 minutes.</p>
+                    </div>
+                    <Link href="/simulation/gateway">
+                        <Button size="lg" className="gap-2 px-8 font-bold">
+                            Start Task <ArrowRight className="size-4" />
+                        </Button>
+                    </Link>
+                </div>
+            </div>
         </div>
     );
 }

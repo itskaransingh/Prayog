@@ -32,7 +32,7 @@ const courseTopics = [
         subtopics: [
             { title: "PAN Application", href: "#", isActive: false },
             { title: "TAN Registration", href: "#", isActive: false },
-            { title: "ITR Registration", href: "#", isActive: true },
+            { title: "ITR Registration", href: "/course/income-tax", isActive: true },
             { title: "Digital Signature", href: "#", isActive: false },
         ],
     },
@@ -114,9 +114,9 @@ export function CourseTopicsSidebar({
                                 <GraduationCap className="size-4" />
                             </div>
                             <div className="grid flex-1 text-left text-sm leading-tight">
-                                <span className="truncate font-semibold">Income Tax</span>
+                                <span className="truncate font-semibold">Prayog LMS</span>
                                 <span className="truncate text-xs text-muted-foreground">
-                                    Practical Training
+                                    Course Dashboard
                                 </span>
                             </div>
                         </SidebarMenuButton>

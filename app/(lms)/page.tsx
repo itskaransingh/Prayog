@@ -1,5 +1,5 @@
-import { CaseStudyContent } from "@/components/lms/case-study-content";
+import { DashboardGrid } from "@/components/lms/dashboard-grid";
 
 export default function LmsPage() {
-    return <CaseStudyContent />;
+    return <DashboardGrid />;
 }
