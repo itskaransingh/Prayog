@@ -1,42 +1,92 @@
-# Milestone 3 Delegation: ITR-1 Filing Simulation & Dashboard
+# Milestone 3 Delegation: Full UI Replication (Nergy Vidya)
 
-## Overview
-This milestone transitions from the administrative Registration flow to the core filing experience. Students will use their registered credentials to log in, view their dashboard, and start the ITR-1 filing process.
+This milestone focuses on achieving pixel-perfect replication of the Nergy Vidya (NV) user experience, from the initial dashboard to the final simulation success screen.
 
-## Workforce: 3 Coding Agents (Sequential)
+## Part 1: LMS & Case Study Flow
+
+### PRA-15: Xavier's Homepage & Programs Layout
+- **Target**: `app/(lms)/page.tsx`
+- **Goal**: Replicate the "Our Programs" dashboard.
+- **Details**:
+    - Header: Nergy Vidya logo (top-left), Notification, Profile (top-right).
+    - Xavier's Logo cards: "Semester 1 & 2 (Open Elective)", "Semester 2 (B.Com)".
+    - "Nergy Offerings (New)" card.
+    - Theme: Light grey background (#f3f4f6), clean shadow cards.
+
+### PRA-16: Learning Contents & Assignment Wrapper
+- **Target**: `app/(lms)/offerings/page.tsx` (New)
+- **Goal**: Intermediate page after clicking "Nergy Offerings".
+- **Details**:
+    - Show two large cards: "Learning Contents" and "Assignment".
+    - "Learning Contents" card MUST have a progress bar (e.g., 1.6%).
+    - "Assignment" card MUST have a time progress (e.g., 0m/255h 40m).
+
+### PRA-17: Learning Contents Grid (No Sidebar)
+- **Target**: `app/(lms)/learning-contents/page.tsx`
+- **Goal**: 3-column grid of courses.
+- **Details**:
+    - REMOVE left sidebar for this view.
+    - Grid items: Income Tax, GST, Labour Laws, etc.
+    - Each card: Title, Course Count, Progress Bar + Percentage.
+
+### PRA-18: Income Tax Subtopics List
+- **Target**: `app/(lms)/learning-contents/income-tax/page.tsx`
+- **Goal**: Replicate the list of 18 subtopics.
+- **Details**:
+    - Single column list of wide cards.
+    - Index circles (1, 2, 3...) in blue.
+    - Subtopics: E-PAN, ITR-Registration, ITR Filing - AY 2025-2026, etc.
+
+### PRA-19: Case Study Sidebar & simplified Content
+- **Target**: `components/lms/case-study-content.tsx` & `components/lms/course-topics-sidebar.tsx`
+- **Goal**: Navigator sidebar and simplified content.
+- **Details**:
+    - Left Sidebar: "Course Topics" with task IDs (ITREG_005AE Task).
+    - Content: Single paragraph question at top.
+    - Content: "Details for Registration" table below paragraph (PAN, Name, Status).
+
+### PRA-20: Simulation Launcher (New Tab & States)
+- **Target**: `components/lms/bottom-nav-bar.tsx`
+- **Goal**: Update button behavior.
+- **Details**:
+    - Button states: "New Task" -> "Continue" -> "Re-Do Task".
+    - Clicking button MUST `window.open` the simulation in a NEW TAB.
 
 ---
 
-### Agent 1: Portal Dashboard & Login Simulation
-**Issue ID:** `PRA-9`
-**Task:** Build the post-login dashboard and the initial "File Return" entry point.
-- Implement a simplified "Dashboard" view showing "Returns Filed", "Actionable Items", and a "File Now" button.
-- Create a mock Login screen that accepts the credentials created in Milestone 2 (saved in context/localStorage).
-- **Goal:** Ensure a seamless transition from registration to the main portal area.
+## Part 2: Simulation & Form Flow
 
----
+### PRA-21: Simulation Gateway (Quick Links Wrapper)
+- **Target**: `app/(simulation)/simulation/gateway/page.tsx`
+- **Goal**: Full Portal 2.0 gateway replication.
+- **Details**:
+    - Left Sidebar: "Quick Links" with icons from `public/simulation/icons/`.
+    - Items: e-Verify Return, Link Aadhaar, Link Aadhaar Status, e-Pay Tax, etc.
+    - Top Navbar: Increase font size, add Question No, Call Us, Register button.
 
-### Agent 2: ITR-1 Multi-Tab Form (Part A - General Info & Salary)
-**Issue ID:** `PRA-10`
-**Task:** Build the first two tabs of the ITR-1 filing form.
-- **Tab 1: Personal Information** (Pre-filled from Registration context).
-- **Tab 2: Gross Total Income** (Salary, House Property, Other Sources).
-- Implement client-side calculations for "Gross Total Income".
-- Use the Vanilla CSS simulation style to match the government portal's multi-tab layout.
+### PRA-22: Form Refactoring & Identity Check
+- **Target**: `components/simulation/registration-form.tsx` & `fill-details-form.tsx`
+- **Details**:
+    - Registration Step 1: After PAN, add "Individual taxpayer" confirmation radio buttons with Note alerts.
+    - Fill Details: Split into two modules - "Basic Details" and "Contact Details".
+    - Use a Datepicker widget for Birthday.
 
----
+### PRA-23: OTP UI & Validation
+- **Target**: `components/simulation/otp-verification-form.tsx`
+- **Details**:
+    - Use 6 separate boxes for OTP inputs.
+    - Separate sections for Mobile OTP and Email OTP.
+    - Remove "Send OTP" button.
 
-### Agent 3: ITR-1 Filing (Part B - Tax Computation & Submission)
-**Issue ID:** `PRA-11`
-**Task:** Build the final tabs and the submission/verification flow.
-- **Tab 3: Total Deductions** (80C, 80D, etc.).
-- **Tab 4: Tax Paid & Computation**.
-- Logic to calculate tax liability based on the "Old vs New" regime (simplified).
-- Final "Submit" screen with a success message and a downloadable (mock) PDF receipt.
+### PRA-24: Evaluation Popup & Verify Details
+- **Target**: `components/simulation/verify-details-section.tsx`
+- **Details**:
+    - Replicate the final "Verify Details" layout.
+    - TRIGGER EVALUATION HERE: Show the score and correct/incorrect fields in a MODAL POPUP on this page.
 
----
-
-## Technical Standards
-- **Style:** Vanilla CSS for all simulation forms.
-- **State:** Use the existing `RegistrationProvider` or a new `FilingProvider` for multi-tab persistence.
-- **Evaluation:** Each tab should have underlying `GROUND_TRUTH` fields for later evaluation (to be implemented in Milestone 4).
+### PRA-25: Password checklist & Success Screen
+- **Target**: `components/simulation/password-creation-form.tsx` & Success Page
+- **Details**:
+    - Checklist items should "check off" (green) as user types.
+    - Personalized message note logic.
+    - Success page: Show Transaction ID and background decorations.

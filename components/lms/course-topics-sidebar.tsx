@@ -26,56 +26,54 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 // Sample course data for the Income Tax module
 const courseTopics = [
     {
-        title: "Registration",
-        icon: BookOpen,
+        title: "ITREG_005AE",
+        href: "/course/income-tax",
         isActive: true,
-        subtopics: [
-            { title: "PAN Application", href: "#", isActive: false },
-            { title: "TAN Registration", href: "#", isActive: false },
-            { title: "ITR Registration", href: "/course/income-tax", isActive: true },
-            { title: "Digital Signature", href: "#", isActive: false },
-        ],
     },
     {
-        title: "Returns Filing",
-        icon: BookOpen,
+        title: "ITREG_005AF",
+        href: "#",
         isActive: false,
-        subtopics: [
-            { title: "ITR-1 (Sahaj)", href: "#", isActive: false },
-            { title: "ITR-2", href: "#", isActive: false },
-            { title: "ITR-3", href: "#", isActive: false },
-            { title: "ITR-4 (Sugam)", href: "#", isActive: false },
-        ],
     },
     {
-        title: "Tax Assessment",
-        icon: BookOpen,
+        title: "ITREG_005AG",
+        href: "#",
         isActive: false,
-        subtopics: [
-            { title: "Self Assessment", href: "#", isActive: false },
-            { title: "Scrutiny Assessment", href: "#", isActive: false },
-            { title: "Best Judgement", href: "#", isActive: false },
-        ],
     },
     {
-        title: "TDS & TCS",
-        icon: BookOpen,
+        title: "ITREG_005AH",
+        href: "#",
         isActive: false,
-        subtopics: [
-            { title: "TDS Returns (26Q)", href: "#", isActive: false },
-            { title: "TDS Certificates", href: "#", isActive: false },
-            { title: "TCS Compliance", href: "#", isActive: false },
-        ],
     },
     {
-        title: "Refunds & Grievances",
-        icon: BookOpen,
+        title: "ITREG_005AI",
+        href: "#",
         isActive: false,
-        subtopics: [
-            { title: "Refund Status", href: "#", isActive: false },
-            { title: "Rectification Request", href: "#", isActive: false },
-            { title: "Grievance Filing", href: "#", isActive: false },
-        ],
+    },
+    {
+        title: "ITREG_005AJ",
+        href: "#",
+        isActive: false,
+    },
+    {
+        title: "ITREG_005AK",
+        href: "#",
+        isActive: false,
+    },
+    {
+        title: "ITREG_005AL",
+        href: "#",
+        isActive: false,
+    },
+    {
+        title: "ITREG_005AM",
+        href: "#",
+        isActive: false,
+    },
+    {
+        title: "ITREG_005AN",
+        href: "#",
+        isActive: false,
     },
 ];
 
@@ -90,15 +88,6 @@ export function CourseTopicsSidebar({
             setIsItrCompleted(true);
         }
     }, []);
-
-    // Clone and map to add completion status
-    const topics = courseTopics.map(topic => ({
-        ...topic,
-        subtopics: topic.subtopics.map(sub => ({
-            ...sub,
-            isTaskCompleted: sub.title === "ITR Registration" && isItrCompleted
-        }))
-    }));
 
     return (
         <Sidebar collapsible="icon" className="border-r" {...props}>
@@ -128,48 +117,26 @@ export function CourseTopicsSidebar({
             <SidebarContent>
                 <ScrollArea className="h-full">
                     <SidebarGroup>
-                        <SidebarGroupLabel>Course Topics</SidebarGroupLabel>
+                        <SidebarGroupLabel>Question IDs</SidebarGroupLabel>
                         <SidebarMenu>
-                            {topics.map((topic) => (
-                                <Collapsible
-                                    key={topic.title}
-                                    asChild
-                                    defaultOpen={topic.isActive}
-                                    className="group/collapsible"
-                                >
-                                    <SidebarMenuItem>
-                                        <CollapsibleTrigger asChild>
-                                            <SidebarMenuButton tooltip={topic.title}>
-                                                {topic.icon && <topic.icon className="size-4" />}
-                                                <span>{topic.title}</span>
-                                                <ChevronRight className="ml-auto size-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                                            </SidebarMenuButton>
-                                        </CollapsibleTrigger>
-                                        <CollapsibleContent>
-                                            <SidebarMenuSub>
-                                                {topic.subtopics.map((sub) => (
-                                                    <SidebarMenuSubItem key={sub.title}>
-                                                        <SidebarMenuSubButton
-                                                            asChild
-                                                            isActive={sub.isActive}
-                                                        >
-                                                            <a href={sub.href}>
-                                                                <span>
-                                                                    {sub.title}
-                                                                    {sub.isTaskCompleted && (
-                                                                        <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                                                                            Completed
-                                                                        </span>
-                                                                    )}
-                                                                </span>
-                                                            </a>
-                                                        </SidebarMenuSubButton>
-                                                    </SidebarMenuSubItem>
-                                                ))}
-                                            </SidebarMenuSub>
-                                        </CollapsibleContent>
-                                    </SidebarMenuItem>
-                                </Collapsible>
+                            {courseTopics.map((topic) => (
+                                <SidebarMenuItem key={topic.title}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={topic.isActive}
+                                    >
+                                        <a href={topic.href}>
+                                            <span>
+                                                {topic.title}
+                                                {topic.isActive && isItrCompleted && (
+                                                    <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                                        Completed
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </a>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
                             ))}
                         </SidebarMenu>
                     </SidebarGroup>

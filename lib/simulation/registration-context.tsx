@@ -18,7 +18,8 @@ export interface PersonalDetails {
     middleName: string;
     lastName: string;
     dob: string;
-    gender: "Male" | "Female" | "Other" | "";
+    gender: "Male" | "Female" | "Transgender" | "";
+    residentialStatus: "Resident" | "Non-resident" | "";
 }
 
 export interface AddressDetails {
@@ -35,12 +36,15 @@ export interface ContactDetails {
     mobile: string;
     email: string;
     alternateContact: string;
+    mobileBelongsTo: string;
+    emailBelongsTo: string;
 }
 
 export interface RegistrationData {
     // Step 1
     registerAs: "taxpayer" | "others";
     pan: string;
+    individualConfirmation: "yes" | "no" | "";
     // Step 2
     personalDetails: PersonalDetails;
     addressDetails: AddressDetails;
@@ -70,12 +74,14 @@ const RegistrationContext = createContext<RegistrationContextValue | null>(null)
 const INITIAL_DATA: RegistrationData = {
     registerAs: "taxpayer",
     pan: "",
+    individualConfirmation: "",
     personalDetails: {
         firstName: "",
         middleName: "",
         lastName: "",
         dob: "",
         gender: "",
+        residentialStatus: "",
     },
     addressDetails: {
         flatDoorNo: "",
@@ -90,6 +96,8 @@ const INITIAL_DATA: RegistrationData = {
         mobile: "",
         email: "",
         alternateContact: "",
+        mobileBelongsTo: "",
+        emailBelongsTo: "",
     },
     employer: "",
 };
@@ -106,7 +114,13 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
     // Set start time when the user starts Step 1
     useEffect(() => {
         if (currentStep === 1 && !startTime) {
-            setStartTime(Date.now());
+            const now = Date.now();
+            setStartTime(now);
+            try {
+                window.localStorage.setItem("itr-registration-started", "true");
+            } catch {
+                // ignore storage errors
+            }
         }
     }, [currentStep, startTime]);
 
