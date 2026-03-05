@@ -240,47 +240,46 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
                                     {fieldError("firstName")}
                                 </div>
 
-                {/* Date of Birth with datepicker */}
-                <div className="sim-form-row">
-                    <label className="sim-field-label">
-                        Date of Birth <span className="required">*</span>
-                    </label>
-                    <div
-                        className="sim-date-wrapper"
-                        onClick={() => {
-                            if (dobInputRef.current) {
-                                dobInputRef.current.focus();
-                                // Try to open native picker when supported
-                                // @ts-expect-error showPicker may not exist in all browsers
-                                if (dobInputRef.current.showPicker) {
-                                    // @ts-expect-error
-                                    dobInputRef.current.showPicker();
-                                }
-                            }
-                        }}
-                    >
-                        <input
-                            ref={dobInputRef}
-                            type="date"
-                            className={`sim-input sim-input-full ${errors.dob ? "error" : ""}`}
-                            value={
-                                personal.dob
-                                    ? personal.dob.split("/").reverse().join("-")
-                                    : ""
-                            }
-                            onChange={(e) => {
-                                const iso = e.target.value; // yyyy-mm-dd
-                                if (!iso) {
-                                    updatePersonal("dob", "");
-                                    return;
-                                }
-                                const [yyyy, mm, dd] = iso.split("-");
-                                updatePersonal("dob", `${dd}/${mm}/${yyyy}`);
-                            }}
-                        />
-                    </div>
-                    {fieldError("dob")}
-                </div>
+                                {/* Date of Birth with datepicker */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Date of Birth <span className="required">*</span>
+                                    </label>
+                                    <div
+                                        className="sim-date-wrapper"
+                                        onClick={() => {
+                                            if (dobInputRef.current) {
+                                                dobInputRef.current.focus();
+                                                // Try to open native picker when supported 
+                                                if (dobInputRef.current.showPicker) {
+
+                                                    dobInputRef.current.showPicker();
+                                                }
+                                            }
+                                        }}
+                                    >
+                                        <input
+                                            ref={dobInputRef}
+                                            type="date"
+                                            className={`sim-input sim-input-full ${errors.dob ? "error" : ""}`}
+                                            value={
+                                                personal.dob
+                                                    ? personal.dob.split("/").reverse().join("-")
+                                                    : ""
+                                            }
+                                            onChange={(e) => {
+                                                const iso = e.target.value; // yyyy-mm-dd
+                                                if (!iso) {
+                                                    updatePersonal("dob", "");
+                                                    return;
+                                                }
+                                                const [yyyy, mm, dd] = iso.split("-");
+                                                updatePersonal("dob", `${dd}/${mm}/${yyyy}`);
+                                            }}
+                                        />
+                                    </div>
+                                    {fieldError("dob")}
+                                </div>
                             </div>
 
                             {/* Gender — full width row */}
