@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useRegistration } from "@/lib/simulation/registration-context";
 import type {
     PersonalDetails,
@@ -44,6 +44,8 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
     const [contact, setContact] = useState<ContactDetails>(data.contactDetails);
     const [employer, setEmployer] = useState<string>(data.employer);
     const [errors, setErrors] = useState<FormErrors>({});
+    const [activeTab, setActiveTab] = useState<"basic" | "contact">("basic");
+    const dobInputRef = useRef<HTMLInputElement | null>(null);
 
     // ---------- Field updaters ----------
 
@@ -116,6 +118,11 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
     // ---------- Handlers ----------
 
     const handleContinue = useCallback(() => {
+        if (activeTab === "basic") {
+            setActiveTab("contact");
+            return;
+        }
+
         if (validate()) {
             updateData({
                 personalDetails: personal,
@@ -125,7 +132,7 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
             });
             onContinue();
         }
-    }, [validate, updateData, personal, address, contact, employer, onContinue]);
+    }, [activeTab, validate, updateData, personal, address, contact, employer, onContinue]);
 
     const handleBack = useCallback(() => {
         // Persist current edits even on back
@@ -153,283 +160,447 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
     return (
         <div className="sim-form-card sim-form-card-full">
             <div className="sim-form-left">
-                <h2 className="sim-form-title">Fill in your details</h2>
+                <h2 className="sim-form-title">Registering as - Individual</h2>
 
-                {/* ========== Personal Details ========== */}
-                <div className="sim-section">
-                    <h3 className="sim-section-title">Personal Details</h3>
-                    <div className="sim-form-grid">
-                        {/* First Name */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                First Name <span className="required">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                className={`sim-input sim-input-full ${errors.firstName ? "error" : ""}`}
-                                value={personal.firstName}
-                                onChange={(e) => updatePersonal("firstName", e.target.value)}
-                                autoComplete="given-name"
-                            />
-                            {fieldError("firstName")}
-                        </div>
+                {/* Tab headers */}
+                <div className="sim-tabs">
+                    <button
+                        type="button"
+                        className={`sim-tab-btn ${activeTab === "basic" ? "active" : ""}`}
+                        onClick={() => setActiveTab("basic")}
+                    >
+                        Basic Details
+                    </button>
+                    <button
+                        type="button"
+                        className={`sim-tab-btn ${activeTab === "contact" ? "active" : ""}`}
+                        onClick={() => setActiveTab("contact")}
+                    >
+                        Contact Details
+                    </button>
+                </div>
 
-                        {/* Middle Name */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">Middle Name</label>
-                            <input
-                                type="text"
-                                className="sim-input sim-input-full"
-                                value={personal.middleName}
-                                onChange={(e) => updatePersonal("middleName", e.target.value)}
-                            />
-                        </div>
-
-                        {/* Last Name */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                Last Name <span className="required">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                className={`sim-input sim-input-full ${errors.lastName ? "error" : ""}`}
-                                value={personal.lastName}
-                                onChange={(e) => updatePersonal("lastName", e.target.value)}
-                                autoComplete="family-name"
-                            />
-                            {fieldError("lastName")}
-                        </div>
-
-                        {/* Date of Birth */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                Date of Birth <span className="required">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                className={`sim-input sim-input-full ${errors.dob ? "error" : ""}`}
-                                value={personal.dob}
-                                onChange={(e) => updatePersonal("dob", e.target.value)}
-                                placeholder="DD/MM/YYYY"
-                                maxLength={10}
-                            />
-                            {fieldError("dob")}
-                        </div>
-                    </div>
-
-                    {/* Gender — full width row */}
-                    <div className="sim-form-row">
-                        <label className="sim-field-label">
-                            Gender <span className="required">*</span>
-                        </label>
-                        <div className="sim-radio-group">
-                            {(["Male", "Female", "Other"] as const).map((g) => (
-                                <label key={g} className="sim-radio-label">
+                {activeTab === "basic" && (
+                    <>
+                        {/* ========== Basic Details ========== */}
+                        <div className="sim-section">
+                            <h3 className="sim-section-title">Basic Details</h3>
+                            <div className="sim-form-grid">
+                                {/* PAN (read-only) */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        PAN <span className="required">*</span>
+                                    </label>
                                     <input
-                                        type="radio"
-                                        name="gender"
-                                        className="sim-radio"
-                                        value={g}
-                                        checked={personal.gender === g}
-                                        onChange={() => updatePersonal("gender", g)}
+                                        type="text"
+                                        className="sim-input sim-input-full"
+                                        value={data.pan}
+                                        readOnly
                                     />
-                                    {g}
+                                </div>
+
+                                {/* Last Name */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Last Name <span className="required">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className={`sim-input sim-input-full ${errors.lastName ? "error" : ""}`}
+                                        value={personal.lastName}
+                                        onChange={(e) => updatePersonal("lastName", e.target.value)}
+                                        autoComplete="family-name"
+                                    />
+                                    {fieldError("lastName")}
+                                </div>
+
+                                {/* Middle Name */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">Middle Name</label>
+                                    <input
+                                        type="text"
+                                        className="sim-input sim-input-full"
+                                        value={personal.middleName}
+                                        onChange={(e) => updatePersonal("middleName", e.target.value)}
+                                    />
+                                </div>
+
+                                {/* First Name */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        First Name <span className="required">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className={`sim-input sim-input-full ${errors.firstName ? "error" : ""}`}
+                                        value={personal.firstName}
+                                        onChange={(e) => updatePersonal("firstName", e.target.value)}
+                                        autoComplete="given-name"
+                                    />
+                                    {fieldError("firstName")}
+                                </div>
+
+                {/* Date of Birth with datepicker */}
+                <div className="sim-form-row">
+                    <label className="sim-field-label">
+                        Date of Birth <span className="required">*</span>
+                    </label>
+                    <div
+                        className="sim-date-wrapper"
+                        onClick={() => {
+                            if (dobInputRef.current) {
+                                dobInputRef.current.focus();
+                                // Try to open native picker when supported
+                                // @ts-expect-error showPicker may not exist in all browsers
+                                if (dobInputRef.current.showPicker) {
+                                    // @ts-expect-error
+                                    dobInputRef.current.showPicker();
+                                }
+                            }
+                        }}
+                    >
+                        <input
+                            ref={dobInputRef}
+                            type="date"
+                            className={`sim-input sim-input-full ${errors.dob ? "error" : ""}`}
+                            value={
+                                personal.dob
+                                    ? personal.dob.split("/").reverse().join("-")
+                                    : ""
+                            }
+                            onChange={(e) => {
+                                const iso = e.target.value; // yyyy-mm-dd
+                                if (!iso) {
+                                    updatePersonal("dob", "");
+                                    return;
+                                }
+                                const [yyyy, mm, dd] = iso.split("-");
+                                updatePersonal("dob", `${dd}/${mm}/${yyyy}`);
+                            }}
+                        />
+                    </div>
+                    {fieldError("dob")}
+                </div>
+                            </div>
+
+                            {/* Gender — full width row */}
+                            <div className="sim-form-row">
+                                <label className="sim-field-label">
+                                    Gender <span className="required">*</span>
                                 </label>
-                            ))}
-                        </div>
-                        {fieldError("gender")}
-                    </div>
-                </div>
+                                <div className="sim-radio-group">
+                                    {(["Male", "Female", "Transgender"] as const).map((g) => (
+                                        <label key={g} className="sim-radio-label">
+                                            <input
+                                                type="radio"
+                                                name="gender"
+                                                className="sim-radio"
+                                                value={g}
+                                                checked={personal.gender === g}
+                                                onChange={() => updatePersonal("gender", g)}
+                                            />
+                                            {g}
+                                        </label>
+                                    ))}
+                                </div>
+                                {fieldError("gender")}
+                            </div>
 
-                {/* ========== Address Details ========== */}
-                <div className="sim-section">
-                    <h3 className="sim-section-title">Address Details</h3>
-                    <div className="sim-form-grid">
-                        {/* Flat/Door No */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                Flat/Door No <span className="required">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                className={`sim-input sim-input-full ${errors.flatDoorNo ? "error" : ""}`}
-                                value={address.flatDoorNo}
-                                onChange={(e) => updateAddress("flatDoorNo", e.target.value)}
-                            />
-                            {fieldError("flatDoorNo")}
+                            {/* Residential Status */}
+                            <div className="sim-form-row">
+                                <label className="sim-field-label">
+                                    Residential Status <span className="required">*</span>
+                                </label>
+                                <div className="sim-radio-group">
+                                    {(["Resident", "Non-resident"] as const).map((status) => (
+                                        <label key={status} className="sim-radio-label">
+                                            <input
+                                                type="radio"
+                                                name="residential-status"
+                                                className="sim-radio"
+                                                value={status}
+                                                checked={personal.residentialStatus === status}
+                                                onChange={() => updatePersonal("residentialStatus", status)}
+                                            />
+                                            {status}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {activeTab === "contact" && (
+                    <>
+                        {/* ========== Contact Details Tab ========== */}
+                        <div className="sim-section">
+                            <h3 className="sim-section-title">Contact Details</h3>
+                            <div className="sim-form-grid">
+                                {/* Primary Mobile */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Primary Mobile Number <span className="required">*</span>
+                                    </label>
+                                    <div className="sim-input-row">
+                                        <input
+                                            type="text"
+                                            className="sim-input"
+                                            value="+91"
+                                            readOnly
+                                            style={{ width: 70 }}
+                                        />
+                                        <input
+                                            type="text"
+                                            className={`sim-input sim-input-full ${errors.mobile ? "error" : ""}`}
+                                            value={contact.mobile}
+                                            onChange={(e) =>
+                                                updateContact(
+                                                    "mobile",
+                                                    e.target.value.replace(/\D/g, "").slice(0, 10)
+                                                )
+                                            }
+                                            maxLength={10}
+                                            inputMode="tel"
+                                        />
+                                    </div>
+                                    {fieldError("mobile")}
+                                </div>
+
+                                {/* Primary Mobile Belongs to */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Primary Mobile Number Belongs to <span className="required">*</span>
+                                    </label>
+                                    <select
+                                        className="sim-select"
+                                        value={contact.mobileBelongsTo}
+                                        onChange={(e) => updateContact("mobileBelongsTo", e.target.value)}
+                                    >
+                                        <option value="">-- Select --</option>
+                                        {["Self", "Spouse", "Father", "Mother", "Son", "Daughter", "Other"].map(
+                                            (relation) => (
+                                                <option key={relation} value={relation}>
+                                                    {relation}
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
+                                </div>
+
+                                {/* Primary Email */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Primary Email ID <span className="required">*</span>
+                                    </label>
+                                    <input
+                                        type="email"
+                                        className={`sim-input sim-input-full ${errors.email ? "error" : ""}`}
+                                        value={contact.email}
+                                        onChange={(e) => updateContact("email", e.target.value)}
+                                        autoComplete="email"
+                                    />
+                                    {fieldError("email")}
+                                </div>
+
+                                {/* Primary Email belongs to */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Primary E-Mail ID belongs to <span className="required">*</span>
+                                    </label>
+                                    <select
+                                        className="sim-select"
+                                        value={contact.emailBelongsTo}
+                                        onChange={(e) => updateContact("emailBelongsTo", e.target.value)}
+                                    >
+                                        <option value="">-- Select --</option>
+                                        {["Self", "Spouse", "Father", "Mother", "Son", "Daughter", "Other"].map(
+                                            (relation) => (
+                                                <option key={relation} value={relation}>
+                                                    {relation}
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
+                                </div>
+
+                                {/* Landline Number */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">Landline Number</label>
+                                    <div className="sim-input-row">
+                                        <input
+                                            type="text"
+                                            className="sim-input"
+                                            value="+91"
+                                            readOnly
+                                            style={{ width: 70 }}
+                                        />
+                                        <input
+                                            type="text"
+                                            className="sim-input sim-input-full"
+                                            value={contact.alternateContact}
+                                            onChange={(e) =>
+                                                updateContact(
+                                                    "alternateContact",
+                                                    e.target.value.replace(/\D/g, "").slice(0, 10)
+                                                )
+                                            }
+                                            maxLength={10}
+                                            inputMode="tel"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Building/Village */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">Building/Village</label>
-                            <input
-                                type="text"
-                                className="sim-input sim-input-full"
-                                value={address.building}
-                                onChange={(e) => updateAddress("building", e.target.value)}
-                            />
+                        {/* Please Note */}
+                        <div className="sim-note-box">
+                            <strong>Please Note</strong>
+                            <p>
+                                On click of &quot;Continue&quot; different OTPs will be sent on Primary Mobile Number
+                                and Primary Email Id for verification.
+                            </p>
                         </div>
 
-                        {/* Road/Street */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">Road/Street</label>
-                            <input
-                                type="text"
-                                className="sim-input sim-input-full"
-                                value={address.road}
-                                onChange={(e) => updateAddress("road", e.target.value)}
-                            />
+                        {/* Postal Address details under Contact Details */}
+                        <div className="sim-section">
+                            <h3 className="sim-section-title">Postal Address details</h3>
+                            <div className="sim-form-grid">
+                                {/* Country */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Country <span className="required">*</span>
+                                    </label>
+                                    <select className="sim-select" value="INDIA" disabled>
+                                        <option value="INDIA">INDIA</option>
+                                    </select>
+                                </div>
+
+                                {/* Flat/Door/Building */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Flat/Door/Building <span className="required">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className={`sim-input sim-input-full ${errors.flatDoorNo ? "error" : ""}`}
+                                        value={address.flatDoorNo}
+                                        onChange={(e) => updateAddress("flatDoorNo", e.target.value)}
+                                    />
+                                    {fieldError("flatDoorNo")}
+                                </div>
+
+                                {/* Road/Street/Block/Sector */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">Road/Street/Block/Sector</label>
+                                    <input
+                                        type="text"
+                                        className="sim-input sim-input-full"
+                                        value={address.road}
+                                        onChange={(e) => updateAddress("road", e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Pincode */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Pincode <span className="required">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className={`sim-input sim-input-full ${errors.pincode ? "error" : ""}`}
+                                        value={address.pincode}
+                                        onChange={(e) =>
+                                            updateAddress(
+                                                "pincode",
+                                                e.target.value.replace(/\D/g, "").slice(0, 6)
+                                            )
+                                        }
+                                        maxLength={6}
+                                        inputMode="numeric"
+                                    />
+                                    {fieldError("pincode")}
+                                </div>
+
+                                {/* Area/Locality */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">Area/Locality *</label>
+                                    <input
+                                        type="text"
+                                        className="sim-input sim-input-full"
+                                        value={address.area}
+                                        onChange={(e) => updateAddress("area", e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Post Office */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">Post Office *</label>
+                                    <input
+                                        type="text"
+                                        className="sim-input sim-input-full"
+                                        value={address.building}
+                                        onChange={(e) => updateAddress("building", e.target.value)}
+                                    />
+                                </div>
+
+                                {/* Town/City/District */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        Town/City/District <span className="required">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className={`sim-input sim-input-full ${errors.city ? "error" : ""}`}
+                                        value={address.city}
+                                        onChange={(e) => updateAddress("city", e.target.value)}
+                                    />
+                                    {fieldError("city")}
+                                </div>
+
+                                {/* State */}
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">
+                                        State <span className="required">*</span>
+                                    </label>
+                                    <select
+                                        className={`sim-select ${errors.state ? "error" : ""}`}
+                                        value={address.state}
+                                        onChange={(e) => updateAddress("state", e.target.value)}
+                                    >
+                                        <option value="">-- Select State --</option>
+                                        {INDIAN_STATES.map((s) => (
+                                            <option key={s} value={s}>
+                                                {s}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {fieldError("state")}
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Area/Locality */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">Area/Locality</label>
-                            <input
-                                type="text"
-                                className="sim-input sim-input-full"
-                                value={address.area}
-                                onChange={(e) => updateAddress("area", e.target.value)}
-                            />
+                        {/* Other Details / Employer Note */}
+                        <div className="sim-section">
+                            <h3 className="sim-section-title">Other Details</h3>
+                            <div className="sim-form-grid">
+                                <div className="sim-form-row">
+                                    <label className="sim-field-label">Employer / Organization Name</label>
+                                    <input
+                                        type="text"
+                                        className="sim-input sim-input-full"
+                                        value={employer}
+                                        onChange={(e) => {
+                                            setEmployer(e.target.value);
+                                            setErrors((prev) => ({ ...prev, employer: undefined }));
+                                        }}
+                                        placeholder="Enter employer name"
+                                    />
+                                </div>
+                            </div>
                         </div>
-
-                        {/* City */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                City <span className="required">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                className={`sim-input sim-input-full ${errors.city ? "error" : ""}`}
-                                value={address.city}
-                                onChange={(e) => updateAddress("city", e.target.value)}
-                            />
-                            {fieldError("city")}
-                        </div>
-
-                        {/* State */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                State <span className="required">*</span>
-                            </label>
-                            <select
-                                className={`sim-select ${errors.state ? "error" : ""}`}
-                                value={address.state}
-                                onChange={(e) => updateAddress("state", e.target.value)}
-                            >
-                                <option value="">-- Select State --</option>
-                                {INDIAN_STATES.map((s) => (
-                                    <option key={s} value={s}>
-                                        {s}
-                                    </option>
-                                ))}
-                            </select>
-                            {fieldError("state")}
-                        </div>
-
-                        {/* Pincode */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                Pincode <span className="required">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                className={`sim-input sim-input-full ${errors.pincode ? "error" : ""}`}
-                                value={address.pincode}
-                                onChange={(e) =>
-                                    updateAddress(
-                                        "pincode",
-                                        e.target.value.replace(/\D/g, "").slice(0, 6)
-                                    )
-                                }
-                                maxLength={6}
-                                inputMode="numeric"
-                            />
-                            {fieldError("pincode")}
-                        </div>
-                    </div>
-                </div>
-
-                {/* ========== Contact Details ========== */}
-                <div className="sim-section">
-                    <h3 className="sim-section-title">Contact Details</h3>
-                    <div className="sim-form-grid">
-                        {/* Mobile */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                Primary Mobile Number <span className="required">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                className={`sim-input sim-input-full ${errors.mobile ? "error" : ""}`}
-                                value={contact.mobile}
-                                onChange={(e) =>
-                                    updateContact(
-                                        "mobile",
-                                        e.target.value.replace(/\D/g, "").slice(0, 10)
-                                    )
-                                }
-                                maxLength={10}
-                                inputMode="tel"
-                            />
-                            {fieldError("mobile")}
-                        </div>
-
-                        {/* Email */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                Email Address <span className="required">*</span>
-                            </label>
-                            <input
-                                type="email"
-                                className={`sim-input sim-input-full ${errors.email ? "error" : ""}`}
-                                value={contact.email}
-                                onChange={(e) => updateContact("email", e.target.value)}
-                                autoComplete="email"
-                            />
-                            {fieldError("email")}
-                        </div>
-
-                        {/* Alternate Contact */}
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">
-                                Alternate Contact Number
-                            </label>
-                            <input
-                                type="text"
-                                className="sim-input sim-input-full"
-                                value={contact.alternateContact}
-                                onChange={(e) =>
-                                    updateContact(
-                                        "alternateContact",
-                                        e.target.value.replace(/\D/g, "").slice(0, 10)
-                                    )
-                                }
-                                maxLength={10}
-                                inputMode="tel"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                {/* ========== Other Details ========== */}
-                <div className="sim-section">
-                    <h3 className="sim-section-title">Other Details</h3>
-                    <div className="sim-form-grid">
-                        <div className="sim-form-row">
-                            <label className="sim-field-label">Employer / Organization Name</label>
-                            <input
-                                type="text"
-                                className="sim-input sim-input-full"
-                                value={employer}
-                                onChange={(e) => {
-                                    setEmployer(e.target.value);
-                                    setErrors((prev) => ({ ...prev, employer: undefined }));
-                                }}
-                                placeholder="Enter employer name"
-                            />
-                        </div>
-                    </div>
-                </div>
+                    </>
+                )}
 
                 {/* ========== Actions ========== */}
                 <div className="sim-actions sim-actions-row">

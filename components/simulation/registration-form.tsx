@@ -11,17 +11,19 @@ interface RegistrationFormProps {
 }
 
 export function RegistrationForm({ onContinue, onCancel }: RegistrationFormProps) {
-    const { data } = useRegistration();
+    const { data, updateData } = useRegistration();
     const [registerAs, setRegisterAs] = useState<"taxpayer" | "others">(data.registerAs);
     const [pan, setPan] = useState(data.pan);
     const [panError, setPanError] = useState("");
     const [panValidated, setPanValidated] = useState(data.pan.length === 10 && PAN_REGEX.test(data.pan));
+    const [individualConfirm, setIndividualConfirm] = useState<"" | "yes" | "no">(data.individualConfirmation ?? "");
 
     const handlePanChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10);
         setPan(value);
         setPanError("");
         setPanValidated(false);
+        setIndividualConfirm("");
     }, []);
 
     const handleValidate = useCallback(() => {
@@ -40,10 +42,15 @@ export function RegistrationForm({ onContinue, onCancel }: RegistrationFormProps
     }, [pan]);
 
     const handleContinue = useCallback(() => {
-        if (panValidated && onContinue) {
+        if (panValidated && individualConfirm === "yes" && onContinue) {
+            updateData({
+                registerAs,
+                pan,
+                individualConfirmation: individualConfirm,
+            });
             onContinue({ registerAs, pan });
         }
-    }, [panValidated, registerAs, pan, onContinue]);
+    }, [panValidated, individualConfirm, registerAs, pan, onContinue, updateData]);
 
     return (
         <div className="sim-form-card">
@@ -104,19 +111,53 @@ export function RegistrationForm({ onContinue, onCancel }: RegistrationFormProps
 
                 {/* Success message */}
                 {panValidated && !panError && (
-                    <div
-                        style={{
-                            background: "#e8f5e9",
-                            border: "1px solid #a5d6a7",
-                            borderRadius: 3,
-                            padding: "8px 12px",
-                            marginBottom: 24,
-                            fontSize: 13,
-                            color: "#2e7d32",
-                            fontWeight: 500,
-                        }}
-                    >
-                        ✓ PAN validated successfully
+                    <div className="sim-success-msg">
+                        Success: PAN validated successfully.
+                    </div>
+                )}
+
+                {/* Individual taxpayer confirmation */}
+                {panValidated && !panError && (
+                    <div style={{ marginBottom: 16 }}>
+                        <label className="sim-field-label">
+                            Please confirm if you want to register as{" "}
+                            <span style={{ fontWeight: 600 }}>&quot;Individual taxpayer&quot;</span>
+                        </label>
+                        <div className="sim-radio-group">
+                            <label className="sim-radio-label">
+                                <input
+                                    type="radio"
+                                    className="sim-radio"
+                                    name="individual-taxpayer"
+                                    value="yes"
+                                    checked={individualConfirm === "yes"}
+                                    onChange={() => setIndividualConfirm("yes")}
+                                />
+                                Yes
+                            </label>
+                            <label className="sim-radio-label">
+                                <input
+                                    type="radio"
+                                    className="sim-radio"
+                                    name="individual-taxpayer"
+                                    value="no"
+                                    checked={individualConfirm === "no"}
+                                    onChange={() => setIndividualConfirm("no")}
+                                />
+                                No
+                            </label>
+                        </div>
+                        {individualConfirm === "yes" && (
+                            <p style={{ fontSize: 12, color: "#374151", marginTop: 8 }}>
+                                <span style={{ fontWeight: 600 }}>Note:</span> Please ensure your Status is correct as
+                                details in subsequent screens will be based on your Status.
+                            </p>
+                        )}
+                        {individualConfirm === "no" && (
+                            <p style={{ fontSize: 12, color: "#374151", marginTop: 8 }}>
+                                <span style={{ fontWeight: 600 }}>Note:</span> Please update your PAN or apply for a new PAN.
+                            </p>
+                        )}
                     </div>
                 )}
 
@@ -124,8 +165,8 @@ export function RegistrationForm({ onContinue, onCancel }: RegistrationFormProps
                 <div className="sim-actions">
                     <button
                         type="button"
-                        className={`sim-continue-btn ${panValidated ? "enabled" : ""}`}
-                        disabled={!panValidated}
+                        className={`sim-continue-btn ${panValidated && individualConfirm === "yes" ? "enabled" : ""}`}
+                        disabled={!panValidated || individualConfirm !== "yes"}
                         onClick={handleContinue}
                     >
                         Continue &rsaquo;

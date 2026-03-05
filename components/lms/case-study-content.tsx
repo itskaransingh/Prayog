@@ -1,8 +1,8 @@
-import { Badge } from "@/components/ui/badge";
+ "use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { BookOpen, Target, Lightbulb, FileText, ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function CaseStudyContent() {
@@ -20,206 +20,83 @@ export function CaseStudyContent() {
 
             <Separator />
 
-            {/* Scenario Card */}
-            <Card className="border-primary/20 bg-linear-to-br from-primary/5 to-transparent">
-                <CardHeader className="flex flex-row items-center gap-3 pb-3">
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <FileText className="size-5" />
-                    </div>
-                    <div>
-                        <CardTitle className="text-lg">The Scenario</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                            Read this carefully before starting the task
-                        </p>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm leading-relaxed text-foreground/90">
-                        <strong>Mr. Rajesh Kumar</strong>, a 32-year-old salaried employee
-                        working at Infosys Ltd., Bengaluru, needs to register on the
-                        Income Tax e-Filing portal for the first time. He has his PAN card
-                        (ABCPK1234D), Aadhaar card, bank account details, and a registered
-                        mobile number. Your task is to help him complete the{" "}
-                        <strong>new user registration process</strong> on the Income Tax
-                        portal so that he can file his returns for AY 2025-26.
-                    </p>
-                </CardContent>
-            </Card>
-
-            {/* Two-column info */}
-            <div className="grid gap-6 md:grid-cols-2">
-                {/* Learning Objectives */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center gap-3 pb-3">
-                        <div className="flex size-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
-                            <Target className="size-5" />
-                        </div>
-                        <CardTitle className="text-base">Learning Objectives</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ul className="space-y-2 text-sm">
-                            <li className="flex items-start gap-2">
-                                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-blue-500" />
-                                Understand the ITR e-Filing portal interface
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-blue-500" />
-                                Navigate the new user registration flow
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-blue-500" />
-                                Validate PAN and Aadhaar details correctly
-                            </li>
-                            <li className="flex items-start gap-2">
-                                <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-blue-500" />
-                                Complete OTP verification steps
-                            </li>
-                        </ul>
-                    </CardContent>
-                </Card>
-
-                {/* Key Information */}
-                <Card>
-                    <CardHeader className="flex flex-row items-center gap-3 pb-3">
-                        <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
-                            <Lightbulb className="size-5" />
-                        </div>
-                        <CardTitle className="text-base">Key Information</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div>
-                            <p className="text-xs font-medium uppercase text-muted-foreground">
-                                Client Details
-                            </p>
-                            <p className="text-sm">Mr. Rajesh Kumar &bull; PAN: ABCPK1234D</p>
-                        </div>
-                        <Separator />
-                        <div>
-                            <p className="text-xs font-medium uppercase text-muted-foreground">
-                                Portal
-                            </p>
-                            <p className="text-sm">Income Tax e-Filing Portal (incometax.gov.in)</p>
-                        </div>
-                        <Separator />
-                        <div>
-                            <p className="text-xs font-medium uppercase text-muted-foreground">
-                                Documents Required
-                            </p>
-                            <div className="mt-1 flex flex-wrap gap-1.5">
-                                <Badge variant="secondary" className="text-xs">PAN Card</Badge>
-                                <Badge variant="secondary" className="text-xs">Aadhaar Card</Badge>
-                                <Badge variant="secondary" className="text-xs">Bank Details</Badge>
-                                <Badge variant="secondary" className="text-xs">Mobile Number</Badge>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Question Section */}
+            {/* Question Paragraph */}
             <Card className="border-blue-200 bg-blue-50/30">
-                <CardHeader className="flex flex-row items-center gap-3 pb-3">
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-blue-500 text-white">
-                        <span className="text-lg font-bold">?</span>
-                    </div>
-                    <div>
-                        <CardTitle className="text-lg text-blue-900">Question: Registration Details</CardTitle>
-                        <p className="text-sm text-blue-700/70">
-                            Use the following details to complete the registration simulation
-                        </p>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="grid gap-6 md:grid-cols-2">
-                        {/* Personal & Portal Details */}
-                        <div className="space-y-4">
-                            <div>
-                                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-800/60">
-                                    Personal Details
-                                </h4>
-                                <div className="grid grid-cols-2 gap-y-2 text-sm">
-                                    <span className="text-muted-foreground">First Name:</span>
-                                    <span className="font-medium">Rajesh</span>
-                                    <span className="text-muted-foreground">Middle Name:</span>
-                                    <span className="font-medium">---</span>
-                                    <span className="text-muted-foreground">Last Name:</span>
-                                    <span className="font-medium">Kumar</span>
-                                    <span className="text-muted-foreground">Date of Birth:</span>
-                                    <span className="font-medium">15/08/1993</span>
-                                    <span className="text-muted-foreground">Gender:</span>
-                                    <span className="font-medium">Male</span>
-                                </div>
-                            </div>
-                            <div>
-                                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-800/60">
-                                    Contact Details
-                                </h4>
-                                <div className="grid grid-cols-2 gap-y-2 text-sm">
-                                    <span className="text-muted-foreground">Mobile Number:</span>
-                                    <span className="font-medium">9876543210</span>
-                                    <span className="text-muted-foreground">Email ID:</span>
-                                    <span className="font-medium">rajesh.kumar@email.com</span>
-                                    <span className="text-muted-foreground">Alt. Contact:</span>
-                                    <span className="font-medium">---</span>
-                                </div>
-                            </div>
-                            <div>
-                                <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-800/60">
-                                    Other Info
-                                </h4>
-                                <div className="grid grid-cols-2 gap-y-2 text-sm">
-                                    <span className="text-muted-foreground">PAN:</span>
-                                    <span className="font-medium">ABCPK1234D</span>
-                                    <span className="text-muted-foreground">Employer:</span>
-                                    <span className="font-medium">Infosys Ltd.</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Address Details */}
-                        <div>
-                            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-800/60">
-                                Address Details
-                            </h4>
-                            <div className="space-y-2 rounded-lg border border-blue-100 bg-white p-3 text-sm shadow-xs">
-                                <div className="grid grid-cols-[100px_1fr] gap-y-1.5">
-                                    <span className="text-muted-foreground">Flat/Door:</span>
-                                    <span className="font-medium">Flat 302</span>
-                                    <span className="text-muted-foreground">Building:</span>
-                                    <span className="font-medium">Prestige Towers</span>
-                                    <span className="text-muted-foreground">Road/Street:</span>
-                                    <span className="font-medium">Koramangala</span>
-                                    <span className="text-muted-foreground">Area/Locality:</span>
-                                    <span className="font-medium">Koramangala</span>
-                                    <span className="text-muted-foreground">City/Town:</span>
-                                    <span className="font-medium">Bengaluru</span>
-                                    <span className="text-muted-foreground">State:</span>
-                                    <span className="font-medium">Karnataka</span>
-                                    <span className="text-muted-foreground">Pincode:</span>
-                                    <span className="font-medium">560034</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <CardContent className="pt-6">
+                    <p className="text-lg leading-relaxed text-blue-900">
+                        Rajesh Kumar is an individual with incomes from various sources that exceed the basic exemption limit. He needs to register under income tax. Registering on the e-Filing portal will enable him to access and use the various functionalities and tax-related services that the e-Filing portal offers. He has provided you with the following information. As you are a tax practitioner, advise him to register under income tax.
+                    </p>
                 </CardContent>
             </Card>
 
-            {/* Hint Section */}
-            <Card className="border-dashed">
-                <CardHeader className="flex flex-row items-center gap-3 pb-3">
-                    <div className="flex size-10 items-center justify-center rounded-lg bg-green-500/10 text-green-600">
-                        <BookOpen className="size-5" />
-                    </div>
-                    <CardTitle className="text-base">Before You Begin</CardTitle>
+            {/* Details for Registration Table */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-lg">Details for Registration</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                        In the next step, you will enter a simulated version of the Income Tax
-                        e-Filing portal. The simulation closely mirrors the actual government website.
-                        Follow the on-screen instructions carefully, fill in the required data using
-                        the client details provided above, and complete each step of the registration
-                        process. A guide panel will be available to assist you if you get stuck.
-                    </p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full border-collapse border border-gray-300">
+                            <tbody>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">PAN:</td>
+                                    <td className="border border-gray-300 px-4 py-2">ABCPK1234D</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Legal Status:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Individual</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Name:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Rajesh Kumar</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Gender:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Male</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Residential Status:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Resident</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Date of Birth:</td>
+                                    <td className="border border-gray-300 px-4 py-2">15/08/1993</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Mobile No:</td>
+                                    <td className="border border-gray-300 px-4 py-2">9876543210</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Email ID:</td>
+                                    <td className="border border-gray-300 px-4 py-2">rajesh.kumar@email.com</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Flat/Door/Building:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Flat 302</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Road/Street/Block/Sector:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Koramangala</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Area/Locality:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Koramangala</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Town/City/District:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Bengaluru</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">State:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Karnataka</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Pin Code:</td>
+                                    <td className="border border-gray-300 px-4 py-2">560034</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </CardContent>
             </Card>
 
@@ -230,11 +107,28 @@ export function CaseStudyContent() {
                         <p className="text-sm font-medium text-gray-900">Ready to begin?</p>
                         <p className="text-xs text-muted-foreground">This task will take approximately 15-20 minutes.</p>
                     </div>
-                    <Link href="/simulation/gateway">
-                        <Button size="lg" className="gap-2 px-8 font-bold">
-                            Start Task <ArrowRight className="size-4" />
-                        </Button>
-                    </Link>
+                    <Button
+                        size="lg"
+                        className="gap-2 px-8 font-bold"
+                        onClick={() => {
+                            if (typeof window === "undefined") return;
+                            try {
+                                window.localStorage.setItem(
+                                    "itr-registration-started",
+                                    "true",
+                                );
+                            } catch {
+                                // ignore storage errors
+                            }
+                            window.open(
+                                "/simulation/gateway",
+                                "_blank",
+                                "noopener,noreferrer",
+                            );
+                        }}
+                    >
+                        Start Task <ArrowRight className="size-4" />
+                    </Button>
                 </div>
             </div>
         </div>

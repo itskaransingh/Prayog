@@ -13,16 +13,59 @@ export default function GatewayPage() {
                     {/* Left Sidebar: Quick Links */}
                     <aside className="sim-quick-links-card">
                         <div className="sim-sidebar-title">Quick Links</div>
-                        <nav className="sim-sidebar-list">
-                            <SidebarItem icon="📝" label="e-Verify Return" />
-                            <SidebarItem icon="🔍" label="Link Aadhaar Status" />
-                            <SidebarItem icon="🔗" label="Link Aadhaar" />
-                            <SidebarItem icon="📄" label="e-Pay Tax" />
-                            <SidebarItem icon="📅" label="Income Tax Return (ITR) Status" />
-                            <SidebarItem icon="🔑" label="Know Tax Payment Status" />
-                            <SidebarItem icon="🆔" label="Know Your TAN" />
-                            <SidebarItem icon="📋" label="Verify Your PAN" />
-                            <SidebarItem icon="📈" label="Tax Calendar" />
+                        <nav className="sim-sidebar-list" aria-label="Quick Links">
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/e-_Verify_Return.svg"
+                                label="e- Verify Return"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Link_Aadhaar.svg"
+                                label="Link Aadhaar"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Link_Aadhaar_Status.svg"
+                                label="Link Aadhaar Status"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/e-Pay_Tax.svg"
+                                label="e-Pay Tax"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Income_Tax_Calculator.svg"
+                                label="Income Tax Return (ITR) Status"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Verify_PAN_Status.svg"
+                                label="Verify Your PAN"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Know_TAN_Details.svg"
+                                label="Know TAN Details"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Tax_Information_&_services.svg"
+                                label="Tax Information & services"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Authenticate_notice-order_issued_by_ITD.svg"
+                                label="Authenticate notice/order issued by ITD"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Know_your_JAO.svg"
+                                label="Know Your AO"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Instant_E-PAN.svg"
+                                label="Instant E-PAN"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/TDS_On_Cash_Withdrawal.svg"
+                                label="TDS On Cash Withdrawal"
+                            />
+                            <SidebarItem
+                                iconSrc="/simulation/icons/Income-tax-menu-icons/Report_Account_Misuse.svg"
+                                label="Account Misuse"
+                            />
                         </nav>
                     </aside>
 
@@ -81,10 +124,22 @@ export default function GatewayPage() {
     );
 }
 
-function SidebarItem({ icon, label }: { icon: string; label: string }) {
+type SidebarItemProps = {
+    iconSrc: string;
+    label: string;
+};
+
+function SidebarItem({ iconSrc, label }: SidebarItemProps) {
     return (
         <div className="sim-sidebar-item">
-            <span className="sim-sidebar-icon">{icon}</span>
+            <span className="sim-sidebar-icon">
+                <Image
+                    src={iconSrc}
+                    alt={label}
+                    width={24}
+                    height={24}
+                />
+            </span>
             <span>{label}</span>
         </div>
     );

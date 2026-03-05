@@ -1,5 +1,5 @@
-import { DashboardGrid } from "@/components/lms/dashboard-grid";
+import { ProgramsDashboard } from "@/components/lms/programs-dashboard";
 
 export default function LmsPage() {
-    return <DashboardGrid />;
+    return <ProgramsDashboard />;
 }
