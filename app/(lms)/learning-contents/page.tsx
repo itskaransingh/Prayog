@@ -69,7 +69,7 @@ const LEARNING_CONTENTS = [
 
 export default function LearningContentsPage() {
     return (
-        <div className="flex flex-1 flex-col gap-6 p-6 w-full max-w-7xl mx-auto">
+        <div className="flex flex-1 flex-col gap-6 p-6 w-full container mx-auto">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-gray-900">
