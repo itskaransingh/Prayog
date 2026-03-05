@@ -2,10 +2,11 @@
 
 import { usePathname } from "next/navigation";
 import { BottomNavBar } from "@/components/lms/bottom-nav-bar";
-import { CourseTopicsSidebar } from "@/components/lms/course-topics-sidebar";
+// import { CourseTopicsSidebar } from "@/components/lms/course-topics-sidebar";
 import { Bell, User } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import Link from "next/link";
 
 export default function LmsLayout({
     children,
@@ -17,17 +18,18 @@ export default function LmsLayout({
     return (
         <SidebarProvider>
             <div className="flex min-h-screen w-full">
-                <CourseTopicsSidebar />
-                <SidebarInset className="flex flex-col">
+                {/* <CourseTopicsSidebar /> */}
+                <SidebarInset className="flex 
+                 flex-col">
                     {/* Top header */}
-                    <header className="flex h-14 shrink-0 items-center justify-between border-b px-4 bg-white">
+                    <header className="flex container mx-auto h-14 shrink-0 items-center justify-between border-b px-4 bg-white">
                         <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-2">
+                            <Link href={"/"} className="flex items-center gap-2">
                                 <div className="h-6 w-6 bg-blue-600 rounded flex items-center justify-center text-white text-[12px] font-bold shadow-sm">
                                     P
                                 </div>
                                 <span className="text-sm font-semibold tracking-tight text-gray-900">Prayog</span>
-                            </div>
+                            </Link>
                         </div>
                         <div className="flex items-center gap-4">
                             <button className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors">
@@ -43,7 +45,7 @@ export default function LmsLayout({
                     {/* Main content area */}
                     <div className="flex flex-1 flex-col bg-[#f3f4f6]">
                         <main className="flex-1 overflow-y-auto">{children}</main>
-                        {pathname.startsWith("/course") && <BottomNavBar />}
+                        {/* {pathname.startsWith("/course") && <BottomNavBar />} */}
                     </div>
                 </SidebarInset>
             </div>

@@ -60,13 +60,12 @@ export function BottomNavBar({
                         {Array.from({ length: totalSteps }, (_, i) => (
                             <div
                                 key={i}
-                                className={`h-1.5 rounded-full transition-all duration-300 ${
-                                    i < currentStep
-                                        ? "w-6 bg-primary"
-                                        : i === currentStep
-                                            ? "w-4 bg-primary/50"
-                                            : "w-2 bg-muted-foreground/20"
-                                }`}
+                                className={`h-1.5 rounded-full transition-all duration-300 ${i < currentStep
+                                    ? "w-6 bg-primary"
+                                    : i === currentStep
+                                        ? "w-4 bg-primary/50"
+                                        : "w-2 bg-muted-foreground/20"
+                                    }`}
                             />
                         ))}
                     </div>
