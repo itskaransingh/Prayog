@@ -929,42 +929,74 @@
   color: #666;
 }
 
-.sim-otp-input-row {
+.sim-otp-boxes {
   display: flex;
+  gap: 12px;
   align-items: center;
+}
+
+.sim-otp-box {
+  width: 48px;
+  height: 48px;
+  border: 2px solid #d0d7de;
+  border-radius: 6px;
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  background-color: #fff;
+  color: #333;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  padding: 0;
+}
+
+.sim-otp-box:focus {
+  outline: none;
+  border-color: #1b3281;
+  box-shadow: 0 0 0 3px rgba(27, 50, 129, 0.1);
+}
+
+.sim-otp-box:disabled {
+  background-color: #f0f0f0;
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+.sim-otp-status {
+  margin-top: 24px;
+  padding: 16px;
+  background-color: #f5f6f8;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 
-.sim-otp-input {
-  width: 180px;
-  letter-spacing: 4px;
-  font-size: 18px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.sim-resend-timer {
-  font-size: 12px;
-  color: #e53935;
-  font-weight: 500;
-  margin-top: 8px;
-}
-
-.sim-resend-link {
+.sim-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 13px;
-  color: #1b3281;
-  text-decoration: underline;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
 }
 
-.sim-resend-link:disabled {
-  color: #999;
-  text-decoration: none;
-  cursor: not-allowed;
+.sim-status-label {
+  color: #666;
+  font-weight: 500;
 }
+
+.sim-status-value {
+  color: #e53935;
+  font-weight: 600;
+}
+
+.sim-status-note {
+  font-size: 12px;
+  color: #555;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
 
 /* ---------- Password Creation (Step 4) ---------- */
 
@@ -1104,7 +1136,78 @@
   max-width: 500px;
 }
 
-/* ---------- Evaluation Results ---------- */
+/* Password Strength Banner */
+.sim-password-strength-banner {
+  padding: 10px 16px;
+  border-radius: 4px;
+  margin-top: 12px;
+  font-size: 14px;
+  border: 1px solid transparent;
+}
+
+.sim-password-strength-banner.weak {
+  background-color: #fef2f2;
+  border-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.sim-password-strength-banner.medium {
+  background-color: #fffbeb;
+  border-color: #fef3c7;
+  color: #92400e;
+}
+
+.sim-password-strength-banner.strong {
+  background-color: #f0fdf4;
+  border-color: #dcfce7;
+  color: #166534;
+}
+
+/* Success Details */
+.sim-success-details {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 30px;
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sim-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sim-detail-label {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.sim-detail-value {
+  font-size: 16px;
+  color: #1e293b;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.sim-rule-status-icon {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.sim-rule-item.unmet {
+  color: #e53e3e;
+}
+
+.sim-rule-item.unmet .sim-rule-status-icon {
+  color: #e53e3e;
+}
 
 .sim-eval-container {
   width: 100%;
@@ -1401,6 +1504,272 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
+}
+
+/* ---------- Verify Details Section ---------- */
+
+.sim-summary-section {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 32px;
+}
+
+.sim-summary-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1b3281;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #edf2f7;
+}
+
+.sim-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.sim-summary-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.sim-summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+
+.sim-summary-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d3748;
+}
+
+/* ---------- Modal Styles ---------- */
+
+.sim-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.sim-modal-content {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  max-width: 800px;
+  width: 90%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.sim-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.sim-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1b3281;
+  margin: 0;
+}
+
+.sim-modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background-color: #f0f0f0;
+  color: #666;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.sim-modal-close:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+.sim-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.sim-modal-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1b3281;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+  margin-top: 24px;
+}
+
+.sim-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #edf2f7;
+  gap: 12px;
+}
+
+/* ---------- Evaluation Score Card (in Modal) ---------- */
+
+.sim-eval-score-card {
+  display: flex;
+  gap: 40px;
+  align-items: center;
+  padding: 24px;
+  background-color: #f5f6f8;
+  border-radius: 6px;
+  margin-bottom: 24px;
+}
+
+.sim-eval-ring-container {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.sim-eval-ring-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.sim-eval-ring-bg {
+  fill: none;
+  stroke: #e2e8f0;
+  stroke-width: 8;
+}
+
+.sim-eval-ring-fill {
+  fill: none;
+  stroke: #1b3281;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.sim-eval-percentage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 28px;
+  font-weight: 700;
+  color: #1b3281;
+}
+
+.sim-eval-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sim-eval-stat-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.sim-eval-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+
+.sim-eval-stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+/* ---------- Evaluation Breakdown Table ---------- */
+
+.sim-eval-breakdown {
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sim-eval-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.sim-eval-table thead {
+  background-color: #f5f6f8;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.sim-eval-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.sim-eval-table td {
+  padding: 12px;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.sim-eval-table tr:last-child td {
+  border-bottom: none;
+}
+
+.sim-eval-entered {
+  color: #e53935;
+}
+
+.sim-eval-expected {
+  color: #2f855a;
+}
+
+.sim-eval-status {
+  font-size: 16px;
+}
+
+.sim-eval-status.correct {
+  color: #2f855a;
+}
+
+.sim-eval-status.partial {
+  color: #f59e0b;
+}
+
+.sim-eval-status.incorrect {
+  color: #e53935;
 }
 
 .sim-gateway-card {

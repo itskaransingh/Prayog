@@ -59,6 +59,7 @@ interface RegistrationContextValue {
     currentStep: StepNumber;
     startTime: number | null;
     evaluationResults: EvaluationResult | null;
+    transactionId: string | null;
     isCompleted: boolean;
     updateData: (partial: Partial<RegistrationData>) => void;
     goToStep: (step: StepNumber) => void;
@@ -109,6 +110,7 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
     const [currentStep, setCurrentStep] = useState<StepNumber>(1);
     const [startTime, setStartTime] = useState<number | null>(null);
     const [evaluationResults, setEvaluationResults] = useState<EvaluationResult | null>(null);
+    const [transactionId, setTransactionId] = useState<string | null>(null);
     const [isCompleted, setIsCompleted] = useState(false);
 
     // Set start time when the user starts Step 1
@@ -128,7 +130,13 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const completed = localStorage.getItem("itr-registration-completed");
         if (completed === "true") {
-            setIsCompleted(true);
+            // Auto-clear logic: If session was completed and user refreshes, 
+            // wipe everything to allow a fresh start.
+            localStorage.removeItem("itr-registration-completed");
+            localStorage.removeItem("itr-registration-started");
+            setIsCompleted(false);
+            setData(INITIAL_DATA);
+            setCurrentStep(1);
         }
     }, []);
 
@@ -153,7 +161,12 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
 
         const endTime = Date.now();
         const results = evaluateRegistration(data, startTime, endTime);
+
+        // Generate a simple unique transaction ID
+        const txId = "REG" + Math.random().toString(36).substring(2, 10).toUpperCase();
+
         setEvaluationResults(results);
+        setTransactionId(txId);
         setIsCompleted(true);
         localStorage.setItem("itr-registration-completed", "true");
     }, [data, startTime]);
@@ -165,6 +178,7 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
                 currentStep,
                 startTime,
                 evaluationResults,
+                transactionId,
                 isCompleted,
                 updateData,
                 goToStep,
