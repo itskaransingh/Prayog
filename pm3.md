@@ -4,12 +4,12 @@ I've implemented the requested polish for Milestone 2:
 
 1. New "Question" Panel in LMS
 Added a dedicated card "Question: Registration Details" to the landing page (above "Before You Begin").
-It explicitly lists all data required for the simulation: Personal (Name, DOB, Gender), Address, Contact, and Other Info (PAN, Employer).
+It explicitly lists all data required for the simulation: Personal (Name, DOB, Gender), Address, and Contact (PAN is shown separately).
 All data is pulled from or matches the GROUND_TRUTH constants.
 2. Evaluation & Metric Alignment
-Updated lib/evaluation.ts to include Employer, Middle Name, and Alt. Contact in the scoring logic.
+Updated lib/evaluation.ts to include Middle Name and Alt. Contact in the scoring logic (Employer field removed).
 Synchronized Labels: Labels like "Area/Locality", "City/Town", and "Flat/Door" now match exactly between the LMS Question panel and the final Evaluation breakdown.
-Form Update: Added the "Employer" field to the Step 2 form in the simulation so students can actually fill it in as prompted.
+Form Update: Removed the "Employer" field from the Step 2 form in the simulation as it is no longer required.
 3. Technical Fixes
 Fixed the RegistrationData interface to include the new fields.
 Verified that a perfect match now yields a 100% accuracy score.

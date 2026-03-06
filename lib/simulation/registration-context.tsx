@@ -49,7 +49,7 @@ export interface RegistrationData {
     personalDetails: PersonalDetails;
     addressDetails: AddressDetails;
     contactDetails: ContactDetails;
-    employer: string;
+    personalizedMessage: string;
 }
 
 // ---------- Context Shape ----------
@@ -100,7 +100,7 @@ const INITIAL_DATA: RegistrationData = {
         mobileBelongsTo: "",
         emailBelongsTo: "",
     },
-    employer: "",
+    personalizedMessage: "",
 };
 
 // ---------- Provider ----------
