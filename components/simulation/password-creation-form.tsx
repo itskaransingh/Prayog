@@ -9,7 +9,7 @@ interface PasswordCreationFormProps {
 }
 
 export function PasswordCreationForm({ onRegister, onBack }: PasswordCreationFormProps) {
-    const { data } = useRegistration();
+    const { data, updateData } = useRegistration();
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -18,14 +18,12 @@ export function PasswordCreationForm({ onRegister, onBack }: PasswordCreationFor
 
     const rules = useMemo(() => {
         return [
-            { id: "length", label: "8-14 characters", met: password.length >= 8 && password.length <= 14 },
-            { id: "upper", label: "At least one uppercase", met: /[A-Z]/.test(password) },
-            { id: "lower", label: "At least one lowercase", met: /[a-z]/.test(password) },
-            { id: "digit", label: "At least one digit", met: /\d/.test(password) },
-            { id: "special", label: "At least one special character (@#$%)", met: /[@#$%^&*!]/.test(password) },
-            { id: "pan", label: "Should not contain PAN", met: password.length > 0 && !password.toUpperCase().includes(data.pan.toUpperCase()) },
+            { id: "length", label: "Use 8 to 14 characters", met: password.length >= 8 && password.length <= 14 },
+            { id: "cases", label: "Use uppercase and lowercase letters (e.g. Aa)", met: /[A-Z]/.test(password) && /[a-z]/.test(password) },
+            { id: "digit", label: "Use a number (e.g. 123)", met: /\d/.test(password) },
+            { id: "special", label: "Use a special character (e.g. @#%*)", met: /[@#$%^&*!]/.test(password) },
         ];
-    }, [password, data.pan]);
+    }, [password]);
 
     const strength = useMemo(() => {
         if (!password) return 0;
@@ -39,7 +37,7 @@ export function PasswordCreationForm({ onRegister, onBack }: PasswordCreationFor
     const strengthLabel = ["", "Weak", "Medium", "Good", "Strong"][strength];
     const strengthClass = strength === 1 ? "weak" : strength === 2 ? "medium" : strength >= 3 ? "strong" : "";
 
-    const canSubmit = rules.every(r => r.met) && password === confirmPassword && password.length > 0;
+    const canSubmit = rules.every(r => r.met) && password === confirmPassword && password.length > 0 && (data.personalizedMessage || "").length > 0;
 
     const handleRegister = () => {
         if (password !== confirmPassword) {
@@ -84,16 +82,21 @@ export function PasswordCreationForm({ onRegister, onBack }: PasswordCreationFor
                     )}
 
                     {/* Rules Checklist */}
-                    <div className="sim-password-checklist">
-                        {rules.map(rule => (
-                            <div key={rule.id} className={`sim-rule-item ${rule.met ? "met" : "unmet"}`}>
-                                <span className="sim-rule-status-icon">
-                                    {rule.met ? "✔" : "✖"}
-                                </span>
-                                {rule.label}
+                    {password.length > 0 && (
+                        <div style={{ marginTop: 16 }}>
+                            <p style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>Password must fulfill following criteria:</p>
+                            <div className="sim-password-checklist-simple">
+                                {rules.map(rule => (
+                                    <div key={rule.id} className={`sim-rule-item-simple ${rule.met ? "met" : "unmet"}`}>
+                                        <span className="sim-rule-status-icon">
+                                            {rule.met ? "✔" : "✖"}
+                                        </span>
+                                        {rule.label}
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="sim-form-row" style={{ marginBottom: 20 }}>
@@ -124,12 +127,46 @@ export function PasswordCreationForm({ onRegister, onBack }: PasswordCreationFor
                     )}
                 </div>
 
-                {/* Personalized Message Note */}
-                <div className="sim-note-box" style={{ marginTop: 0, marginBottom: 32 }}>
-                    <strong>Personalized Message</strong>
-                    <p style={{ margin: 0 }}>
-                        User can set a personalized message. It is not required for this simulation stage but recommended for security.
-                    </p>
+                {/* Personalized Message Field */}
+                <div className="sim-form-row" style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <label className="sim-field-label" style={{ margin: 0 }}>Set your Personalized message <span className="required">*</span></label>
+                    </div>
+                    <div className="sim-personalized-message-wrapper" style={{ position: 'relative' }}>
+                        <textarea
+                            className="sim-input sim-input-full"
+                            style={{ height: 80, resize: 'none', paddingRight: 40 }}
+                            value={data.personalizedMessage || ""}
+                            maxLength={25}
+                            onChange={(e) => updateData({ personalizedMessage: e.target.value })}
+                            placeholder="Enter personalized message"
+                        />
+                        <div style={{ position: 'absolute', right: 10, top: 10, color: '#1b3281' }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></svg>
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'right', fontSize: 11, color: '#666', marginTop: 4 }}>
+                        Remaining characters: {25 - (data.personalizedMessage || "").length}
+                    </div>
+
+                    {(data.personalizedMessage || "").length > 0 && (
+                        <div style={{ marginTop: 12 }}>
+                            <p style={{ fontSize: 13, fontWeight: 500, color: '#444', marginBottom: 8 }}>Personalized message criteria:</p>
+                            <ul style={{ paddingLeft: 20, fontSize: 12, color: '#555', listStyleType: 'disc' }}>
+                                <li style={{ marginBottom: 8 }}>
+                                    Don't use your personally identifiable information like full name, Aadhaar number, bank account number, passport number and email address.
+                                </li>
+                                <li style={{ marginBottom: 8 }}>
+                                    It should be something you can remember. Some examples:
+                                    <ul style={{ paddingLeft: 20, marginTop: 8, listStyleType: 'circle' }}>
+                                        <li style={{ marginBottom: 4 }}>I love my family</li>
+                                        <li style={{ marginBottom: 4 }}>My pet name is Tommy</li>
+                                        <li style={{ marginBottom: 4 }}>Banglore is my birth place.</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </div>
+                    )}
                 </div>
 
                 {error && (

@@ -37,7 +37,6 @@ export const GROUND_TRUTH = {
         email: "rajesh.kumar@email.com",
         alternateContact: "",
     },
-    employer: "Infosys Ltd.",
 } as const;
 
 // ---------- Validation Regex ----------

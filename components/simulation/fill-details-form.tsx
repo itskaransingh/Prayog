@@ -42,7 +42,6 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
     );
     const [address, setAddress] = useState<AddressDetails>(data.addressDetails);
     const [contact, setContact] = useState<ContactDetails>(data.contactDetails);
-    const [employer, setEmployer] = useState<string>(data.employer);
     const [errors, setErrors] = useState<FormErrors>({});
     const [activeTab, setActiveTab] = useState<"basic" | "contact">("basic");
     const dobInputRef = useRef<HTMLInputElement | null>(null);
@@ -128,11 +127,10 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
                 personalDetails: personal,
                 addressDetails: address,
                 contactDetails: contact,
-                employer: employer,
             });
             onContinue();
         }
-    }, [activeTab, validate, updateData, personal, address, contact, employer, onContinue]);
+    }, [activeTab, validate, updateData, personal, address, contact, onContinue]);
 
     const handleBack = useCallback(() => {
         // Persist current edits even on back
@@ -140,10 +138,9 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
             personalDetails: personal,
             addressDetails: address,
             contactDetails: contact,
-            employer: employer,
         });
         onBack();
-    }, [updateData, personal, address, contact, employer, onBack]);
+    }, [updateData, personal, address, contact, onBack]);
 
     // ---------- Error helper ----------
 
@@ -579,25 +576,6 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
                             </div>
                         </div>
 
-                        {/* Other Details / Employer Note */}
-                        <div className="sim-section">
-                            <h3 className="sim-section-title">Other Details</h3>
-                            <div className="sim-form-grid">
-                                <div className="sim-form-row">
-                                    <label className="sim-field-label">Employer / Organization Name</label>
-                                    <input
-                                        type="text"
-                                        className="sim-input sim-input-full"
-                                        value={employer}
-                                        onChange={(e) => {
-                                            setEmployer(e.target.value);
-                                            setErrors((prev) => ({ ...prev, employer: undefined }));
-                                        }}
-                                        placeholder="Enter employer name"
-                                    />
-                                </div>
-                            </div>
-                        </div>
                     </>
                 )}
 

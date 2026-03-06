@@ -76,9 +76,15 @@ export function OTPVerificationForm({ onContinue, onBack }: OTPVerificationFormP
         }
 
         // Auto-focus next input if digit entered
-        if (sanitized && index < 5) {
+        if (sanitized) {
             const refs = isEmail ? emailRefs.current : mobileRefs.current;
-            refs[index + 1]?.focus();
+            if (index < 5) {
+                // move within same OTP group
+                refs[index + 1]?.focus();
+            } else if (!isEmail) {
+                // finished mobile OTP, move to first email box
+                emailRefs.current[0]?.focus();
+            }
         }
     };
 
@@ -90,7 +96,7 @@ export function OTPVerificationForm({ onContinue, onBack }: OTPVerificationFormP
         const refs = isEmail ? emailRefs.current : mobileRefs.current;
 
         // Backspace: move to previous input
-        if (e.key === "Backspace" && index > 0) {
+        if (e.key === "Backspace") {
             const otpArray = isEmail ? [...emailOtp] : [...mobileOtp];
             otpArray[index] = "";
             if (isEmail) {
@@ -98,7 +104,12 @@ export function OTPVerificationForm({ onContinue, onBack }: OTPVerificationFormP
             } else {
                 setMobileOtp(otpArray);
             }
-            refs[index - 1]?.focus();
+            if (index > 0) {
+                refs[index - 1]?.focus();
+            } else if (isEmail) {
+                // if on first email digit and backspace, go to last mobile digit
+                mobileRefs.current[5]?.focus();
+            }
         }
 
         // Arrow keys for navigation

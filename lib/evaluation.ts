@@ -71,10 +71,10 @@ export function evaluateRegistration(
         "Mobile Number": { entered: data.contactDetails.mobile, expected: GROUND_TRUTH.contactDetails.mobile },
         "Email ID": { entered: data.contactDetails.email, expected: GROUND_TRUTH.contactDetails.email },
         "Alt. Contact": { entered: data.contactDetails.alternateContact, expected: GROUND_TRUTH.contactDetails.alternateContact },
-        "Employer": { entered: data.employer || "", expected: GROUND_TRUTH.employer },
     };
 
     let totalScore = 0;
+    // maxPossibleScore computed from remaining fields
     const maxPossibleScore = Object.keys(fieldMap).length;
 
     for (const [label, { entered, expected }] of Object.entries(fieldMap)) {

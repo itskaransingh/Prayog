@@ -43,7 +43,8 @@ export function RegistrationForm({ onContinue, onBack, onCancel }: RegistrationF
     }, [pan]);
 
     const handleContinue = useCallback(() => {
-        if (panValidated && individualConfirm && onContinue) {
+        // only proceed when PAN is validated and user has made a confirmation choice
+        if (panValidated && individualConfirm !== "" && onContinue) {
             updateData({
                 registerAs,
                 pan,
@@ -173,8 +174,8 @@ export function RegistrationForm({ onContinue, onBack, onCancel }: RegistrationF
                     </button>
                     <button
                         type="button"
-                        className={`sim-continue-btn ${panValidated && individualConfirm === "yes" ? "enabled" : ""}`}
-                        disabled={!panValidated || individualConfirm !== "yes"}
+                        className={`sim-continue-btn ${panValidated && individualConfirm !== "" ? "enabled" : ""}`}
+                        disabled={!panValidated || individualConfirm === ""}
                         onClick={handleContinue}
                     >
                         Continue &rsaquo;

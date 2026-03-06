@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PortalHeader } from "@/components/simulation/portal-header";
 import { PortalFooter } from "@/components/simulation/portal-footer";
 import { ProgressStepper } from "@/components/simulation/progress-stepper";
@@ -13,7 +13,7 @@ import {
     RegistrationProvider,
     useRegistration,
 } from "@/lib/simulation/registration-context";
-import { EvaluationResults } from "@/components/simulation/evaluation-results";
+import { EvaluationPopup } from "@/components/simulation/evaluation-results";
 
 function StepContent({ onRegister }: { onRegister: () => void }) {
     const { currentStep, nextStep, prevStep, updateData } =
@@ -72,46 +72,98 @@ export default function SimulationPage() {
 
 function SimulationContent() {
     const { data, transactionId, isCompleted, completeRegistration, evaluationResults } = useRegistration();
+    const [showEvalPopup, setShowEvalPopup] = useState(false);
+
+    // Auto-show evaluation popup after 1 second
+    useEffect(() => {
+        if (isCompleted && evaluationResults) {
+            const timer = setTimeout(() => setShowEvalPopup(true), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [isCompleted, evaluationResults]);
 
     if (isCompleted) {
+        // Mask helpers
+        const maskedPan = data.pan.length >= 5
+            ? data.pan.slice(0, 3) + '****' + data.pan.slice(-1)
+            : data.pan;
+        const maskedTxn = transactionId && transactionId.length > 6
+            ? transactionId.slice(0, 3) + '*'.repeat(transactionId.length - 6) + transactionId.slice(-3)
+            : transactionId;
+
+        const maskedEmail = data.contactDetails.email
+            ? data.contactDetails.email.replace(/(.{2}).+(@.+)/, '$1****$2').toUpperCase()
+            : '';
+        const maskedMobile = data.contactDetails.mobile
+            ? '+91  ' + data.contactDetails.mobile.slice(0, 4) + '****' + data.contactDetails.mobile.slice(-2)
+            : '';
+
         return (
             <>
                 <PortalHeader />
-                <main className="sim-page-body">
-                    <div className="sim-form-card sim-form-card-full" style={{ display: 'block' }}>
-                        <div className="sim-success-view">
-                            <div className="sim-success-icon">✓</div>
-                            <h1 className="sim-success-title">Congratulations!</h1>
-                            <p className="sim-success-subtitle">
-                                You have successfully registered on the e-Filing portal.
-                                Below is your evaluation report based on the case study data.
-                            </p>
+                <main className="sim-success-page-body">
+                    {/* Breadcrumb */}
+                    <div className="sim-success-breadcrumb">
+                        <a href="#">Home</a>
+                        <span className="sep">&rsaquo;</span>
+                        <span>Register</span>
+                    </div>
 
-                            <div className="sim-success-details">
-                                <div className="sim-detail-row">
-                                    <span className="sim-detail-label">User ID (PAN):</span>
-                                    <span className="sim-detail-value">{data.pan}</span>
-                                </div>
-                                <div className="sim-detail-row">
-                                    <span className="sim-detail-label">Transaction ID:</span>
-                                    <span className="sim-detail-value">{transactionId}</span>
-                                </div>
-                            </div>
-
-                            <EvaluationResults />
-
-                            <div style={{ width: "300px", marginTop: "40px" }}>
-                                <button
-                                    className="sim-continue-btn enabled"
-                                    onClick={() => window.location.href = "/"}
-                                >
-                                    Return to Course
-                                </button>
-                            </div>
+                    {/* Top success card */}
+                    <div className="sim-success-card">
+                        <div className="sim-success-card-icon">
+                            <div className="doc-illustration">📄</div>
+                            <div className="check-circle">✓</div>
                         </div>
+                        <div className="sim-success-card-body">
+                            <h2>Registered successfully!</h2>
+                            <p>Thank you for registering with e-Filing.</p>
+                            <p>Your Transaction ID : <span className="txn-id">{maskedTxn}</span></p>
+                        </div>
+                    </div>
+
+                    {/* User ID card */}
+                    <div className="sim-userid-card">
+                        <h3>
+                            Your e-Filing portal User ID is <span className="user-id-value">{maskedPan}.</span>
+                        </h3>
+                        <p>
+                            A confirmation E-mail is sent to <span className="contact-info">{maskedEmail}</span> and an SMS to <span className="contact-info">{maskedMobile}.</span>
+                        </p>
+
+                        <div className="info-note">
+                            <div className="info-icon">i</div>
+                            <span>
+                                With this registration, you will get the access to limited features. Please login and update your profile to
+                                get access to all the features provided by the department, like &quot;Add Bank Account&quot;, &quot;Link Aadhaar&quot;..
+                                etc.
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <button
+                            className="sim-proceed-btn"
+                            onClick={() => window.location.href = '/'}
+                        >
+                            Proceed To Login
+                        </button>
+                        <button
+                            className="sim-view-eval-btn"
+                            onClick={() => setShowEvalPopup(true)}
+                        >
+                            📊 View Evaluation
+                        </button>
                     </div>
                 </main>
                 <PortalFooter />
+
+                {/* Evaluation popup */}
+                <EvaluationPopup
+                    open={showEvalPopup}
+                    onClose={() => setShowEvalPopup(false)}
+                />
             </>
         );
     }
