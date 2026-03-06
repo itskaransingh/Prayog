@@ -7,10 +7,11 @@ const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 
 interface RegistrationFormProps {
     onContinue?: (data: { registerAs: string; pan: string }) => void;
+    onBack?: () => void;
     onCancel?: () => void;
 }
 
-export function RegistrationForm({ onContinue, onCancel }: RegistrationFormProps) {
+export function RegistrationForm({ onContinue, onBack, onCancel }: RegistrationFormProps) {
     const { data, updateData } = useRegistration();
     const [registerAs, setRegisterAs] = useState<"taxpayer" | "others">(data.registerAs);
     const [pan, setPan] = useState(data.pan);
@@ -163,6 +164,13 @@ export function RegistrationForm({ onContinue, onCancel }: RegistrationFormProps
 
                 {/* Action buttons */}
                 <div className="sim-actions">
+                    <button
+                        type="button"
+                        className="sim-back-btn"
+                        onClick={onBack}
+                    >
+                        &lsaquo; Back
+                    </button>
                     <button
                         type="button"
                         className={`sim-continue-btn ${panValidated && individualConfirm === "yes" ? "enabled" : ""}`}

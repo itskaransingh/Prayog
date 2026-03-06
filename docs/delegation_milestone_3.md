@@ -64,29 +64,43 @@ This milestone focuses on achieving pixel-perfect replication of the Nergy Vidya
     - Items: e-Verify Return, Link Aadhaar, Link Aadhaar Status, e-Pay Tax, etc.
     - Top Navbar: Increase font size, add Question No, Call Us, Register button.
 
-### PRA-22: Form Refactoring & Identity Check
-- **Target**: `components/simulation/registration-form.tsx` & `fill-details-form.tsx`
+### PRA-26: Global State Management, Back Navigation & Auto-clear
+- **Target**: `lib/simulation/registration-context.tsx` and related form wrappers.
+- **Goal**: Improve session lifecycle and form navigation.
 - **Details**:
-    - Registration Step 1: After PAN, add "Individual taxpayer" confirmation radio buttons with Note alerts.
-    - Fill Details: Split into two modules - "Basic Details" and "Contact Details".
-    - Use a Datepicker widget for Birthday.
+    - Add a generic 'Back' button to all forms to go back to the previous step while preserving form progress.
+    - Upon successful submission, if the user refreshes the page, completely wipe state immediately so they don't have to clear site data manually to start a new simulation.
 
-### PRA-23: OTP UI & Validation
+### PRA-22: Form Refactoring (Basic/Contact Details & PAN Logic)
+- **Target**: `components/simulation/registration-form.tsx` & `fill-details-form.tsx`
+- **Goal**: Refactor the initial steps of the simulation.
+- **Details**:
+    - Registration Step 1: After PAN, add "Individual taxpayer" confirmation radio buttons with Note alerts. **User must be able to continue to Step 2 even if they select 'No'.**
+    - Fill Details: Split into two visible modules/tabs - "Basic Details" and "Contact Details".
+    - Use a custom Datepicker widget for Birthday.
+
+### PRA-23: OTP UI (6-box inputs & Masking)
 - **Target**: `components/simulation/otp-verification-form.tsx`
+- **Goal**: Match exactly NV's OTP layout.
 - **Details**:
     - Use 6 separate boxes for OTP inputs.
+    - **CRITICAL**: The OTP inputs MUST be masked (show as `***` or `\u2022\u2022\u2022`) while typing.
     - Separate sections for Mobile OTP and Email OTP.
-    - Remove "Send OTP" button.
+    - Form should omit the "Send OTP" button.
 
-### PRA-24: Evaluation Popup & Verify Details
+### PRA-24: Evaluation Popup on Verify Details
 - **Target**: `components/simulation/verify-details-section.tsx`
+- **Goal**: Real-time evaluation feedback loop.
 - **Details**:
     - Replicate the final "Verify Details" layout.
-    - TRIGGER EVALUATION HERE: Show the score and correct/incorrect fields in a MODAL POPUP on this page.
+    - **EVALUATION LOGIC**: Upon clicking 'Confirm', show a MODAL POPUP displaying fields filled incorrectly and the evaluation score.
+    - The user can choose to go back and fix the issues or proceed.
 
 ### PRA-25: Password checklist & Success Screen
 - **Target**: `components/simulation/password-creation-form.tsx` & Success Page
+- **Goal**: Password validation aesthetics and final success view.
 - **Details**:
-    - Checklist items should "check off" (green) as user types.
+    - Password checklist criteria (e.g., 8-14 chars, uppercase/lowercase, number, special char) must dynamically toggle (green ticks/red crosses) EXACTLY like the Nergy Vidya UI.
+    - Set password should show Error or Success banner based on strength.
     - Personalized message note logic.
-    - Success page: Show Transaction ID and background decorations.
+    - **Success page**: Upon final confirm, navigate to the successful page. Display user ID, Transaction ID, AND the final evaluation score.

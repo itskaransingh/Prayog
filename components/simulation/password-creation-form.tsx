@@ -37,6 +37,7 @@ export function PasswordCreationForm({ onRegister, onBack }: PasswordCreationFor
     }, [rules, password]);
 
     const strengthLabel = ["", "Weak", "Medium", "Good", "Strong"][strength];
+    const strengthClass = strength === 1 ? "weak" : strength === 2 ? "medium" : strength >= 3 ? "strong" : "";
 
     const canSubmit = rules.every(r => r.met) && password === confirmPassword && password.length > 0;
 
@@ -60,7 +61,10 @@ export function PasswordCreationForm({ onRegister, onBack }: PasswordCreationFor
                             type={showPassword ? "text" : "password"}
                             className="sim-input sim-input-full"
                             value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            onChange={(e) => {
+                                setPassword(e.target.value);
+                                if (error) setError("");
+                            }}
                             placeholder="Enter password"
                         />
                         <button
@@ -72,42 +76,37 @@ export function PasswordCreationForm({ onRegister, onBack }: PasswordCreationFor
                         </button>
                     </div>
 
-                    {/* Strength Meter */}
-                    <div className="sim-strength-container">
-                        <div className={`sim-strength-meter strength-${strength}`}>
-                            <div className="sim-strength-segment seg-1"></div>
-                            <div className="sim-strength-segment seg-2"></div>
-                            <div className="sim-strength-segment seg-3"></div>
-                            <div className="sim-strength-segment seg-4"></div>
+                    {/* Strength Banner */}
+                    {password && (
+                        <div className={`sim-password-strength-banner ${strengthClass}`}>
+                            Password Strength: <strong>{strengthLabel}</strong>
                         </div>
-                        {password && (
-                            <div className="sim-strength-label" style={{
-                                color: strength === 1 ? "#e53e3e" : strength === 2 ? "#dd6b20" : strength === 3 ? "#d69e2e" : "#38a169"
-                            }}>
-                                {strengthLabel}
-                            </div>
-                        )}
-                    </div>
+                    )}
 
                     {/* Rules Checklist */}
                     <div className="sim-password-checklist">
                         {rules.map(rule => (
-                            <div key={rule.id} className={`sim-rule-item ${rule.met ? "met" : ""}`}>
-                                <div className="sim-rule-icon"></div>
+                            <div key={rule.id} className={`sim-rule-item ${rule.met ? "met" : "unmet"}`}>
+                                <span className="sim-rule-status-icon">
+                                    {rule.met ? "✔" : "✖"}
+                                </span>
                                 {rule.label}
                             </div>
                         ))}
                     </div>
                 </div>
 
-                <div className="sim-form-row" style={{ marginBottom: 32 }}>
+                <div className="sim-form-row" style={{ marginBottom: 20 }}>
                     <label className="sim-field-label">Confirm Password <span className="required">*</span></label>
                     <div className="sim-password-field">
                         <input
                             type={showConfirmPassword ? "text" : "password"}
                             className="sim-input sim-input-full"
                             value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            onChange={(e) => {
+                                setConfirmPassword(e.target.value);
+                                if (error) setError("");
+                            }}
                             placeholder="Re-enter password"
                         />
                         <button
@@ -123,6 +122,14 @@ export function PasswordCreationForm({ onRegister, onBack }: PasswordCreationFor
                             <span className="error-text">Passwords do not match</span>
                         </div>
                     )}
+                </div>
+
+                {/* Personalized Message Note */}
+                <div className="sim-note-box" style={{ marginTop: 0, marginBottom: 32 }}>
+                    <strong>Personalized Message</strong>
+                    <p style={{ margin: 0 }}>
+                        User can set a personalized message. It is not required for this simulation stage but recommended for security.
+                    </p>
                 </div>
 
                 {error && (
