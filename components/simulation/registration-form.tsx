@@ -43,7 +43,7 @@ export function RegistrationForm({ onContinue, onBack, onCancel }: RegistrationF
     }, [pan]);
 
     const handleContinue = useCallback(() => {
-        if (panValidated && individualConfirm === "yes" && onContinue) {
+        if (panValidated && individualConfirm && onContinue) {
             updateData({
                 registerAs,
                 pan,
