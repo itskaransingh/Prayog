@@ -229,7 +229,7 @@ export function OTPVerificationForm({ onContinue, onBack }: OTPVerificationFormP
 
                 <div className="sim-actions sim-actions-row">
                     <button type="button" className="sim-back-btn" onClick={onBack}>
-                        &lsaquo; Back
+                        &#8249; Back
                     </button>
                     <button
                         type="button"

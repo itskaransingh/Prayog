@@ -1,8 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import { useRegistration } from "@/lib/simulation/registration-context";
-import { evaluateRegistration } from "@/lib/evaluation";
 
 interface VerifyDetailsSectionProps {
     onContinue: () => void;
@@ -10,29 +8,8 @@ interface VerifyDetailsSectionProps {
 }
 
 export function VerifyDetailsSection({ onContinue, onBack }: VerifyDetailsSectionProps) {
-    const { data, startTime, goToStep } = useRegistration();
-    const { personalDetails, contactDetails, addressDetails, pan, registerAs } = data;
-
-    const [showEvaluationModal, setShowEvaluationModal] = useState(false);
-    const [evaluationData, setEvaluationData] = useState<any>(null);
-
-    const handleVerify = () => {
-        if (startTime) {
-            const endTime = Date.now();
-            const results = evaluateRegistration(data, startTime, endTime);
-            setEvaluationData(results);
-            setShowEvaluationModal(true);
-        }
-    };
-
-    const handleContinueAfterEvaluation = () => {
-        setShowEvaluationModal(false);
-        onContinue();
-    };
-
-    const handleCloseEvaluation = () => {
-        setShowEvaluationModal(false);
-    };
+    const { data, goToStep } = useRegistration();
+    const { personalDetails, contactDetails, addressDetails, pan } = data;
 
     const fullName = `${personalDetails.firstName}${personalDetails.middleName ? " " + personalDetails.middleName : ""} ${personalDetails.lastName}`.trim();
 
@@ -67,7 +44,7 @@ export function VerifyDetailsSection({ onContinue, onBack }: VerifyDetailsSectio
                         </div>
                         <div className="sim-verify-item">
                             <span className="sim-verify-label">Name</span>
-                            <span className="sim-verify-value">{personalDetails.lastName}</span> {/* In screenshot it says Rao, and user is Rao, so likely just LastName or Name as entered */}
+                            <span className="sim-verify-value">{personalDetails.lastName}</span>
                         </div>
                         <div className="sim-verify-item">
                             <span className="sim-verify-label">Date of Birth</span>
@@ -126,8 +103,8 @@ export function VerifyDetailsSection({ onContinue, onBack }: VerifyDetailsSectio
                         <div className="sim-verify-item">
                             <span className="sim-verify-label">Postal Address</span>
                             <div className="sim-verify-address-block">
-                                <p>{addressDetails.flatDoorNo} {addressDetails.road} {addressDetails.city}</p>
-                                <p>{addressDetails.city} {addressDetails.city} {addressDetails.state} India</p>
+                                <p>{addressDetails.flatDoorNo} {addressDetails.road} {addressDetails.area}</p>
+                                <p>{addressDetails.postOffice} {addressDetails.city} {addressDetails.state} India</p>
                                 <p>Pincode - {addressDetails.pincode}</p>
                             </div>
                         </div>
@@ -137,25 +114,16 @@ export function VerifyDetailsSection({ onContinue, onBack }: VerifyDetailsSectio
 
             <div className="sim-verify-actions">
                 <button type="button" className="sim-back-border-btn" onClick={onBack}>
-                    &lsaquo; Back
+                    &#8249; Back
                 </button>
                 <button
                     type="button"
                     className="sim-confirm-btn"
-                    onClick={handleVerify}
+                    onClick={onContinue}
                 >
                     Confirm
                 </button>
             </div>
-
-            {/* Evaluation Modal */}
-            {showEvaluationModal && evaluationData && (
-                <EvaluationModal
-                    evaluation={evaluationData}
-                    onContinue={handleContinueAfterEvaluation}
-                    onClose={handleCloseEvaluation}
-                />
-            )}
 
             {/* Injected Styles to match screenshot precisely since they are missing in simulation.css */}
             <style jsx>{`
