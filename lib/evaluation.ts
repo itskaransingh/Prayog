@@ -62,7 +62,6 @@ export function evaluateRegistration(
         "Date of Birth": { entered: data.personalDetails.dob, expected: GROUND_TRUTH.personalDetails.dob },
         "Gender": { entered: data.personalDetails.gender, expected: GROUND_TRUTH.personalDetails.gender },
         "Flat/Door": { entered: data.addressDetails.flatDoorNo, expected: GROUND_TRUTH.addressDetails.flatDoorNo },
-        "Building": { entered: data.addressDetails.building, expected: GROUND_TRUTH.addressDetails.building },
         "Road/Street": { entered: data.addressDetails.road, expected: GROUND_TRUTH.addressDetails.road },
         "Area/Locality": { entered: data.addressDetails.area, expected: GROUND_TRUTH.addressDetails.area },
         "City/Town": { entered: data.addressDetails.city, expected: GROUND_TRUTH.addressDetails.city },

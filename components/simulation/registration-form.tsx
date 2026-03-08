@@ -167,13 +167,6 @@ export function RegistrationForm({ onContinue, onBack, onCancel }: RegistrationF
                 <div className="sim-actions">
                     <button
                         type="button"
-                        className="sim-back-btn"
-                        onClick={onBack}
-                    >
-                        &lsaquo; Back
-                    </button>
-                    <button
-                        type="button"
                         className={`sim-continue-btn ${panValidated && individualConfirm !== "" ? "enabled" : ""}`}
                         disabled={!panValidated || individualConfirm === ""}
                         onClick={handleContinue}

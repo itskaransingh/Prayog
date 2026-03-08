@@ -24,9 +24,9 @@ export interface PersonalDetails {
 
 export interface AddressDetails {
     flatDoorNo: string;
-    building: string;
     road: string;
     area: string;
+    postOffice: string;
     city: string;
     state: string;
     pincode: string;
@@ -86,9 +86,9 @@ const INITIAL_DATA: RegistrationData = {
     },
     addressDetails: {
         flatDoorNo: "",
-        building: "",
         road: "",
         area: "",
+        postOffice: "",
         city: "",
         state: "",
         pincode: "",

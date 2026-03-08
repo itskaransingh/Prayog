@@ -24,8 +24,7 @@ export const GROUND_TRUTH = {
         gender: "Male" as const,
     },
     addressDetails: {
-        flatDoorNo: "Flat 302",
-        building: "Prestige Towers",
+        flatDoorNo: "Prestige Towers",
         road: "Koramangala",
         area: "Koramangala",
         city: "Bengaluru",

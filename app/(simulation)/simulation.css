@@ -783,6 +783,9 @@
 
 /* Back button */
 .sim-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 12px 32px;
   background: #fff;
   border: 1px solid #1b3281;
@@ -792,6 +795,7 @@
   cursor: pointer;
   font-weight: 500;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 
 .sim-back-btn:hover {
@@ -1809,6 +1813,7 @@
   color: #666;
   line-height: 1.4;
 }
+
 .sim-password-checklist-simple {
   margin-top: 8px;
   display: flex;
@@ -2057,13 +2062,25 @@
 }
 
 @keyframes sim-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes sim-slide-up {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .sim-eval-popup {
