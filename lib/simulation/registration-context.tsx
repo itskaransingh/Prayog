@@ -26,6 +26,7 @@ export interface AddressDetails {
     flatDoorNo: string;
     road: string;
     area: string;
+    postOffice: string;
     city: string;
     state: string;
     pincode: string;
@@ -87,6 +88,7 @@ const INITIAL_DATA: RegistrationData = {
         flatDoorNo: "",
         road: "",
         area: "",
+        postOffice: "",
         city: "",
         state: "",
         pincode: "",
