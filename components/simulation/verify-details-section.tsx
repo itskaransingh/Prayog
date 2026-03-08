@@ -126,8 +126,8 @@ export function VerifyDetailsSection({ onContinue, onBack }: VerifyDetailsSectio
                         <div className="sim-verify-item">
                             <span className="sim-verify-label">Postal Address</span>
                             <div className="sim-verify-address-block">
-                                <p>{addressDetails.flatDoorNo} {addressDetails.road} {addressDetails.city}</p>
-                                <p>{addressDetails.city} {addressDetails.city} {addressDetails.state} India</p>
+                                <p>{addressDetails.flatDoorNo} {addressDetails.road} {addressDetails.area}</p>
+                                <p>{addressDetails.area} {addressDetails.city} {addressDetails.state} India</p>
                                 <p>Pincode - {addressDetails.pincode}</p>
                             </div>
                         </div>
