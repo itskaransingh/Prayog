@@ -72,7 +72,7 @@ export function CaseStudyContent() {
                                 </tr>
                                 <tr>
                                     <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Flat/Door/Building:</td>
-                                    <td className="border border-gray-300 px-4 py-2">Flat 302</td>
+                                    <td className="border border-gray-300 px-4 py-2">Prestige Towers</td>
                                 </tr>
                                 <tr>
                                     <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Road/Street/Block/Sector:</td>
@@ -80,6 +80,10 @@ export function CaseStudyContent() {
                                 </tr>
                                 <tr>
                                     <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Area/Locality:</td>
+                                    <td className="border border-gray-300 px-4 py-2">Koramangala</td>
+                                </tr>
+                                <tr>
+                                    <td className="border border-gray-300 px-4 py-2 font-medium bg-gray-50">Post Office:</td>
                                     <td className="border border-gray-300 px-4 py-2">Koramangala</td>
                                 </tr>
                                 <tr>

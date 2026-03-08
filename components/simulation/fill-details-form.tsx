@@ -279,6 +279,18 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
                                 </div>
                             </div>
 
+                            {/* Please Note */}
+                            <div className="sim-note-box">
+                                <strong>Please Note</strong>
+                                <p>
+                                    Please provide data as per PAN. On click of &quot;Continue&quot; details
+                                    entered will be validated with PAN.
+                                </p>
+                                <p>
+                                    If you have a single Name, then you can enter only &apos;Last Name&apos; field.
+                                </p>
+                            </div>
+
                             {/* Gender — full width row */}
                             <div className="sim-form-row">
                                 <label className="sim-field-label">
@@ -535,8 +547,8 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
                                     <input
                                         type="text"
                                         className="sim-input sim-input-full"
-                                        value={address.building}
-                                        onChange={(e) => updateAddress("building", e.target.value)}
+                                        value={address.area}
+                                        onChange={(e) => updateAddress("area", e.target.value)}
                                     />
                                 </div>
 

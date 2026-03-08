@@ -24,7 +24,6 @@ export interface PersonalDetails {
 
 export interface AddressDetails {
     flatDoorNo: string;
-    building: string;
     road: string;
     area: string;
     city: string;
@@ -86,7 +85,6 @@ const INITIAL_DATA: RegistrationData = {
     },
     addressDetails: {
         flatDoorNo: "",
-        building: "",
         road: "",
         area: "",
         city: "",
