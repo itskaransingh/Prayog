@@ -78,7 +78,6 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
         const errs: FormErrors = {};
 
         // Personal Details
-        if (!personal.firstName.trim()) errs.firstName = "First Name is required";
         if (!personal.lastName.trim()) errs.lastName = "Last Name is required";
         if (!personal.dob.trim()) {
             errs.dob = "Date of Birth is required";
@@ -225,16 +224,15 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
                                 {/* First Name */}
                                 <div className="sim-form-row">
                                     <label className="sim-field-label">
-                                        First Name <span className="required">*</span>
+                                        First Name
                                     </label>
                                     <input
                                         type="text"
-                                        className={`sim-input sim-input-full ${errors.firstName ? "error" : ""}`}
+                                        className="sim-input sim-input-full"
                                         value={personal.firstName}
                                         onChange={(e) => updatePersonal("firstName", e.target.value)}
                                         autoComplete="given-name"
                                     />
-                                    {fieldError("firstName")}
                                 </div>
 
                                 {/* Date of Birth with datepicker */}
@@ -547,8 +545,8 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
                                     <input
                                         type="text"
                                         className="sim-input sim-input-full"
-                                        value={address.area}
-                                        onChange={(e) => updateAddress("area", e.target.value)}
+                                        value={address.postOffice}
+                                        onChange={(e) => updateAddress("postOffice", e.target.value)}
                                     />
                                 </div>
 
@@ -598,7 +596,7 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
                         className="sim-back-btn"
                         onClick={handleBack}
                     >
-                        &lsaquo; Back
+                        &#8249; Back
                     </button>
                     <button
                         type="button"

@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { BottomNavBar } from "@/components/lms/bottom-nav-bar";
-// import { CourseTopicsSidebar } from "@/components/lms/course-topics-sidebar";
+import { CourseTopicsSidebar } from "@/components/lms/course-topics-sidebar";
 import { Bell, User } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
@@ -14,11 +14,12 @@ export default function LmsLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
+    const isCoursePage = pathname.startsWith("/course");
 
     return (
         <SidebarProvider>
             <div className="flex min-h-screen w-full">
-                {/* <CourseTopicsSidebar /> */}
+                {isCoursePage && <CourseTopicsSidebar />}
                 <SidebarInset className="flex 
                  flex-col">
                     {/* Top header */}
