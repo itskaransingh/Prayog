@@ -6,11 +6,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Before running the application, you need to configure your local environment variables to connect to the Supabase backend.
 
-1. Create a copy of the `.env.example` file and name it `.env.local`:
-   ```bash
-   cp .env.example .env.local
-   ```
-2. Open `.env.local` and replace the placeholder values with your actual Supabase project keys. You can find these in your Supabase project dashboard under **Project Settings > API**:
+1. Create a file and name it `.env.local`:
+2. You can find these in your Supabase project dashboard under **Project Settings > API**:
    - `NEXT_PUBLIC_SUPABASE_URL`: Your project URL.
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your project's `anon` / `public` key.
    - `SUPABASE_SERVICE_ROLE_KEY`: Your project's `service_role` secret (Do **NOT** expose this to the browser/client-side).
