@@ -8,6 +8,7 @@ import {
     useEffect,
     type ReactNode,
 } from "react";
+import type { EvaluationMapping } from "@/lib/supabase/questions";
 import type { StepNumber } from "./constants";
 import { evaluateRegistration, type EvaluationResult } from "../evaluation";
 
@@ -58,6 +59,7 @@ interface RegistrationContextValue {
     data: RegistrationData;
     currentStep: StepNumber;
     startTime: number | null;
+    evaluationMappings: EvaluationMapping[];
     evaluationResults: EvaluationResult | null;
     transactionId: string | null;
     isCompleted: boolean;
@@ -69,6 +71,7 @@ interface RegistrationContextValue {
 }
 
 const RegistrationContext = createContext<RegistrationContextValue | null>(null);
+const EVALUATION_STORAGE_KEY = "itr-registration-evaluation-mappings";
 
 // ---------- Initial State ----------
 
@@ -108,16 +111,35 @@ const INITIAL_DATA: RegistrationData = {
 export function RegistrationProvider({ children }: { children: ReactNode }) {
     const [data, setData] = useState<RegistrationData>(INITIAL_DATA);
     const [currentStep, setCurrentStep] = useState<StepNumber>(1);
-    const [startTime, setStartTime] = useState<number | null>(null);
+    const [startTime] = useState<number | null>(() =>
+        typeof window === "undefined" ? null : Date.now()
+    );
+    const [evaluationMappings] = useState<EvaluationMapping[]>(() => {
+        if (typeof window === "undefined") {
+            return [];
+        }
+
+        const storedEvaluation = window.localStorage.getItem(EVALUATION_STORAGE_KEY);
+        if (!storedEvaluation) {
+            return [];
+        }
+
+        try {
+            const parsed = JSON.parse(storedEvaluation) as {
+                mappings?: EvaluationMapping[];
+            };
+            return parsed.mappings ?? [];
+        } catch {
+            return [];
+        }
+    });
     const [evaluationResults, setEvaluationResults] = useState<EvaluationResult | null>(null);
     const [transactionId, setTransactionId] = useState<string | null>(null);
     const [isCompleted, setIsCompleted] = useState(false);
 
-    // Set start time when the user starts Step 1
+    // Persist "started" while the learner is in the flow.
     useEffect(() => {
-        if (currentStep === 1 && !startTime) {
-            const now = Date.now();
-            setStartTime(now);
+        if (currentStep === 1 && startTime) {
             try {
                 window.localStorage.setItem("itr-registration-started", "true");
             } catch {
@@ -126,17 +148,13 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
         }
     }, [currentStep, startTime]);
 
-    // Check localStorage for completion on mount
+    // Clear any persisted completion marker on refresh to allow a fresh attempt.
     useEffect(() => {
         const completed = localStorage.getItem("itr-registration-completed");
+
         if (completed === "true") {
-            // Auto-clear logic: If session was completed and user refreshes, 
-            // wipe everything to allow a fresh start.
             localStorage.removeItem("itr-registration-completed");
             localStorage.removeItem("itr-registration-started");
-            setIsCompleted(false);
-            setData(INITIAL_DATA);
-            setCurrentStep(1);
         }
     }, []);
 
@@ -160,7 +178,12 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
         if (!startTime) return;
 
         const endTime = Date.now();
-        const results = evaluateRegistration(data, startTime, endTime);
+        const results = evaluateRegistration(
+            data,
+            startTime,
+            endTime,
+            evaluationMappings
+        );
 
         // Generate a simple unique transaction ID
         const txId = "REG" + Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -169,7 +192,7 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
         setTransactionId(txId);
         setIsCompleted(true);
         localStorage.setItem("itr-registration-completed", "true");
-    }, [data, startTime]);
+    }, [data, evaluationMappings, startTime]);
 
     return (
         <RegistrationContext.Provider
@@ -177,6 +200,7 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
                 data,
                 currentStep,
                 startTime,
+                evaluationMappings,
                 evaluationResults,
                 transactionId,
                 isCompleted,

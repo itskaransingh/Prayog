@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { BookOpen, GraduationCap, Sparkles } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -22,7 +22,7 @@ const PROGRAMS = [
         subtitle: "Xavier's College",
         provider: "Prayog",
         icon: BookOpen,
-        href: "/course/income-tax",
+        href: "/learning-contents/income-tax",
         active: false,
         logo: "xavier",
         color: "text-blue-600",
@@ -33,7 +33,7 @@ const PROGRAMS = [
         subtitle: "Xavier's College",
         provider: "Prayog",
         icon: GraduationCap,
-        href: "/course/income-tax",
+        href: "/learning-contents/income-tax",
         active: false,
         logo: "xavier",
         color: "text-emerald-600",

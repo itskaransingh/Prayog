@@ -6,7 +6,9 @@ import {
     Users,
     Settings,
     ShieldCheck,
-    ArrowLeft
+    ArrowLeft,
+    BookOpen,
+    FileText
 } from "lucide-react";
 import { CreateUserForm } from "@/components/admin/create-user-form";
 import { Button } from "@/components/ui/button";
@@ -86,6 +88,24 @@ export default function AdminDashboard() {
                             </button>
                         );
                     })}
+
+                    <div className="pt-6 pb-2 px-1">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Content Management</p>
+                    </div>
+                    <Link
+                        href="/dashboard/admin/content/modules"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    >
+                        <BookOpen className="h-4 w-4 text-slate-400" />
+                        Modules & Submodules
+                    </Link>
+                    <Link
+                        href="/dashboard/admin/content/questions"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    >
+                        <FileText className="h-4 w-4 text-slate-400" />
+                        Questions & Answers
+                    </Link>
                 </nav>
 
                 <div className="p-4 border-t border-slate-100">

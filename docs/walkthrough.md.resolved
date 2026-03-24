@@ -1,0 +1,206 @@
+# 🧠 Prayog — High-Level Architecture Mental Model
+
+---
+
+## 1. SYSTEM OVERVIEW
+
+**Prayog is an EdTech simulation platform** for learning income tax compliance.
+
+Think of it as a "flight simulator for tax filing." Students read case studies (like a textbook), then practice filling out *a replica of the actual Indian Income Tax e-Filing portal* — and the system grades their work automatically.
+
+### The Three Big Pillars
+
+| Pillar | What It Does |
+|---|---|
+| **LMS (Learning Management System)** | Courses, programs, case studies — the "classroom" |
+| **Simulation Engine** | A fake government portal where students practice filling forms |
+| **Admin Panel** | For admins to manage users — the "back office" |
+
+All three are gated behind **Supabase authentication** with **role-based access control** (admin vs. user).
+
+---
+
+## 2. FOLDER & ARCHITECTURE MENTAL MODEL
+
+```
+Prayog/
+├── app/                    ← 🗺️ ROUTES (the map of your app)
+│   ├── layout.tsx          ← Root shell: fonts, global providers
+│   ├── login/              ← Auth gate
+│   ├── (lms)/              ← 🎓 The "classroom" zone
+│   │   ├── page.tsx        ← Homepage = Programs Dashboard
+│   │   ├── offerings/      ← Browse new courses
+│   │   ├── learning-contents/ ← Case study content
+│   │   └── course/         ← Deep-dive into a course topic
+│   ├── (simulation)/       ← 🧪 The "practice lab" zone
+│   │   └── simulation/     ← Multi-step gov portal replica
+│   ├── dashboard/          ← 🔒 Admin-only panel
+│   └── api/                ← 🔌 Server-side API routes
+│       └── admin/          ← User creation & listing endpoints
+│
+├── components/             ← 🧩 REUSABLE UI PIECES
+│   ├── ui/                 ← Generic building blocks (Button, Card, Input…)
+│   ├── lms/                ← LMS-specific components
+│   ├── simulation/         ← Simulation-specific components
+│   └── admin/              ← Admin-specific components
+│
+├── lib/                    ← 🔧 LOGIC & SERVICES (no UI here)
+│   ├── supabase/           ← Auth & DB connection helpers
+│   ├── simulation/         ← Registration state + constants
+│   └── evaluation.ts       ← Auto-grading engine
+│
+├── hooks/                  ← 🪝 Custom React hooks
+├── middleware.ts           ← 🚧 Auth gatekeeper (runs BEFORE pages)
+└── public/                 ← Static assets (logos, images)
+```
+
+### How They Relate
+
+```mermaid
+graph TD
+    MW["middleware.ts<br/>(Gatekeeper)"] --> LMS["(lms) Route Group<br/>The Classroom"]
+    MW --> SIM["(simulation) Route Group<br/>The Practice Lab"]
+    MW --> ADMIN["dashboard/<br/>Admin Panel"]
+    MW --> LOGIN["login/<br/>Auth Gate"]
+
+    LMS --> CLMS["components/lms/"]
+    SIM --> CSIM["components/simulation/"]
+    ADMIN --> CADMIN["components/admin/"]
+
+    CLMS --> CUI["components/ui/<br/>Shared Building Blocks"]
+    CSIM --> CUI
+    CADMIN --> CUI
+
+    SIM --> LIB["lib/simulation/<br/>State + Constants"]
+    SIM --> EVAL["lib/evaluation.ts<br/>Auto-Grader"]
+    LMS --> SUP["lib/supabase/<br/>Auth + DB"]
+    ADMIN --> API["app/api/<br/>Server Endpoints"]
+    API --> SUP
+```
+
+---
+
+## 3. FLOW OF THE APP (THE STORY)
+
+### 🚪 Act 1: The Bouncer (Middleware)
+
+Every single request first hits [middleware.ts](file:///home/user/atomnik/Prayog/middleware.ts). Think of it as a bouncer at the door:
+
+1. **No ticket?** → Redirected to [/login](file:///home/user/atomnik/Prayog/app/login)
+2. **Already logged in and trying to go to /login?** → Sent to homepage
+3. **Non-admin trying to access /dashboard?** → Blocked, sent to homepage
+4. **Everything checks out?** → Let them through
+
+### 🔑 Act 2: Login
+
+The user lands on a clean login card. They enter email + password → Supabase authenticates → the app checks their role from the `profiles` table → if valid ([admin](file:///home/user/atomnik/Prayog/app/api/admin) or [user](file:///home/user/atomnik/Prayog/app/api/admin/create-user)), they're redirected to `/` (the LMS homepage).
+
+### 🎓 Act 3: The Classroom (LMS)
+
+After login, the user sees the **Programs Dashboard** — a grid of program cards (e.g., "Prayog Offerings", "Semester 1 & 2"). 
+
+The LMS layout wraps every LMS page with:
+- A **top header bar** (logo, notifications, logout, admin link if admin)
+- A **sidebar** (appears only on course detail pages)
+
+From the dashboard → they can pick a program → read learning content / case studies → and then **launch the simulation**.
+
+### 🧪 Act 4: The Practice Lab (Simulation)
+
+This is where the magic happens. The user enters a **completely different visual world** — a replica of the Indian Income Tax e-Filing portal. The simulation layout uses its own CSS ([simulation.css](file:///home/user/atomnik/Prayog/app/%28simulation%29/simulation.css)) to mimic the government site look and feel.
+
+The simulation is a **4-step wizard**:
+
+```
+Step 1: Get Started     → Enter PAN, choose "taxpayer" or "others"
+Step 2: Fill Details    → Personal info, address, contact
+Step 3: Verify Details  → OTP verification, review everything
+Step 4: Secure Account  → Create password, complete registration
+```
+
+All form data lives in a **React Context** ([RegistrationProvider](file:///home/user/atomnik/Prayog/lib/simulation/registration-context.tsx#108-194)) that acts as a shared clipboard across all steps.
+
+### 📊 Act 5: The Score Card
+
+When the simulation completes, the **evaluation engine** kicks in. It compares every field the student entered against the **ground truth** (the case study's correct answers — e.g., Rajesh Kumar, PAN: ABCPK1234D, etc.). 
+
+It produces:
+- Per-field scores (correct / partial / incorrect)
+- Overall accuracy percentage
+- Time taken
+
+This appears as a popup so the student sees how they did.
+
+### 🔒 Act 6: Admin Back Office
+
+Admins get access to [/dashboard](file:///home/user/atomnik/Prayog/app/dashboard) — a separate panel where they can create new users and view existing ones. This talks to **API routes** ([/api/admin/create-user/](file:///home/user/atomnik/Prayog/app/api/admin/create-user), [/api/admin/users/](file:///home/user/atomnik/Prayog/app/api/admin/users)) that use a Supabase **admin client** (with elevated privileges).
+
+---
+
+## 4. DATA FLOW & STATE
+
+| Layer | Where | How |
+|---|---|---|
+| **Authentication** | Supabase (server + client) | Cookie-based sessions. Middleware checks on every request. |
+| **User profile/role** | Supabase `profiles` table | Queried after login and in middleware to gate admin routes |
+| **Simulation form data** | React Context ([RegistrationProvider](file:///home/user/atomnik/Prayog/lib/simulation/registration-context.tsx#108-194)) | Client-side only. All 4 steps read/write to the same context. No server persistence. |
+| **Evaluation** | Pure client-side function | Compares context data to hard-coded `GROUND_TRUTH` constants. No API call needed. |
+| **Admin user management** | API routes → Supabase Admin SDK | Server-side only. Uses `SUPABASE_SERVICE_ROLE_KEY` for elevated access. |
+| **UI state** | Local `useState` in components | Tabs, loading spinners, form fields — all local. |
+
+### Key insight: The simulation is entirely stateless on the server.
+The entire registration flow, evaluation, and grading happens in the browser. The server only handles authentication and admin operations.
+
+---
+
+## 5. UI/UX THINKING
+
+### Component Hierarchy Philosophy
+
+```
+📦 components/ui/     → "LEGO bricks" — generic, reusable (shadcn/ui + Radix)
+📦 components/lms/    → "Assembled furniture" — LMS-specific assemblies
+📦 components/sim/    → "Government portal replica" — simulation-specific
+📦 components/admin/  → "Office furniture" — admin-specific forms
+```
+
+- **[ui/](file:///home/user/atomnik/Prayog/components/ui)** follows the **shadcn/ui pattern**: pre-built, accessible components (Button, Card, Input, Sheet, Sidebar, etc.) powered by Radix UI headless primitives + Tailwind styling. These are never touched for business logic.
+
+- **Feature components** in [lms/](file:///home/user/atomnik/Prayog/components/lms), [simulation/](file:///home/user/atomnik/Prayog/lib/simulation), and [admin/](file:///home/user/atomnik/Prayog/app/api/admin) are purpose-built. Each one represents a complete "unit of work" — e.g., [registration-form.tsx](file:///home/user/atomnik/Prayog/components/simulation/registration-form.tsx) handles the entire Step 1 UI, [evaluation-results.tsx](file:///home/user/atomnik/Prayog/components/simulation/evaluation-results.tsx) is the complete score popup.
+
+- **Two visual worlds**: The LMS looks like a modern SaaS product (clean, shadcn/ui). The simulation deliberately looks like a government portal (custom CSS). This is a **deliberate design choice** — students need to learn to navigate the real portal UI.
+
+---
+
+## 6. KEY PATTERNS
+
+| Pattern | Why It's Used |
+|---|---|
+| **Next.js App Router with Route Groups** | [(lms)](file:///home/user/atomnik/Prayog/app/dashboard/page.tsx#16-17) and [(simulation)](file:///home/user/atomnik/Prayog/app/dashboard/page.tsx#16-17) share the same URL space but have completely different layouts. The parentheses tell Next.js "these are just organizational folders, not URL segments." |
+| **Middleware-based auth** | Every route is protected at the infrastructure level before any page code runs. No component-level auth checks needed. |
+| **React Context for multi-step forms** | The simulation wizard has 4 steps that share data. Context lets all steps read/write to the same state without prop-drilling or a state library. |
+| **Client-side evaluation** | Grading happens instantly in the browser by comparing against constants. No network round-trip = instant feedback. |
+| **Supabase dual-client pattern** | [client.ts](file:///home/user/atomnik/Prayog/lib/supabase/client.ts) = browser-safe client (anon key). [server.ts](file:///home/user/atomnik/Prayog/lib/supabase/server.ts) = server-side with cookie access. [admin.ts](file:///home/user/atomnik/Prayog/lib/supabase/admin.ts) = service-role key for admin operations. Three tiers of access. |
+| **shadcn/ui component library** | Design system of copy-pasted, customizable components. Not an npm dependency you update — it's source code you own. |
+| **Separation of concerns in [lib/](file:///home/user/atomnik/Prayog/lib)** | Business logic (evaluation, constants, context) lives in [lib/](file:///home/user/atomnik/Prayog/lib), completely divorced from UI. You could swap the entire frontend and keep the grading engine. |
+
+---
+
+## 7. SIMPLIFIED ANALOGY: The Driving School 🚗
+
+**Prayog is like a driving school, but for tax filing.**
+
+| Real World | Prayog |
+|---|---|
+| **The front desk** | Login page — you have to sign in before anything |
+| **The bouncer** | Middleware — checks your ID and role at every door |
+| **The classroom** | LMS — where students read case studies and learn theory |
+| **The driving simulator** | Simulation — a replica of the real tax portal where students practice |
+| **The instructor's scorecard** | Evaluation engine — compares what you did vs. the correct answers |
+| **The office** | Admin dashboard — where staff manages student accounts |
+| **The shared clipboard between simulator stations** | React Context — carries your form data across all 4 steps |
+| **The textbook answer key** | `GROUND_TRUTH` constants — the correct answers for each case study |
+| **The building blocks of the school** | [components/ui/](file:///home/user/atomnik/Prayog/components/ui) — standard chairs, tables, whiteboards used everywhere |
+| **The simulator's custom cockpit** | [simulation.css](file:///home/user/atomnik/Prayog/app/%28simulation%29/simulation.css) — makes the practice area look like the real government portal, not the school |
+
+The school (LMS) and the simulator (Simulation) are in the same building but look completely different — one is a modern classroom, the other intentionally replicates a government office. That's by design.

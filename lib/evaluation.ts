@@ -1,5 +1,5 @@
 import { RegistrationData } from "./simulation/registration-context";
-import { GROUND_TRUTH } from "./simulation/constants";
+import type { EvaluationMapping } from "./supabase/questions";
 
 export interface FieldResult {
     field: string;
@@ -42,53 +42,58 @@ function scoreField(entered: string, expected: string): { score: number; status:
     return { score: 0, status: "incorrect" };
 }
 
+function getValueAtPath(
+    source: RegistrationData,
+    fieldPath: string
+): string {
+    const value = fieldPath.split(".").reduce<unknown>((current, segment) => {
+        if (current && typeof current === "object" && segment in current) {
+            return (current as Record<string, unknown>)[segment];
+        }
+
+        return "";
+    }, source);
+
+    return typeof value === "string" ? value : "";
+}
+
 /**
- * Evaluates the complete registration data against ground truth
+ * Evaluates the complete registration data against DB-backed field mappings
  */
 export function evaluateRegistration(
     data: RegistrationData,
     startTime: number,
-    endTime: number
+    endTime: number,
+    mappings: EvaluationMapping[]
 ): EvaluationResult {
     const breakdown: FieldResult[] = [];
 
-    // Fields to evaluate
-    const fieldMap: { [key: string]: { entered: string; expected: string } } = {
-        "Register As": { entered: data.registerAs, expected: GROUND_TRUTH.registerAs },
-        "PAN": { entered: data.pan, expected: GROUND_TRUTH.pan },
-        "First Name": { entered: data.personalDetails.firstName, expected: GROUND_TRUTH.personalDetails.firstName },
-        "Middle Name": { entered: data.personalDetails.middleName, expected: GROUND_TRUTH.personalDetails.middleName },
-        "Last Name": { entered: data.personalDetails.lastName, expected: GROUND_TRUTH.personalDetails.lastName },
-        "Date of Birth": { entered: data.personalDetails.dob, expected: GROUND_TRUTH.personalDetails.dob },
-        "Gender": { entered: data.personalDetails.gender, expected: GROUND_TRUTH.personalDetails.gender },
-        "Flat/Door": { entered: data.addressDetails.flatDoorNo, expected: GROUND_TRUTH.addressDetails.flatDoorNo },
-        "Road/Street": { entered: data.addressDetails.road, expected: GROUND_TRUTH.addressDetails.road },
-        "Area/Locality": { entered: data.addressDetails.area, expected: GROUND_TRUTH.addressDetails.area },
-        "City/Town": { entered: data.addressDetails.city, expected: GROUND_TRUTH.addressDetails.city },
-        "State": { entered: data.addressDetails.state, expected: GROUND_TRUTH.addressDetails.state },
-        "Pincode": { entered: data.addressDetails.pincode, expected: GROUND_TRUTH.addressDetails.pincode },
-        "Mobile Number": { entered: data.contactDetails.mobile, expected: GROUND_TRUTH.contactDetails.mobile },
-        "Email ID": { entered: data.contactDetails.email, expected: GROUND_TRUTH.contactDetails.email },
-        "Alt. Contact": { entered: data.contactDetails.alternateContact, expected: GROUND_TRUTH.contactDetails.alternateContact },
-    };
-
     let totalScore = 0;
-    // maxPossibleScore computed from remaining fields
-    const maxPossibleScore = Object.keys(fieldMap).length;
+    const maxPossibleScore = mappings.reduce(
+        (sum, mapping) => sum + (mapping.weight ?? 1),
+        0
+    );
 
-    for (const [label, { entered, expected }] of Object.entries(fieldMap)) {
+    for (const mapping of mappings) {
+        const entered = getValueAtPath(data, mapping.fieldPath);
+        const expected = mapping.expectedValue;
+        const weight = mapping.weight ?? 1;
         const { score, status } = scoreField(entered, expected);
-        totalScore += score;
+        const weightedScore = score * weight;
+
+        totalScore += weightedScore;
         breakdown.push({
-            field: label,
+            field: mapping.label,
             entered: entered || "(empty)",
             expected,
-            score,
+            score: weightedScore,
             status,
         });
     }
 
-    const accuracy = Math.round((totalScore / maxPossibleScore) * 100);
+    const accuracy = maxPossibleScore > 0
+        ? Math.round((totalScore / maxPossibleScore) * 100)
+        : 0;
     const timeTakenSeconds = Math.round((endTime - startTime) / 1000);
 
     return {

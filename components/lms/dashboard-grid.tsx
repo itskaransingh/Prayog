@@ -13,7 +13,7 @@ const TOPICS = [
         courses: 5,
         tasks: 12,
         icon: Calculator,
-        href: "/course/income-tax",
+        href: "/learning-contents/income-tax",
         active: true,
         color: "text-blue-600",
         bgColor: "bg-blue-50",

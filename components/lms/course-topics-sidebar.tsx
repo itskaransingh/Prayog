@@ -1,88 +1,87 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 
-// Course topic data matching the screenshot layout
-const courseTopics: {
+import { createClient } from "@/lib/supabase/client";
+
+interface Topic {
     id: string;
+    question_id: string;
     title: string;
-    type: "Task" | "Reading" | "Video";
+    type: string;
     href: string;
     isActive: boolean;
-}[] = [
-        {
-            id: "1",
-            title: "ITREG_005AE",
-            type: "Task",
-            href: "/course/income-tax",
-            isActive: true,
-        },
-        {
-            id: "2",
-            title: "ITREG_001AA",
-            type: "Task",
-            href: "#",
-            isActive: false,
-        },
-        {
-            id: "3",
-            title: "ITREG_002AB",
-            type: "Task",
-            href: "#",
-            isActive: false,
-        },
-        {
-            id: "4",
-            title: "ITREG_003AC",
-            type: "Task",
-            href: "#",
-            isActive: false,
-        },
-        {
-            id: "5",
-            title: "ITREG_004AD",
-            type: "Task",
-            href: "#",
-            isActive: false,
-        },
-        {
-            id: "6",
-            title: "Introduction to Income Tax",
-            type: "Reading",
-            href: "#",
-            isActive: false,
-        },
-        {
-            id: "7",
-            title: "Income Tax Registration (Trainin...",
-            type: "Video",
-            href: "#",
-            isActive: false,
-        },
-    ];
+}
 
 export function CourseTopicsSidebar() {
     const [isItrCompleted, setIsItrCompleted] = React.useState(false);
+    const pathname = usePathname();
+    const slugMatch = pathname.match(/\/course\/([^\/]+)/);
+    const submoduleSlug = slugMatch ? slugMatch[1] : null;
+
+    const [submoduleTitle, setSubmoduleTitle] = React.useState("Loading...");
+    const [topics, setTopics] = React.useState<Topic[]>([]);
 
     React.useEffect(() => {
         const completed = localStorage.getItem("itr-registration-completed");
         if (completed === "true") {
             setIsItrCompleted(true);
         }
-    }, []);
+
+        if (!submoduleSlug) return;
+
+        const fetchSidebarData = async () => {
+            const supabase = createClient();
+
+            // Fetch submodule title
+            const { data: subData } = await supabase
+                .from("submodules")
+                .select("id, title")
+                .eq("slug", submoduleSlug)
+                .single();
+
+            if (subData) {
+                setSubmoduleTitle(subData.title);
+
+                // Fetch questions for this submodule
+                const { data: questions } = await supabase
+                    .from("questions")
+                    .select("id, title")
+                    .eq("submodule_id", subData.id)
+                    .order("created_at", { ascending: true });
+
+                if (questions && questions.length > 0) {
+                    const dynamicTopics: Topic[] = questions.map((q, index) => ({
+                        id: String(index + 1),
+                        question_id: q.id,
+                        title: q.title || `Question ${index + 1}`,
+                        type: "Task",
+                        href: `#question-${q.id}`,
+                        isActive: true
+                    }));
+                    setTopics(dynamicTopics);
+                } else {
+                    setTopics([]);
+                }
+            }
+        };
+
+        fetchSidebarData();
+    }, [submoduleSlug]);
 
     return (
         <aside className="course-sidebar">
             <div className="course-sidebar-header">
-                <h2 className="course-sidebar-title">ITR-Registration</h2>
+                <h2 className="course-sidebar-title">{submoduleTitle}</h2>
             </div>
 
             <div className="course-sidebar-section-label">Course Topics</div>
 
             <nav className="course-sidebar-nav">
-                {courseTopics.map((topic) => (
+                {topics.map((topic) => (
                     <a
-                        key={topic.id}
+                        key={topic.question_id || topic.id}
                         href={topic.href}
                         className={`course-sidebar-item ${topic.isActive ? "active" : ""}`}
                     >
