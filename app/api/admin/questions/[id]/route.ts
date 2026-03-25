@@ -48,7 +48,7 @@ export async function PUT(
             .from("questions")
             .update(updateData)
             .eq("id", id)
-            .select("*, evaluation_criteria(*)")
+            .select("*")
             .single();
 
         if (error) {

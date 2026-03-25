@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 
@@ -17,6 +17,8 @@ interface Topic {
 export function CourseTopicsSidebar() {
     const [isItrCompleted, setIsItrCompleted] = React.useState(false);
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const qid = searchParams.get("qid");
     const slugMatch = pathname.match(/\/course\/([^\/]+)/);
     const submoduleSlug = slugMatch ? slugMatch[1] : null;
 
@@ -32,38 +34,54 @@ export function CourseTopicsSidebar() {
         if (!submoduleSlug) return;
 
         const fetchSidebarData = async () => {
-            const supabase = createClient();
+            try {
+                const supabase = createClient();
 
-            // Fetch submodule title
-            const { data: subData } = await supabase
-                .from("submodules")
-                .select("id, title")
-                .eq("slug", submoduleSlug)
-                .single();
-
-            if (subData) {
-                setSubmoduleTitle(subData.title);
-
-                // Fetch questions for this submodule
-                const { data: questions } = await supabase
-                    .from("questions")
+                // Fetch submodule title
+                const { data: subData, error: subError } = await supabase
+                    .from("submodules")
                     .select("id, title")
-                    .eq("submodule_id", subData.id)
-                    .order("created_at", { ascending: true });
+                    .eq("slug", submoduleSlug)
+                    .single();
 
-                if (questions && questions.length > 0) {
-                    const dynamicTopics: Topic[] = questions.map((q, index) => ({
-                        id: String(index + 1),
-                        question_id: q.id,
-                        title: q.title || `Question ${index + 1}`,
-                        type: "Task",
-                        href: `#question-${q.id}`,
-                        isActive: true
-                    }));
-                    setTopics(dynamicTopics);
-                } else {
-                    setTopics([]);
+                if (subError) {
+                    console.error("Error fetching submodule:", subError);
+                    setSubmoduleTitle("Module Not Found");
+                    return;
                 }
+
+                if (subData) {
+                    setSubmoduleTitle(subData.title);
+
+                    // Fetch questions for this submodule
+                    const { data: questions, error: questionsError } = await supabase
+                        .from("questions")
+                        .select("id, title")
+                        .eq("submodule_id", subData.id)
+                        .order("created_at", { ascending: true });
+
+                    if (questionsError) {
+                        console.error("Error fetching questions:", questionsError);
+                        return;
+                    }
+
+                    if (questions && questions.length > 0) {
+                        const dynamicTopics: Topic[] = questions.map((q, index) => ({
+                            id: String(index + 1),
+                            question_id: q.id,
+                            title: q.title || `Question ${index + 1}`,
+                            type: "Task",
+                            href: `?qid=${q.id}`,
+                            isActive: false
+                        }));
+                        setTopics(dynamicTopics);
+                    } else {
+                        setTopics([]);
+                    }
+                }
+            } catch (err) {
+                console.error("Sidebar fetch failed:", err);
+                setSubmoduleTitle("Error Loading");
             }
         };
 
@@ -79,40 +97,43 @@ export function CourseTopicsSidebar() {
             <div className="course-sidebar-section-label">Course Topics</div>
 
             <nav className="course-sidebar-nav">
-                {topics.map((topic) => (
-                    <a
-                        key={topic.question_id || topic.id}
-                        href={topic.href}
-                        className={`course-sidebar-item ${topic.isActive ? "active" : ""}`}
-                    >
-                        <span
-                            className={`course-sidebar-number ${topic.isActive ? "active" : ""}`}
+                {topics.map((topic, index) => {
+                    const isActive = qid ? qid === topic.question_id : index === 0;
+                    return (
+                        <a
+                            key={topic.question_id || topic.id}
+                            href={topic.href}
+                            className={`course-sidebar-item ${isActive ? "active" : ""}`}
                         >
-                            {topic.id}
-                        </span>
-                        <div className="course-sidebar-info">
-                            <span className="course-sidebar-item-title">
-                                {topic.title}
-                                {topic.isActive && isItrCompleted && (
-                                    <span className="course-sidebar-completed-badge">
-                                        Completed
-                                    </span>
-                                )}
+                            <span
+                                className={`course-sidebar-number ${isActive ? "active" : ""}`}
+                            >
+                                {topic.id}
                             </span>
-                            <span className="course-sidebar-item-type">
-                                {topic.type}
-                            </span>
-                        </div>
-                    </a>
-                ))}
+                            <div className="course-sidebar-info">
+                                <span className="course-sidebar-item-title">
+                                    {topic.title}
+                                    {isActive && isItrCompleted && (
+                                        <span className="course-sidebar-completed-badge">
+                                            Completed
+                                        </span>
+                                    )}
+                                </span>
+                                <span className="course-sidebar-item-type">
+                                    {topic.type}
+                                </span>
+                            </div>
+                        </a>
+                    );
+                })}
             </nav>
 
             <style jsx>{`
                 .course-sidebar {
                     width: 260px;
                     min-width: 260px;
-                    background: #fff;
-                    border-right: 1px solid #e5e7eb;
+                    background: var(--background);
+                    border-right: 1px solid var(--border);
                     display: flex;
                     flex-direction: column;
                     height: 100vh;
@@ -122,19 +143,20 @@ export function CourseTopicsSidebar() {
                 }
                 .course-sidebar-header {
                     padding: 20px 20px 12px;
-                    border-bottom: 1px solid #e5e7eb;
+                    border-bottom: 1px solid var(--border);
                 }
                 .course-sidebar-title {
                     font-size: 17px;
                     font-weight: 700;
-                    color: #111827;
+                    color: var(--foreground);
                     margin: 0;
+                    line-height: 1.2;
                 }
                 .course-sidebar-section-label {
                     padding: 14px 20px 8px;
                     font-size: 12px;
                     font-weight: 500;
-                    color: #6b7280;
+                    color: var(--muted-foreground);
                     text-transform: uppercase;
                     letter-spacing: 0.05em;
                 }
@@ -151,16 +173,17 @@ export function CourseTopicsSidebar() {
                     padding: 12px 14px;
                     border-radius: 10px;
                     text-decoration: none;
-                    color: #374151;
+                    color: var(--foreground);
                     transition: background 0.15s;
                     cursor: pointer;
                 }
                 .course-sidebar-item:hover {
-                    background: #f3f4f6;
+                    background: var(--accent);
+                    color: var(--accent-foreground);
                 }
                 .course-sidebar-item.active {
-                    background: #1e40af;
-                    color: #fff;
+                    background: var(--accent);
+                    color: var(--accent-foreground);
                 }
                 .course-sidebar-number {
                     width: 34px;
@@ -171,15 +194,15 @@ export function CourseTopicsSidebar() {
                     border-radius: 50%;
                     font-size: 14px;
                     font-weight: 600;
-                    background: #f3f4f6;
-                    color: #6b7280;
+                    background: var(--muted);
+                    color: var(--muted-foreground);
                     flex-shrink: 0;
-                    border: 2px solid #e5e7eb;
+                    border: 2px solid var(--border);
                 }
-                .course-sidebar-number.active {
-                    background: #fff;
-                    color: #1e40af;
-                    border-color: #fff;
+                .course-sidebar-item.active .course-sidebar-number {
+                    background: var(--background);
+                    color: var(--foreground);
+                    border-color: var(--border);
                 }
                 .course-sidebar-info {
                     display: flex;
@@ -195,14 +218,15 @@ export function CourseTopicsSidebar() {
                     text-overflow: ellipsis;
                 }
                 .course-sidebar-item.active .course-sidebar-item-title {
-                    color: #fff;
+                    color: var(--foreground);
                 }
                 .course-sidebar-item-type {
                     font-size: 12px;
-                    color: #9ca3af;
+                    color: var(--muted-foreground);
                 }
                 .course-sidebar-item.active .course-sidebar-item-type {
-                    color: rgba(255, 255, 255, 0.7);
+                    color: var(--muted-foreground);
+                    opacity: 1;
                 }
                 .course-sidebar-completed-badge {
                     margin-left: 6px;

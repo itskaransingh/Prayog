@@ -11,7 +11,7 @@ export default async function LearningContentsPage() {
         <div className="flex flex-1 flex-col gap-6 p-6 w-full container mx-auto">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
                         Learning Contents
                     </h1>
                     <p className="text-muted-foreground mt-1 text-sm">
@@ -31,28 +31,28 @@ export default async function LearningContentsPage() {
 
                     return (
                         <Link key={item.id} href={`/learning-contents/${item.slug}`}>
-                            <Card className="group h-full transition-all duration-300 hover:shadow-md border-gray-200 hover:-translate-y-1 bg-white overflow-hidden cursor-pointer">
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 bg-gray-50/50 border-b border-gray-100">
+                            <Card className="group h-full transition-all duration-300 hover:shadow-md border-border hover:-translate-y-1 bg-card overflow-hidden cursor-pointer">
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 bg-muted/30 border-b border-border">
                                     <div className="flex items-center gap-3">
                                         <div
-                                            className={`flex size-11 items-center justify-center rounded-lg ${bgColor} ${textColor}`}
+                                            className={`flex size-11 items-center justify-center rounded-lg ${bgColor} ${textColor} shadow-sm`}
                                         >
                                             <Icon className="size-5" />
                                         </div>
-                                        <CardTitle className="text-lg font-bold tracking-tight text-gray-900 group-hover:text-blue-700 transition-colors">
+                                        <CardTitle className="text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
                                             {item.title}
                                         </CardTitle>
                                     </div>
                                 </CardHeader>
                                 <CardContent className="pt-5 pb-5">
                                     <div className="space-y-4">
-                                        <p className="text-sm font-medium text-gray-500">
+                                        <p className="text-sm font-semibold text-muted-foreground">
                                             {item.course_count} course{item.course_count !== 1 ? "s" : ""}
                                         </p>
                                         <div className="space-y-2">
-                                            <div className="flex items-center justify-between text-sm font-medium">
-                                                <span className="text-gray-700">Progress</span>
-                                                <span className={item.progress > 0 ? "text-blue-600" : "text-gray-500"}>
+                                            <div className="flex items-center justify-between text-sm font-bold">
+                                                <span className="text-foreground/80">Progress</span>
+                                                <span className={item.progress > 0 ? "text-primary" : "text-muted-foreground"}>
                                                     {item.progress}%
                                                 </span>
                                             </div>

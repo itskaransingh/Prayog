@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
         const { data, error } = await supabase
             .from("questions")
-            .select("*, evaluation_criteria(*)")
+            .select("*")
             .eq("submodule_id", submoduleId)
             .order("created_at", { ascending: true });
 
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
                 has_image: Boolean(has_image),
                 image_url: has_image ? image_url : null,
             })
-            .select("*, evaluation_criteria(*)")
+            .select("*")
             .single();
 
         if (error) {

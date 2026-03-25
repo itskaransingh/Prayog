@@ -9,6 +9,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function LmsLayout({
     children,
@@ -51,48 +52,50 @@ export default function LmsLayout({
 
     return (
         <SidebarProvider>
-            <div className="flex min-h-screen w-full">
+            <div className="flex min-h-screen w-full bg-background text-foreground">
                 {isCoursePage && <CourseTopicsSidebar />}
                 <SidebarInset className="flex flex-col">
                     {/* Top header */}
-                    <header className="flex container mx-auto h-14 shrink-0 items-center justify-between border-b px-4 bg-white sticky top-0 z-10">
+                    <header className="flex container mx-auto h-14 shrink-0 items-center justify-between border-b px-4 bg-background sticky top-0 z-10">
                         <div className="flex items-center gap-2">
                             <Link href={"/"} className="flex items-center gap-2 group transition-all duration-200">
                                 <div className="h-7 w-7 bg-blue-600 rounded-lg flex items-center justify-center text-white text-[14px] font-bold shadow-sm group-hover:bg-blue-700 transition-colors">
                                     P
                                 </div>
-                                <span className="text-base font-bold tracking-tight text-gray-900 group-hover:text-blue-600 transition-colors">Prayog</span>
+                                <span className="text-base font-bold tracking-tight text-foreground group-hover:text-blue-600 transition-colors">Prayog</span>
                             </Link>
                         </div>
                         <div className="flex items-center gap-2 sm:gap-4">
                             {!loading && role === "admin" && (
                                 <Link href="/dashboard">
-                                    <Button variant="ghost" size="sm" className="hidden sm:flex items-center gap-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50">
+                                    <Button variant="ghost" size="sm" className="hidden sm:flex items-center gap-2 text-muted-foreground hover:text-blue-600 hover:bg-accent/50">
                                         <LayoutDashboard className="h-4 w-4" />
                                         <span>Dashboard</span>
                                     </Button>
-                                    <Button variant="ghost" size="icon" className="sm:hidden text-gray-600">
+                                    <Button variant="ghost" size="icon" className="sm:hidden text-muted-foreground">
                                         <LayoutDashboard className="h-4 w-4" />
                                     </Button>
                                 </Link>
                             )}
 
-                            <button className="relative p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors flex items-center justify-center">
+                            <ThemeToggle />
+
+                            <button className="relative p-2 text-muted-foreground hover:bg-accent rounded-full transition-colors flex items-center justify-center">
                                 <Bell className="h-5 w-5" />
-                                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border-2 border-white"></span>
+                                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border-2 border-background"></span>
                             </button>
 
                             <Separator orientation="vertical" className="h-6" />
 
                             <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center border border-blue-200 shadow-sm">
+                                <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-sm">
                                     <User className="h-4 w-4" />
                                 </div>
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={handleLogout}
-                                    className="text-gray-600 hover:text-red-600 hover:bg-red-50 gap-2 font-medium"
+                                    className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 gap-2 font-medium"
                                 >
                                     <LogOut className="h-4 w-4" />
                                     <span className="hidden sm:inline">Logout</span>
@@ -102,7 +105,7 @@ export default function LmsLayout({
                     </header>
 
                     {/* Main content area */}
-                    <div className="flex flex-1 flex-col bg-[#f8fafc]">
+                    <div className="flex flex-1 flex-col bg-muted/30">
                         <main className="flex-1 overflow-y-auto w-full">
                             {children}
                         </main>

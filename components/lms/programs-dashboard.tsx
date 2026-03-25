@@ -46,7 +46,7 @@ export function ProgramsDashboard() {
         <div className="flex mx-auto container flex-1 flex-col gap-6 p-6 ">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
                         Our Programs
                     </h1>
                     <p className="text-muted-foreground mt-1 text-sm">
@@ -63,10 +63,10 @@ export function ProgramsDashboard() {
                         className={!program.active ? "cursor-not-allowed" : ""}
                         onClick={(e) => !program.active && e.preventDefault()}
                     >
-                        <Card className="group h-full transition-all duration-300 hover:shadow-md border-gray-200 hover:-translate-y-1 bg-white overflow-hidden">
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gray-50/50 border-b border-gray-100">
+                        <Card className="group h-full transition-all duration-300 hover:shadow-md border-border hover:-translate-y-1 bg-card overflow-hidden">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-muted/30 border-b border-border">
                                 <div className="flex items-center gap-3">
-                                    <div className={`flex size-10 items-center justify-center rounded-lg ${program.bgColor} ${program.color}`}>
+                                    <div className={`flex size-10 items-center justify-center rounded-lg ${program.bgColor} ${program.color} dark:bg-opacity-20`}>
                                         <program.icon className="size-5" />
                                     </div>
                                     <div className="flex flex-col">
@@ -76,7 +76,7 @@ export function ProgramsDashboard() {
                                     </div>
                                 </div>
                                 {program.logo === "xavier" ? (
-                                    <div className="h-10 w-8 bg-white flex flex-col items-center justify-center rounded shadow-sm border border-gray-200 overflow-hidden relative">
+                                    <div className="h-10 w-8 bg-white dark:bg-gray-800 flex flex-col items-center justify-center rounded shadow-sm border border-border overflow-hidden relative">
                                         <Image src="/xavier-logo.png" alt="Xavier Logo" fill className="object-contain p-0.5" />
                                     </div>
                                 ) : (
@@ -86,14 +86,14 @@ export function ProgramsDashboard() {
                                 )}
                             </CardHeader>
                             <CardContent className="pt-6 pb-6">
-                                <h3 className="text-xl font-bold tracking-tight text-gray-900 mb-1 group-hover:text-blue-700 transition-colors">
+                                <h3 className="text-xl font-bold tracking-tight text-foreground mb-1 group-hover:text-primary transition-colors">
                                     {program.title}
                                 </h3>
-                                <p className="text-sm font-medium text-gray-500">
+                                <p className="text-sm font-medium text-muted-foreground">
                                     {program.subtitle}
                                 </p>
 
-                                <div className="mt-6 flex items-center text-sm font-medium text-blue-600 group-hover:underline">
+                                <div className="mt-6 flex items-center text-sm font-bold text-primary group-hover:underline">
                                     View Program Details
                                     <svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

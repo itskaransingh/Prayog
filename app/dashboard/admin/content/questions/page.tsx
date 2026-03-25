@@ -45,21 +45,6 @@ interface Submodule {
     slug: string;
 }
 
-interface EvaluationMapping {
-    fieldPath: string;
-    label: string;
-    expectedValue: string;
-    weight?: number;
-}
-
-interface EvaluationCriteria {
-    id: string;
-    question_id: string;
-    evaluation_data: {
-        mappings?: EvaluationMapping[];
-    };
-}
-
 interface Question {
     id: string;
     submodule_id: string;
@@ -72,7 +57,6 @@ interface Question {
     } | null;
     has_image: boolean;
     image_url: string | null;
-    evaluation_criteria?: EvaluationCriteria[];
 }
 
 interface QuestionFormState {
@@ -83,7 +67,6 @@ interface QuestionFormState {
     tableRows: string[][];
     hasImage: boolean;
     imageUrl: string;
-    evaluationMappings: EvaluationMapping[];
 }
 
 function getEmptyQuestionForm(): QuestionFormState {
@@ -95,14 +78,6 @@ function getEmptyQuestionForm(): QuestionFormState {
         tableRows: [["", ""]],
         hasImage: false,
         imageUrl: "",
-        evaluationMappings: [
-            {
-                fieldPath: "",
-                label: "",
-                expectedValue: "",
-                weight: 1,
-            },
-        ],
     };
 }
 
@@ -234,17 +209,6 @@ export default function AdminQuestionsPage() {
                     : [["", ""]],
             hasImage: question.has_image,
             imageUrl: question.image_url || "",
-            evaluationMappings:
-                question.evaluation_criteria?.[0]?.evaluation_data?.mappings?.length
-                    ? question.evaluation_criteria[0].evaluation_data.mappings!.map(
-                          (mapping) => ({
-                              fieldPath: mapping.fieldPath || "",
-                              label: mapping.label || "",
-                              expectedValue: mapping.expectedValue || "",
-                              weight: mapping.weight ?? 1,
-                          })
-                      )
-                    : getEmptyQuestionForm().evaluationMappings,
         });
         setSuccessMessage(null);
     };
@@ -297,36 +261,8 @@ export default function AdminQuestionsPage() {
                 throw new Error(questionData.error || "Failed to save question");
             }
 
-            const questionId = editingQuestionId || questionData.question?.id;
-
-            const evaluationRes = await fetch("/api/admin/evaluation-criteria", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    question_id: questionId,
-                    evaluation_data: {
-                        mappings: form.evaluationMappings.filter(
-                            (mapping) =>
-                                mapping.fieldPath.trim() ||
-                                mapping.label.trim() ||
-                                mapping.expectedValue.trim()
-                        ),
-                    },
-                }),
-            });
-            const evaluationData = await evaluationRes.json();
-
-            if (!evaluationRes.ok) {
-                throw new Error(
-                    evaluationData.error || "Failed to save evaluation criteria"
-                );
-            }
-
             if (questionData.question) {
-                openQuestion({
-                    ...questionData.question,
-                    evaluation_criteria: [evaluationData.evaluationCriteria],
-                });
+                openQuestion(questionData.question);
             }
             await fetchQuestions(selectedSubmoduleId);
 
@@ -422,41 +358,6 @@ export default function AdminQuestionsPage() {
             nextRows[rowIndex][colIndex] = value;
             return { ...prev, tableRows: nextRows };
         });
-    };
-
-    const addMapping = () => {
-        setForm((prev) => ({
-            ...prev,
-            evaluationMappings: [
-                ...prev.evaluationMappings,
-                { fieldPath: "", label: "", expectedValue: "", weight: 1 },
-            ],
-        }));
-    };
-
-    const updateMapping = (
-        index: number,
-        key: keyof EvaluationMapping,
-        value: string | number
-    ) => {
-        setForm((prev) => ({
-            ...prev,
-            evaluationMappings: prev.evaluationMappings.map((mapping, mappingIndex) =>
-                mappingIndex === index ? { ...mapping, [key]: value } : mapping
-            ),
-        }));
-    };
-
-    const removeMapping = (index: number) => {
-        setForm((prev) => ({
-            ...prev,
-            evaluationMappings:
-                prev.evaluationMappings.length > 1
-                    ? prev.evaluationMappings.filter(
-                          (_, mappingIndex) => mappingIndex !== index
-                      )
-                    : prev.evaluationMappings,
-        }));
     };
 
     return (
@@ -681,7 +582,7 @@ export default function AdminQuestionsPage() {
                                                     Delete this question?
                                                 </AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    This removes the question and its evaluation criteria.
+                                                    This removes the question.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
@@ -953,119 +854,7 @@ export default function AdminQuestionsPage() {
                                 )}
                             </div>
 
-                            <Separator />
 
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                                            <Target className="h-4 w-4 text-slate-500" />
-                                            Evaluation Criteria
-                                        </h3>
-                                        <p className="text-sm text-slate-500">
-                                            Map simulation field paths to the correct answers used for scoring.
-                                        </p>
-                                    </div>
-                                    <Button type="button" variant="outline" onClick={addMapping}>
-                                        Add Mapping
-                                    </Button>
-                                </div>
-
-                                <div className="space-y-3">
-                                    {form.evaluationMappings.map((mapping, index) => (
-                                        <div
-                                            key={`mapping-${index}`}
-                                            className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
-                                        >
-                                            <div className="mb-3 flex items-center justify-between">
-                                                <p className="text-sm font-semibold text-slate-900">
-                                                    Mapping {index + 1}
-                                                </p>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeMapping(index)}
-                                                    className="text-slate-400 transition hover:text-red-600"
-                                                    aria-label="Remove mapping"
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            </div>
-
-                                            <div className="grid gap-4 md:grid-cols-2">
-                                                <div className="space-y-1.5">
-                                                    <label className="text-sm font-medium text-slate-700">
-                                                        Simulation Field Path
-                                                    </label>
-                                                    <Input
-                                                        value={mapping.fieldPath}
-                                                        onChange={(event) =>
-                                                            updateMapping(
-                                                                index,
-                                                                "fieldPath",
-                                                                event.target.value
-                                                            )
-                                                        }
-                                                        placeholder="personalDetails.firstName"
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-1.5">
-                                                    <label className="text-sm font-medium text-slate-700">
-                                                        Admin Label
-                                                    </label>
-                                                    <Input
-                                                        value={mapping.label}
-                                                        onChange={(event) =>
-                                                            updateMapping(
-                                                                index,
-                                                                "label",
-                                                                event.target.value
-                                                            )
-                                                        }
-                                                        placeholder="First Name"
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-1.5">
-                                                    <label className="text-sm font-medium text-slate-700">
-                                                        Expected Value
-                                                    </label>
-                                                    <Input
-                                                        value={mapping.expectedValue}
-                                                        onChange={(event) =>
-                                                            updateMapping(
-                                                                index,
-                                                                "expectedValue",
-                                                                event.target.value
-                                                            )
-                                                        }
-                                                        placeholder="Rajesh"
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-1.5">
-                                                    <label className="text-sm font-medium text-slate-700">
-                                                        Weight
-                                                    </label>
-                                                    <Input
-                                                        type="number"
-                                                        min={0}
-                                                        step="0.5"
-                                                        value={mapping.weight ?? 1}
-                                                        onChange={(event) =>
-                                                            updateMapping(
-                                                                index,
-                                                                "weight",
-                                                                Number(event.target.value) || 0
-                                                            )
-                                                        }
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </section>
