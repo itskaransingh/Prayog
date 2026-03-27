@@ -1,4 +1,5 @@
 import "./simulation.css";
+import "./epan-simulation.css";
 
 export default function SimulationLayout({
     children,

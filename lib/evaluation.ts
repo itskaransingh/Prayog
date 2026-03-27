@@ -1,6 +1,11 @@
-import { RegistrationData } from "./simulation/registration-context";
-import type { EvaluationMapping } from "./supabase/questions";
+// lib/evaluation.ts
 
+export interface EvaluationMapping {
+    fieldPath: string; // e.g., 'personalDetails.lastName'
+    expectedValue: string;
+    label: string;
+    weight?: number;
+}
 export interface FieldResult {
     field: string;
     entered: string;
@@ -42,8 +47,8 @@ function scoreField(entered: string, expected: string): { score: number; status:
     return { score: 0, status: "incorrect" };
 }
 
-function getValueAtPath(
-    source: RegistrationData,
+function getValueAtPath<T>(
+    source: T,
     fieldPath: string
 ): string {
     const value = fieldPath.split(".").reduce<unknown>((current, segment) => {
@@ -60,8 +65,8 @@ function getValueAtPath(
 /**
  * Evaluates the complete registration data against DB-backed field mappings
  */
-export function evaluateRegistration(
-    data: RegistrationData,
+export function evaluateRegistration<T>(
+    data: T,
     startTime: number,
     endTime: number,
     mappings: EvaluationMapping[]

@@ -1,19 +1,19 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { useRegistration } from "@/lib/simulation/registration-context";
+import { useRegistration } from "@/lib/simulation/income-tax/itr-registration/registration-context";
 import type {
     PersonalDetails,
     AddressDetails,
     ContactDetails,
-} from "@/lib/simulation/registration-context";
+} from "@/lib/simulation/income-tax/itr-registration/registration-context";
 import {
     INDIAN_STATES,
     PINCODE_REGEX,
     MOBILE_REGEX,
     EMAIL_REGEX,
     DOB_REGEX,
-} from "@/lib/simulation/constants";
+} from "@/lib/simulation/income-tax/itr-registration/constants";
 
 interface FillDetailsFormProps {
     onContinue: () => void;

@@ -168,8 +168,12 @@ export function CaseStudyContent({
                                 } catch {
                                     // ignore storage errors
                                 }
+                                const gatewayPath = submoduleSlug === "epan-registration" 
+                                    ? "/epan-simulation/gateway" 
+                                    : "/simulation/gateway";
+                                    
                                 window.open(
-                                    "/simulation/gateway",
+                                    activeQuestion ? `${gatewayPath}?questionId=${activeQuestion.id}` : gatewayPath,
                                     "_blank",
                                     "noopener,noreferrer",
                                 );

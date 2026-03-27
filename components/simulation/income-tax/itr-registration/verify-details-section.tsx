@@ -1,6 +1,6 @@
 "use client";
 
-import { useRegistration } from "@/lib/simulation/registration-context";
+import { useRegistration } from "@/lib/simulation/income-tax/itr-registration/registration-context";
 
 interface VerifyDetailsSectionProps {
     onContinue: () => void;

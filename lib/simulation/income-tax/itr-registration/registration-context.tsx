@@ -8,9 +8,8 @@ import {
     useEffect,
     type ReactNode,
 } from "react";
-import type { EvaluationMapping } from "@/lib/supabase/questions";
 import type { StepNumber } from "./constants";
-import { evaluateRegistration, type EvaluationResult } from "../evaluation";
+import { evaluateRegistration, type EvaluationResult, type EvaluationMapping } from "@/lib/evaluation";
 
 // ---------- Data Types ----------
 
@@ -70,7 +69,7 @@ interface RegistrationContextValue {
     completeRegistration: () => void;
 }
 
-const RegistrationContext = createContext<RegistrationContextValue | null>(null);
+export const RegistrationContext = createContext<RegistrationContextValue | null>(null);
 const EVALUATION_STORAGE_KEY = "itr-registration-evaluation-mappings";
 
 // ---------- Initial State ----------
@@ -108,13 +107,23 @@ const INITIAL_DATA: RegistrationData = {
 
 // ---------- Provider ----------
 
-export function RegistrationProvider({ children }: { children: ReactNode }) {
+export function RegistrationProvider({
+    children,
+    initialMappings,
+}: {
+    children: ReactNode;
+    initialMappings?: EvaluationMapping[];
+}) {
     const [data, setData] = useState<RegistrationData>(INITIAL_DATA);
     const [currentStep, setCurrentStep] = useState<StepNumber>(1);
     const [startTime] = useState<number | null>(() =>
         typeof window === "undefined" ? null : Date.now()
     );
     const [evaluationMappings] = useState<EvaluationMapping[]>(() => {
+        if (initialMappings && initialMappings.length > 0) {
+            return initialMappings;
+        }
+
         if (typeof window === "undefined") {
             return [];
         }

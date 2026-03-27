@@ -1,14 +1,18 @@
 "use client";
 
-import { useRegistration } from "@/lib/simulation/registration-context";
+import { useRegistration, RegistrationContext } from "@/lib/simulation/income-tax/itr-registration/registration-context";
+import { type FieldResult } from "@/lib/evaluation";
+import { useContext } from "react";
 
 interface EvaluationPopupProps {
     open: boolean;
     onClose: () => void;
+    results?: any; // Allow passing results directly
 }
 
-export function EvaluationPopup({ open, onClose }: EvaluationPopupProps) {
-    const { evaluationResults } = useRegistration();
+export function EvaluationPopup({ open, onClose, results }: EvaluationPopupProps) {
+    const itr = useContext(RegistrationContext);
+    const evaluationResults = results || itr?.evaluationResults;
 
     if (!open || !evaluationResults) return null;
 
@@ -91,7 +95,7 @@ export function EvaluationPopup({ open, onClose }: EvaluationPopupProps) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {fieldBreakdown.map((item, idx) => (
+                                {fieldBreakdown.map((item: FieldResult, idx: number) => (
                                     <tr key={idx}>
                                         <td style={{ fontWeight: 500 }}>{item.field}</td>
                                         <td>
@@ -109,6 +113,17 @@ export function EvaluationPopup({ open, onClose }: EvaluationPopupProps) {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+
+                    {/* Action Button */}
+                    <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
+                        <button 
+                            className="sim-btn-filled big" 
+                            style={{ width: '100%', padding: '12px', fontSize: '16px' }}
+                            onClick={onClose}
+                        >
+                            Proceed to Login
+                        </button>
                     </div>
                 </div>
             </div>

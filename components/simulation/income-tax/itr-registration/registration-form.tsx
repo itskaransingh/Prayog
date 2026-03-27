@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRegistration } from "@/lib/simulation/registration-context";
+import { useRegistration } from "@/lib/simulation/income-tax/itr-registration/registration-context";
 
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
 

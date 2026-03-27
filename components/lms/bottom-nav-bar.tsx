@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 interface BottomNavBarProps {
     currentStep?: number;
     totalSteps?: number;
+    questionId?: string;
 }
 
 type SimulationButtonState = "new" | "continue" | "redo";
@@ -14,6 +15,7 @@ type SimulationButtonState = "new" | "continue" | "redo";
 export function BottomNavBar({
     currentStep = 1,
     totalSteps = 5,
+    questionId,
 }: BottomNavBarProps) {
     const [buttonState, setButtonState] =
         useState<SimulationButtonState>("new");
@@ -41,7 +43,8 @@ export function BottomNavBar({
         if (typeof window === "undefined") return;
 
         window.localStorage.setItem("itr-registration-started", "true");
-        window.open("/simulation/gateway", "_blank", "noopener,noreferrer");
+        const href = questionId ? `/simulation/gateway?questionId=${questionId}` : "/simulation/gateway";
+        window.open(href, "_blank", "noopener,noreferrer");
     };
 
     const simulationButtonLabel =

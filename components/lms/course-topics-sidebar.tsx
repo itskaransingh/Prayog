@@ -26,12 +26,13 @@ export function CourseTopicsSidebar() {
     const [topics, setTopics] = React.useState<Topic[]>([]);
 
     React.useEffect(() => {
-        const completed = localStorage.getItem("itr-registration-completed");
+        if (!submoduleSlug) return;
+        const completed = localStorage.getItem(`${submoduleSlug}-completed`);
         if (completed === "true") {
             setIsItrCompleted(true);
+        } else {
+            setIsItrCompleted(false);
         }
-
-        if (!submoduleSlug) return;
 
         const fetchSidebarData = async () => {
             try {

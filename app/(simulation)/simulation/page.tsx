@@ -1,19 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PortalHeader } from "@/components/simulation/portal-header";
-import { PortalFooter } from "@/components/simulation/portal-footer";
-import { ProgressStepper } from "@/components/simulation/progress-stepper";
-import { RegistrationForm } from "@/components/simulation/registration-form";
-import { FillDetailsForm } from "@/components/simulation/fill-details-form";
-import { OTPVerificationForm } from "@/components/simulation/otp-verification-form";
-import { VerifyDetailsSection } from "@/components/simulation/verify-details-section";
-import { PasswordCreationForm } from "@/components/simulation/password-creation-form";
+import { PortalHeader } from "@/components/simulation/income-tax/shared/portal-header";
+import { PortalFooter } from "@/components/simulation/income-tax/shared/portal-footer";
+import { ProgressStepper } from "@/components/simulation/income-tax/shared/progress-stepper";
+import { RegistrationForm } from "@/components/simulation/income-tax/itr-registration/registration-form";
+import { FillDetailsForm } from "@/components/simulation/income-tax/itr-registration/fill-details-form";
+import { OTPVerificationForm } from "@/components/simulation/income-tax/itr-registration/otp-verification-form";
+import { VerifyDetailsSection } from "@/components/simulation/income-tax/itr-registration/verify-details-section";
+import { PasswordCreationForm } from "@/components/simulation/income-tax/itr-registration/password-creation-form";
+import { REGISTRATION_STEPS } from "@/lib/simulation/income-tax/itr-registration/constants";
 import {
     RegistrationProvider,
     useRegistration,
-} from "@/lib/simulation/registration-context";
-import { EvaluationPopup } from "@/components/simulation/evaluation-results";
+} from "@/lib/simulation/income-tax/itr-registration/registration-context";
+import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
 
 function StepContent({ onRegister }: { onRegister: () => void }) {
     const { currentStep, nextStep, prevStep, updateData } =
@@ -62,9 +63,84 @@ const STEP_HEADINGS: Record<number, string> = {
     4: "Set up your password and secure your account",
 };
 
+import { createClient } from "@/lib/supabase/client";
+import type { EvaluationMapping } from "@/lib/evaluation";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+
 export default function SimulationPage() {
     return (
-        <RegistrationProvider>
+        <Suspense fallback={<div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>Loading Simulator...</div>}>
+            <SimulationPageContent />
+        </Suspense>
+    );
+}
+
+function SimulationPageContent() {
+    const searchParams = useSearchParams();
+    const questionId = searchParams?.get('questionId') || '6771ce37-57d3-479f-a57c-d53affa3264a';
+
+    const [mappings, setMappings] = useState<EvaluationMapping[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function loadMappings() {
+            try {
+                const supabase = createClient();
+                
+                // Get the task for this question
+                const { data: tasks } = await supabase
+                    .from("simulation_tasks")
+                    .select("id")
+                    .eq("question_id", questionId)
+                    .limit(1);
+
+                if (tasks && tasks.length > 0) {
+                        const taskId = tasks[0].id;
+
+                        // 3. Get all steps and fields
+                        const { data: steps } = await supabase
+                            .from("simulation_steps")
+                            .select("id")
+                            .eq("task_id", taskId);
+
+                        if (steps && steps.length > 0) {
+                            const stepIds = steps.map(s => s.id);
+                            const { data: fields } = await supabase
+                                .from("simulation_fields")
+                                .select("*")
+                                .in("step_id", stepIds);
+
+                            if (fields) {
+                                const newMappings: EvaluationMapping[] = fields.map(f => ({
+                                    fieldPath: f.field_name,
+                                    expectedValue: f.expected_value || "",
+                                    label: f.field_label || f.field_name,
+                                    weight: 1
+                                }));
+                                setMappings(newMappings);
+                            }
+                        }
+                    }
+            } catch (err) {
+                console.error("Failed to fetch simulation fields", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadMappings();
+    }, [questionId]);
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
+                Loading Simulator...
+            </div>
+        );
+    }
+
+    return (
+        <RegistrationProvider initialMappings={mappings}>
             <SimulationContent />
         </RegistrationProvider>
     );
@@ -181,7 +257,7 @@ function SimulationContent() {
                 </div>
 
                 {/* Dynamic Progress Stepper */}
-                <ProgressStepper />
+                <ITRProgressStepper />
 
                 {/* Dynamic Heading */}
                 <StepHeading />
@@ -205,5 +281,16 @@ function StepHeading() {
         <h1 className="sim-page-heading">
             {STEP_HEADINGS[currentStep]}
         </h1>
+    );
+}
+
+function ITRProgressStepper() {
+    const { currentStep } = useRegistration();
+
+    return (
+        <ProgressStepper
+            steps={REGISTRATION_STEPS}
+            currentStep={currentStep}
+        />
     );
 }

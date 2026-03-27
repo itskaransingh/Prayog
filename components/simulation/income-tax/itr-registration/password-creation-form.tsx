@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useRegistration } from "@/lib/simulation/registration-context";
+import { useRegistration } from "@/lib/simulation/income-tax/itr-registration/registration-context";
 
 interface PasswordCreationFormProps {
     onRegister: () => void;
