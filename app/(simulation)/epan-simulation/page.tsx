@@ -28,6 +28,7 @@ interface SimulationFieldRecord {
 function EPANSimulationContent() {
     const searchParams = useSearchParams();
     const questionId = searchParams.get("questionId");
+    const [showEvaluationPopup, setShowEvaluationPopup] = useState(false);
     const { 
         data,
         currentStep, 
@@ -43,19 +44,44 @@ function EPANSimulationContent() {
         prevStep,
         completeEPAN
     } = useEPAN();
+    const completedSteps = useMemo(() => {
+        if (isCompleted || currentStep >= 4) {
+            return EPAN_STEPS.map((step) => step.number);
+        }
+
+        return EPAN_STEPS
+            .filter((step) => step.number < currentStep)
+            .map((step) => step.number);
+    }, [currentStep, isCompleted]);
 
     const aadhaarDetails: EPANAadhaarDetails = useMemo(() => ({
         aadhaarNumber:
             data.aadhaarNumber.length === 12
                 ? `**** ****${data.aadhaarNumber.slice(-3)}`
                 : data.aadhaarNumber,
-        name: data.fullName || "ASHOK KUMAR",
-        dateOfBirth: data.dob || "01-01-1980",
-        gender: data.gender || "MALE",
-        mobileNumber: data.mobile || "99******00",
-        email: data.email || "ashok@example.com",
-        address: data.address || "123, Street Name, City, State - 123456",
+        name: data.fullName,
+        dateOfBirth: data.dob,
+        gender: data.gender,
+        mobileNumber: data.mobile,
+        email: data.email,
+        address: data.address,
     }), [data]);
+
+    useEffect(() => {
+        if (currentStep === 4 && !isCompleted) {
+            completeEPAN();
+        }
+    }, [completeEPAN, currentStep, isCompleted]);
+
+    useEffect(() => {
+        if (isCompleted && evaluationResults) {
+            const timer = window.setTimeout(() => {
+                setShowEvaluationPopup(true);
+            }, 0);
+
+            return () => window.clearTimeout(timer);
+        }
+    }, [evaluationResults, isCompleted]);
 
     const aadhaarValidationError =
         data.aadhaarNumber.length > 0 && !VALIDATION_REGEX.AADHAAR.test(data.aadhaarNumber)
@@ -77,9 +103,10 @@ function EPANSimulationContent() {
                     />
                 );
             case 2:
+                const isOtpMode = data.uidaiConsent;
                 const handleStep2Continue = () => {
                     if (!data.uidaiConsent) {
-                        updateData({ uidaiConsent: true });
+                        updateData({ uidaiConsent: true, otpConsentAccepted: false });
                     } else {
                         // Seed data from evaluation mappings before going to step 3
                         const seededData: Partial<Record<EPANSeedFieldKey, string>> = {};
@@ -98,10 +125,14 @@ function EPANSimulationContent() {
 
                 return (
                     <EPANConsentOtp 
-                        mode={data.uidaiConsent ? "otp" : "consent"}
-                        consentAccepted={data.uidaiConsent}
+                        mode={isOtpMode ? "otp" : "consent"}
+                        consentAccepted={data.otpConsentAccepted}
                         otpState={aadhaarOtpState}
-                        onConsentChange={(val) => updateData({ uidaiConsent: val })}
+                        onConsentChange={(val) => updateData(
+                            isOtpMode
+                                ? { otpConsentAccepted: val }
+                                : { uidaiConsent: val }
+                        )}
                         onOtpChange={updateAadhaarOtp}
                         onContinue={handleStep2Continue}
                         onCancel={prevStep}
@@ -130,8 +161,8 @@ function EPANSimulationContent() {
                             acknowledgementNumber: "210456789012345",
                             successMessage: "Your request for e-PAN has been submitted successfully"
                         }}
-                        onLogin={() => completeEPAN()}
-                        onViewEvaluation={() => completeEPAN()}
+                        onLogin={() => window.location.href = "/"}
+                        onViewEvaluation={() => setShowEvaluationPopup(true)}
                     />
                 );
             default:
@@ -154,7 +185,14 @@ function EPANSimulationContent() {
             <main className="flex-grow epan-page-shell">
                 <ProgressStepper 
                     steps={EPAN_STEPS.map(s => ({ number: s.number, label: s.label }))} 
-                    currentStep={currentStep} 
+                    currentStep={currentStep}
+                    completedSteps={completedSteps}
+                    className="epan-stepper"
+                    stepClassName="epan-step"
+                    rowClassName="epan-step-row"
+                    numberClassName="epan-step-number"
+                    labelClassName="epan-step-label"
+                    connectorClassName="epan-step-connector"
                 />
                 
                 <div className="epan-stage-content">
@@ -171,9 +209,9 @@ function EPANSimulationContent() {
             <PortalFooter />
 
             <EvaluationPopup
-                open={isCompleted}
+                open={showEvaluationPopup}
                 results={evaluationResults}
-                onClose={() => window.location.href = "/course/e-pan-registration"}
+                onClose={() => setShowEvaluationPopup(false)}
             />
         </div>
     );

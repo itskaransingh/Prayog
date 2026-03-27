@@ -44,20 +44,27 @@
 }
 
 .epan-stepper {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: flex-start;
-  gap: 0;
+  column-gap: 18px;
   width: min(840px, 100%);
   margin: 0 0 20px;
 }
 
 .epan-step {
-  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .epan-step-row {
   display: flex;
   align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
 }
 
 .epan-step-number {
@@ -89,6 +96,7 @@
 
 .epan-step-connector {
   flex: 1 1 auto;
+  min-width: 12px;
   height: 1px;
   background: #cfd6e5;
 }
@@ -98,14 +106,20 @@
 }
 
 .epan-step-label {
-  margin-top: 6px;
-  max-width: 140px;
+  margin-top: 10px;
+  max-width: 124px;
   white-space: pre-line;
   font-size: 13px;
   line-height: 1.25;
   color: #a0a8b9;
   font-weight: 600;
-  padding-right: 8px;
+  padding-right: 16px;
+  text-wrap: balance;
+  word-break: break-word;
+}
+
+.epan-step:last-child .epan-step-label {
+  padding-right: 0;
 }
 
 .epan-step.active .epan-step-label,
@@ -162,7 +176,7 @@
 
 .epan-note-tight {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   max-width: 740px;
 }
 
@@ -537,8 +551,9 @@
 
 .epan-consent-box h2 {
   font-size: 15px;
+  font-weight: 700;
   color: #121826;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .epan-consent-box ol {
@@ -677,13 +692,21 @@
   padding-bottom: 12px;
 }
 
-.epan-declaration-list {
+.epan-declaration-list,
+.epan-declaration-list-plain {
   max-width: 980px;
   margin-top: 6px;
 }
 
-.epan-declaration-list li {
-  margin-bottom: 4px;
+.epan-declaration-list-plain {
+  list-style: none;
+  padding-left: 0;
+  margin-left: 0;
+}
+
+.epan-declaration-list li,
+.epan-declaration-list-plain li {
+  margin-bottom: 8px;
 }
 
 .epan-success-banner {
@@ -770,8 +793,13 @@
 
   .epan-stepper {
     width: 100%;
-    overflow-x: auto;
+    column-gap: 12px;
     padding-bottom: 4px;
+  }
+
+  .epan-step-label {
+    max-width: 100%;
+    padding-right: 10px;
   }
 
   .epan-highlight-strip,
@@ -797,6 +825,15 @@
   .epan-page-shell,
   .epan-dashboard-content {
     width: calc(100% - 24px);
+  }
+
+  .epan-stepper {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 18px;
+  }
+
+  .epan-step-label {
+    padding-right: 0;
   }
 
   .epan-card,

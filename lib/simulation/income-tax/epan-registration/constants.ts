@@ -22,6 +22,7 @@ export type EPANData = {
     consentAccepted: boolean;
     aadhaarOtp: string;
     uidaiConsent: boolean;
+    otpConsentAccepted: boolean;
     fullName: string;
     dob: string;
     gender: string;

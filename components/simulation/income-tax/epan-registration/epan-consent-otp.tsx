@@ -56,28 +56,44 @@ export function EPANConsentOtp({
 
                         <div className="epan-consent-box">
                             <h2>Consent Declaration for Generation of new PAN based on Aadhaar e-KYC details:</h2>
-                            <ol>
+                            <ul className="epan-declaration-list-plain">
                                 <li>
-                                    I have understood the process of authentication described herein and hereby grant consent
-                                    for use of my Aadhaar identity information for purposes of authentication of my identity.
+                                    1. I have understood the process of authentication described herein and hereby grant consent for
+                                    use of my Aadhaar identity information (through Aadhaar based e-KYC authentication facility
+                                    of UIDAI) for puropses of authentication of my identity in accordance with the provisions of the
+                                    Aadhaar (Targeted Delivery of Financial and other Subsidies, Benefits and Services) Act, 2016
+                                    and allied rules and regulations notified there under, and for purposes of verifying and
+                                    validating my credentials as maintained by the Income Tax Department.
                                 </li>
                                 <li>
-                                    I hereby grant consent to the Income Tax Department for recording, storing, using,
-                                    updating, processing e-KYC data received through Aadhaar based eKYC authentication services.
+                                    2. I hereby grant consent to the Income Tax Department for recording, storing, using, updating,
+                                    processing e-KYC data received through Aadhaar based eKYC authentication services of UIDAI,
+                                    including my demographic information and photograph, for purpose of - (a) authenticating my
+                                    identity on the e-filing portal www.incometaxindiaefiling.gov.in through measures including use
+                                    of OneTime-Password/OTP, and/or (b) generating and allotting a PAN number and updating my
+                                    information on the PAN database in accordance with my Aadhaar e-KYC data. I declare that my
+                                    consent relating to e-KYC data above is voluntary and is my chosen alternative for submission
+                                    of identity information.
                                 </li>
                                 <li>
-                                    I have understood that I bear the sole responsibility for maintaining up-to-date information
-                                    linked to my Aadhaar, PAN and any other related information provided to the Income Tax Department.
+                                    3. I have understood that I bear the sole responsibility for maintaining up-to-date information
+                                    linked to my Aadhaar, PAN and any other related information provided to the Income Tax
+                                    Department, and the Income Tax Department shall not be liable in any manner whatsoever for
+                                    any actions taken, or lack thereof, due to my failure to update or correct any such information.
                                 </li>
                                 <li>
-                                    I have understood that the Income Tax Department shall deploy reasonable security practices
-                                    and safeguards to protect the security and confidentiality of data and information.
+                                    4. I have understood that the Income Tax Department shall deploy reasonable security practices
+                                    and safeguards to protect the security and confidentiality of data and information in
+                                    possession or control of the Income Tax Department, and that such data and information will
+                                    be stored for such time as may be prescribed by regulations issued by the UIDAI and other
+                                    applicable law.
                                 </li>
                                 <li>
-                                    I hereby certify that I do not have any PAN allotted to me and in case I am found to be
-                                    in possession of more than one PAN then I shall be liable for penalty.
+                                    5. I hereby Certify that I do not have any PAN allotted to me and in case I am found be in
+                                    possession of more than one PAN then I shall be liable for penalty of Rs. 10,000/- under
+                                    section 272B(1).
                                 </li>
-                            </ol>
+                            </ul>
                         </div>
 
                         <label className="epan-checkbox-row">

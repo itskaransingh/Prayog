@@ -43,6 +43,7 @@ const INITIAL_DATA: EPANData = {
     consentAccepted: false,
     aadhaarOtp: "",
     uidaiConsent: false,
+    otpConsentAccepted: false,
     fullName: "",
     dob: "",
     gender: "",

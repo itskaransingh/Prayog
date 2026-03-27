@@ -5,12 +5,10 @@ import { useSearchParams } from "next/navigation";
 import type { QuestionTableData, Question } from "@/lib/supabase/questions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getSubmoduleHref } from "@/lib/learning-contents";
-
-const EVALUATION_STORAGE_KEY = "itr-registration-evaluation-mappings";
 
 interface CaseStudyContentProps {
     title: string;
@@ -160,17 +158,18 @@ export function CaseStudyContent({
                             disabled={!hasQuestions}
                             onClick={() => {
                                 if (typeof window === "undefined") return;
+                                const isEPANSubmodule = submoduleSlug === "e-pan-registration";
                                 try {
                                     window.localStorage.setItem(
-                                        "itr-registration-started",
+                                        isEPANSubmodule
+                                            ? "epan-registration-started"
+                                            : "itr-registration-started",
                                         "true",
                                     );
                                 } catch {
                                     // ignore storage errors
                                 }
-                                const gatewayPath = submoduleSlug === "epan-registration" 
-                                    ? "/epan-simulation/gateway" 
-                                    : "/simulation/gateway";
+                                const gatewayPath = "/simulation/gateway";
                                     
                                 window.open(
                                     activeQuestion ? `${gatewayPath}?questionId=${activeQuestion.id}` : gatewayPath,

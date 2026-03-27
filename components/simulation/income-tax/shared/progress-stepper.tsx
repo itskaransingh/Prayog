@@ -35,10 +35,10 @@ export function ProgressStepper({
     return (
         <div className={className}>
             {steps.map((step, idx) => {
-                const isActive = step.number === currentStep;
                 const isCompleted = completedSteps
                     ? completedSteps.includes(step.number)
                     : step.number < currentStep;
+                const isActive = step.number === currentStep && !isCompleted;
                 const isLast = idx === steps.length - 1;
 
                 let itemClassName = stepClassName;
