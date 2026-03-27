@@ -14,6 +14,9 @@ export interface Question {
     table_data: QuestionTableData | null;
     has_image: boolean;
     image_url: string | null;
+    video_url: string | null;
+    link_url: string | null;
+    link_title: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -27,6 +30,9 @@ export type QuestionInsert = Pick<
     | "table_data"
     | "has_image"
     | "image_url"
+    | "video_url"
+    | "link_url"
+    | "link_title"
 >;
 
 export type QuestionUpdate = Partial<

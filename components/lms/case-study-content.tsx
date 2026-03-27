@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { QuestionTableData, Question } from "@/lib/supabase/questions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getSubmoduleHref } from "@/lib/learning-contents";
@@ -18,6 +18,69 @@ interface CaseStudyContentProps {
     prevSubmodule?: { title: string; slug: string } | null;
     nextSubmodule?: { title: string; slug: string } | null;
     moduleSlug?: string;
+}
+
+function YoutubeEmbed({ url }: { url: string }) {
+    // Extract video ID from youtube URL
+    let videoId = "";
+    try {
+        const urlObj = new URL(url);
+        if (urlObj.hostname === "youtu.be") {
+            videoId = urlObj.pathname.slice(1);
+        } else {
+            videoId = urlObj.searchParams.get("v") || "";
+        }
+    } catch (e) {
+        // Fallback or invalid URL handling
+        console.error("Invalid YouTube URL", e);
+    }
+
+    if (!videoId) return null;
+
+    return (
+        <div className="aspect-video w-full overflow-hidden rounded-xl border border-border bg-black shadow-lg">
+            <iframe
+                width="100%"
+                height="100%"
+                src={`https://www.youtube.com/embed/${videoId}`}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+            ></iframe>
+        </div>
+    );
+}
+
+function GDriveLink({ url, title }: { url: string; title?: string | null }) {
+    return (
+        <Card className="group relative overflow-hidden border-emerald-200 bg-emerald-50/30 hover:bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-900/10 transition-all duration-300">
+            <CardContent className="flex items-center justify-between p-6">
+                <div className="flex items-center gap-4">
+                    <div className="flex size-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        <ExternalLink className="size-6" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-emerald-900 dark:text-emerald-100 line-clamp-1">
+                            {title || "Attached Document"}
+                        </h3>
+                        <p className="text-sm text-emerald-700/70 dark:text-emerald-400/70">
+                            Click to view resource in a new tab
+                        </p>
+                    </div>
+                </div>
+                <Button
+                    variant="outline"
+                    className="border-emerald-200 bg-white hover:bg-emerald-100 hover:text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950"
+                    asChild
+                >
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                        View Resource <ExternalLink className="size-4" />
+                    </a>
+                </Button>
+            </CardContent>
+        </Card>
+    );
 }
 
 function QuestionTable({ tableData }: { tableData: QuestionTableData }) {
@@ -125,6 +188,26 @@ export function CaseStudyContent({
                             </CardContent>
                         </Card>
                     )}
+
+                    {activeQuestion.video_url && (
+                        <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground ml-1">
+                                <Play className="size-4" />
+                                <span>Video Content</span>
+                            </div>
+                            <YoutubeEmbed url={activeQuestion.video_url} />
+                        </div>
+                    )}
+
+                    {activeQuestion.link_url && (
+                        <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground ml-1">
+                                <ExternalLink className="size-4" />
+                                <span>Attached Resources</span>
+                            </div>
+                            <GDriveLink url={activeQuestion.link_url} title={activeQuestion.link_title} />
+                        </div>
+                    )}
                 </div>
             ) : (
                 <Card className="border-dashed border-border bg-muted/20">
@@ -152,34 +235,36 @@ export function CaseStudyContent({
                             <p className="text-sm font-bold text-foreground">Ready to begin?</p>
                             <p className="text-xs text-muted-foreground">Approx. 15-20 mins</p>
                         </div>
-                        <Button
-                            size="lg"
-                            className="gap-2 px-10 font-bold shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground"
-                            disabled={!hasQuestions}
-                            onClick={() => {
-                                if (typeof window === "undefined") return;
-                                const isEPANSubmodule = submoduleSlug === "e-pan-registration";
-                                try {
-                                    window.localStorage.setItem(
-                                        isEPANSubmodule
-                                            ? "epan-registration-started"
-                                            : "itr-registration-started",
-                                        "true",
+                        {activeQuestion && !(activeQuestion.video_url || activeQuestion.link_url) && (
+                            <Button
+                                size="lg"
+                                className="gap-2 px-10 font-bold shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground"
+                                disabled={!hasQuestions}
+                                onClick={() => {
+                                    if (typeof window === "undefined") return;
+                                    const isEPANSubmodule = submoduleSlug === "e-pan-registration";
+                                    try {
+                                        window.localStorage.setItem(
+                                            isEPANSubmodule
+                                                ? "epan-registration-started"
+                                                : "itr-registration-started",
+                                            "true",
+                                        );
+                                    } catch {
+                                        // ignore storage errors
+                                    }
+                                    const gatewayPath = "/simulation/gateway";
+                                        
+                                    window.open(
+                                        activeQuestion ? `${gatewayPath}?questionId=${activeQuestion.id}` : gatewayPath,
+                                        "_blank",
+                                        "noopener,noreferrer",
                                     );
-                                } catch {
-                                    // ignore storage errors
-                                }
-                                const gatewayPath = "/simulation/gateway";
-                                    
-                                window.open(
-                                    activeQuestion ? `${gatewayPath}?questionId=${activeQuestion.id}` : gatewayPath,
-                                    "_blank",
-                                    "noopener,noreferrer",
-                                );
-                            }}
-                        >
-                            Start Task <ArrowRight className="size-4" />
-                        </Button>
+                                }}
+                            >
+                                Start Task <ArrowRight className="size-4" />
+                            </Button>
+                        )}
                     </div>
 
                     <div className="flex flex-1 items-center justify-end">

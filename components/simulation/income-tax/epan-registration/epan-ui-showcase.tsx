@@ -30,6 +30,7 @@ export function EPANUiShowcase() {
     const [stepOneChecked, setStepOneChecked] = useState(true);
     const [otpConsentChecked, setOtpConsentChecked] = useState(true);
     const [detailsAccepted, setDetailsAccepted] = useState(false);
+    const [emailValidated, setEmailValidated] = useState(false);
     const [showOtpPanel, setShowOtpPanel] = useState(false);
     const [showEmailOtp, setShowEmailOtp] = useState(true);
     const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
@@ -150,13 +151,14 @@ export function EPANUiShowcase() {
                     <EPANValidateDetails
                         details={DEMO_DETAILS}
                         acceptanceChecked={detailsAccepted}
+                        emailValidated={emailValidated}
                         onAcceptanceChange={setDetailsAccepted}
                         onCancel={() => setCurrentStep(2)}
                         onContinue={() => setCurrentStep(4)}
                         emailOtpState={showEmailOtp ? emailOtpState : null}
                         onEmailOtpChange={setEmailOtpDigits}
                         onValidateEmail={() => setShowEmailOtp(true)}
-                        onSubmitEmailOtp={() => undefined}
+                        onSubmitEmailOtp={() => setEmailValidated(true)}
                     />
                 ) : null}
 
