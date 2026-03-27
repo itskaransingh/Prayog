@@ -43,11 +43,11 @@ export function EPANAadhaarForm({
                     onChange={(event) => onAadhaarChange(event.target.value.replace(/\D/g, "").slice(0, 12))}
                 />
 
-                {validationError ? (
+                {validationError && (
                     <div className="epan-inline-error" role="alert">
                         <strong>Error :</strong> {validationError}
                     </div>
-                ) : null}
+                )}
 
                 <label className="epan-checkbox-row">
                     <input
@@ -61,10 +61,10 @@ export function EPANAadhaarForm({
                 </label>
 
                 <ol className="epan-checklist">
-                    <li>I have never been allotted a Permanent Account Number(PAN)</li>
-                    <li>My active mobile number is linked with Aadhaar</li>
-                    <li>My complete date of birth (DD-MM-YYYY) is available on Aadhaar card</li>
-                    <li>I am not minor as on application date of Permanent Account Number(PAN)</li>
+                    <li>1. I have never been allotted a Permanent Account Number(PAN)</li>
+                    <li>2. My active mobile number is linked with Aadhaar</li>
+                    <li>3. My complete date of birth (DD-MM-YYYY) is available on Aadhaar card</li>
+                    <li>4. I am not minor as on application date of Permanent Account Number(PAN)</li>
                 </ol>
             </div>
 

@@ -30,6 +30,7 @@ export function EPANValidateDetails({
     onSubmitEmailOtp,
 }: EPANValidateDetailsProps) {
     const [isEmailOtpOpen, setIsEmailOtpOpen] = useState(false);
+    const [isEmailOtpVisible, setIsEmailOtpVisible] = useState(false);
 
     const isOtpComplete = emailOtpState?.digits.every((digit) => digit !== "") ?? false;
     const canContinue = acceptanceChecked && emailValidated;
@@ -104,14 +105,26 @@ export function EPANValidateDetails({
                                     {emailOtpState.codeHint ? <strong>[{emailOtpState.codeHint}]</strong> : null}
                                 </p>
                                 <div className="epan-inline-otp-entry">
-                                    <EPANOtpInput value={emailOtpState.digits} onChange={onEmailOtpChange} />
-                                    <button type="button" className="epan-otp-visibility" aria-label="Hide OTP">
-                                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.92-2.17 2.36-4.05 4.18-5.44" />
-                                            <path d="M10.59 10.58A2 2 0 1 0 13.41 13.4" />
-                                            <path d="M1 1l22 22" />
-                                            <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8a11.64 11.64 0 0 1-4.24 5.08" />
-                                        </svg>
+                                    <EPANOtpInput value={emailOtpState.digits} onChange={onEmailOtpChange} isMasked={!isEmailOtpVisible} />
+                                    <button
+                                        type="button"
+                                        className="epan-otp-visibility"
+                                        aria-label={isEmailOtpVisible ? "Hide OTP" : "Show OTP"}
+                                        onClick={() => setIsEmailOtpVisible(!isEmailOtpVisible)}
+                                    >
+                                        {isEmailOtpVisible ? (
+                                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                <circle cx="12" cy="12" r="3" />
+                                            </svg>
+                                        ) : (
+                                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.92-2.17 2.36-4.05 4.18-5.44" />
+                                                <path d="M10.59 10.58A2 2 0 1 0 13.41 13.4" />
+                                                <path d="M1 1l22 22" />
+                                                <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8a11.64 11.64 0 0 1-4.24 5.08" />
+                                            </svg>
+                                        )}
                                     </button>
                                 </div>
                                 <div className="epan-otp-meta">

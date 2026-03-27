@@ -7,6 +7,7 @@ interface EPANOtpInputProps {
     onChange: (digits: string[]) => void;
     length?: number;
     disabled?: boolean;
+    isMasked?: boolean;
     className?: string;
 }
 
@@ -15,6 +16,7 @@ export function EPANOtpInput({
     onChange,
     length = 6,
     disabled = false,
+    isMasked = false,
     className = "",
 }: EPANOtpInputProps) {
     const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -90,7 +92,7 @@ export function EPANOtpInput({
                     ref={(element) => {
                         inputRefs.current[index] = element;
                     }}
-                    type="text"
+                    type={isMasked ? "password" : "text"}
                     inputMode="numeric"
                     pattern="[0-9]*"
                     autoComplete="one-time-code"

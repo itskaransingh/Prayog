@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { EPANOtpInput } from "./epan-otp-input";
 import type { EPANOtpState } from "./types";
 
@@ -24,8 +25,21 @@ export function EPANConsentOtp({
     onCancel,
     onResend,
 }: EPANConsentOtpProps) {
+    const [localConsent, setLocalConsent] = useState(consentAccepted);
+    const [isOtpVisible, setIsOtpVisible] = useState(false);
+
     const isOtpComplete = otpState.digits.every((digit) => digit !== "");
-    const canContinue = mode === "consent" ? consentAccepted : isOtpComplete;
+    const canContinue = mode === "consent" ? localConsent : isOtpComplete;
+
+    const handleContinue = () => {
+        if (mode === "consent") {
+            // Only update parent when continue is clicked
+            onConsentChange(localConsent);
+            onContinue();
+        } else {
+            onContinue();
+        }
+    };
 
     return (
         <div className="epan-step-shell">
@@ -69,8 +83,8 @@ export function EPANConsentOtp({
                         <label className="epan-checkbox-row">
                             <input
                                 type="checkbox"
-                                checked={consentAccepted}
-                                onChange={(event) => onConsentChange(event.target.checked)}
+                                checked={localConsent}
+                                onChange={(event) => setLocalConsent(event.target.checked)}
                             />
                             <span>I have read the consent terms and agree to proceed further</span>
                         </label>
@@ -88,14 +102,26 @@ export function EPANConsentOtp({
                         </p>
 
                         <div className="epan-otp-row">
-                            <EPANOtpInput value={otpState.digits} onChange={onOtpChange} />
-                            <button type="button" className="epan-otp-visibility" aria-label="Hide OTP">
-                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.92-2.17 2.36-4.05 4.18-5.44" />
-                                    <path d="M10.59 10.58A2 2 0 1 0 13.41 13.4" />
-                                    <path d="M1 1l22 22" />
-                                    <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8a11.64 11.64 0 0 1-4.24 5.08" />
-                                </svg>
+                            <EPANOtpInput value={otpState.digits} onChange={onOtpChange} isMasked={!isOtpVisible} />
+                            <button
+                                type="button"
+                                className="epan-otp-visibility"
+                                aria-label={isOtpVisible ? "Hide OTP" : "Show OTP"}
+                                onClick={() => setIsOtpVisible(!isOtpVisible)}
+                            >
+                                {isOtpVisible ? (
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                ) : (
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C7 20 2.73 16.11 1 12c.92-2.17 2.36-4.05 4.18-5.44" />
+                                        <path d="M10.59 10.58A2 2 0 1 0 13.41 13.4" />
+                                        <path d="M1 1l22 22" />
+                                        <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.89 11 8a11.64 11.64 0 0 1-4.24 5.08" />
+                                    </svg>
+                                )}
                             </button>
                         </div>
 
@@ -135,7 +161,7 @@ export function EPANConsentOtp({
                     type="button"
                     className="epan-btn epan-btn-primary"
                     disabled={!canContinue || (mode === "otp" && !consentAccepted)}
-                    onClick={onContinue}
+                    onClick={handleContinue}
                 >
                     Continue <span aria-hidden="true">›</span>
                 </button>
