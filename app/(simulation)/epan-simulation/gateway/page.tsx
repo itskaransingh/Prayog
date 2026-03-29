@@ -2,7 +2,7 @@
 
 import { PortalHeader } from "@/components/simulation/income-tax/shared/portal-header";
 import { PortalFooter } from "@/components/simulation/income-tax/shared/portal-footer";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { EPANDashboard } from "@/components/simulation/income-tax/epan-registration/epan-dashboard";
 
@@ -15,6 +15,7 @@ export default function GatewayPage() {
 }
 
 function GatewayContent() {
+    const router = useRouter();
     const searchParams = useSearchParams();
     const qId = searchParams?.get('questionId');
 
@@ -29,7 +30,7 @@ function GatewayContent() {
                             return;
                         }
 
-                        window.location.href = `/epan-simulation?questionId=${qId}`;
+                        router.push(`/epan-simulation?questionId=${qId}`);
                     }}
                     onCheckStatus={() => alert("Check Status/Download PAN simulation not implemented.")}
                 />

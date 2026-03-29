@@ -3,7 +3,8 @@
 import { PortalHeader } from "@/components/simulation/income-tax/shared/portal-header";
 import { PortalFooter } from "@/components/simulation/income-tax/shared/portal-footer";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
 export default function GatewayPage() {
@@ -15,6 +16,7 @@ export default function GatewayPage() {
 }
 
 function GatewayContent() {
+    const router = useRouter();
     const searchParams = useSearchParams();
     const qId = searchParams?.get('questionId') || '6771ce37-57d3-479f-a57c-d53affa3264a'; // fallback to first Priya Nambiar ID for direct testing
     const registerHref = `/simulation?questionId=${qId}`;
@@ -68,15 +70,15 @@ function GatewayContent() {
                                 iconSrc="/simulation/icons/Income-tax-menu-icons/Know_your_JAO.svg"
                                 label="Know Your AO"
                             />
-                            <div 
-                                onClick={() => window.location.href = `/epan-simulation/gateway?questionId=${qId}`}
-                                style={{ cursor: 'pointer' }}
+                            <Link
+                                href={`/epan-simulation/gateway?questionId=${qId}`}
+                                style={{ cursor: "pointer" }}
                             >
                                 <SidebarItem
                                     iconSrc="/simulation/icons/Income-tax-menu-icons/Instant_E-PAN.svg"
                                     label="Instant E-PAN"
                                 />
-                            </div>
+                            </Link>
                             <SidebarItem
                                 iconSrc="/simulation/icons/Income-tax-menu-icons/TDS_On_Cash_Withdrawal.svg"
                                 label="TDS On Cash Withdrawal"
@@ -98,7 +100,7 @@ function GatewayContent() {
                                     <p>Experience the new e-Filing portal 2.0</p>
                                     <div className="sim-hero-actions">
                                         <button className="sim-btn-filled big" type="button">Login</button>
-                                        <button className="sim-btn-outline big" type="button" onClick={() => window.location.href = registerHref}>Register</button>
+                                        <button className="sim-btn-outline big" type="button" onClick={() => router.push(registerHref)}>Register</button>
                                     </div>
                                 </div>
                                 <Image

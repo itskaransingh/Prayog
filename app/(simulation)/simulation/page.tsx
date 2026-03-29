@@ -68,6 +68,26 @@ import type { EvaluationMapping } from "@/lib/evaluation";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+const ITR_MAPPING_CACHE_PREFIX = "itr-simulation-mappings:";
+
+function getCachedMappings(questionId: string): EvaluationMapping[] {
+    if (typeof window === "undefined") {
+        return [];
+    }
+
+    try {
+        const raw = window.localStorage.getItem(`${ITR_MAPPING_CACHE_PREFIX}${questionId}`);
+        if (!raw) {
+            return [];
+        }
+
+        const parsed = JSON.parse(raw) as EvaluationMapping[];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
 export default function SimulationPage() {
     return (
         <Suspense fallback={<div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>Loading Simulator...</div>}>
@@ -80,8 +100,11 @@ function SimulationPageContent() {
     const searchParams = useSearchParams();
     const questionId = searchParams?.get('questionId') || '6771ce37-57d3-479f-a57c-d53affa3264a';
 
-    const [mappings, setMappings] = useState<EvaluationMapping[]>([]);
-    const [loading, setLoading] = useState(true);
+    return <SimulationPageQuestion key={questionId} questionId={questionId} />;
+}
+
+function SimulationPageQuestion({ questionId }: { questionId: string }) {
+    const [mappings, setMappings] = useState<EvaluationMapping[]>(() => getCachedMappings(questionId));
 
     useEffect(() => {
         async function loadMappings() {
@@ -119,25 +142,23 @@ function SimulationPageContent() {
                                     weight: 1
                                 }));
                                 setMappings(newMappings);
+                                try {
+                                    window.localStorage.setItem(
+                                        `${ITR_MAPPING_CACHE_PREFIX}${questionId}`,
+                                        JSON.stringify(newMappings),
+                                    );
+                                } catch {
+                                    // ignore storage errors
+                                }
                             }
                         }
                     }
             } catch (err) {
                 console.error("Failed to fetch simulation fields", err);
-            } finally {
-                setLoading(false);
             }
         }
         loadMappings();
     }, [questionId]);
-
-    if (loading) {
-        return (
-            <div style={{ display: 'flex', height: '100vh', justifyContent: 'center', alignItems: 'center' }}>
-                Loading Simulator...
-            </div>
-        );
-    }
 
     return (
         <RegistrationProvider initialMappings={mappings}>
@@ -221,7 +242,7 @@ function SimulationContent() {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <button
                             className="sim-proceed-btn"
-                            onClick={() => window.location.href = '/'}
+                            onClick={() => window.location.href = '/simulation/gateway'}
                         >
                             Proceed To Login
                         </button>

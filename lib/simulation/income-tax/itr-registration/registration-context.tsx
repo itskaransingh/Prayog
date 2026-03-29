@@ -6,6 +6,7 @@ import {
     useState,
     useCallback,
     useEffect,
+    useMemo,
     type ReactNode,
 } from "react";
 import type { StepNumber } from "./constants";
@@ -119,7 +120,7 @@ export function RegistrationProvider({
     const [startTime] = useState<number | null>(() =>
         typeof window === "undefined" ? null : Date.now()
     );
-    const [evaluationMappings] = useState<EvaluationMapping[]>(() => {
+    const evaluationMappings = useMemo<EvaluationMapping[]>(() => {
         if (initialMappings && initialMappings.length > 0) {
             return initialMappings;
         }
@@ -141,7 +142,7 @@ export function RegistrationProvider({
         } catch {
             return [];
         }
-    });
+    }, [initialMappings]);
     const [evaluationResults, setEvaluationResults] = useState<EvaluationResult | null>(null);
     const [transactionId, setTransactionId] = useState<string | null>(null);
     const [isCompleted, setIsCompleted] = useState(false);
@@ -166,6 +167,21 @@ export function RegistrationProvider({
             localStorage.removeItem("itr-registration-started");
         }
     }, []);
+
+    useEffect(() => {
+        if (typeof window === "undefined" || evaluationMappings.length === 0) {
+            return;
+        }
+
+        try {
+            window.localStorage.setItem(
+                EVALUATION_STORAGE_KEY,
+                JSON.stringify({ mappings: evaluationMappings }),
+            );
+        } catch {
+            // ignore storage errors
+        }
+    }, [evaluationMappings]);
 
     const updateData = useCallback((partial: Partial<RegistrationData>) => {
         setData((prev) => ({ ...prev, ...partial }));

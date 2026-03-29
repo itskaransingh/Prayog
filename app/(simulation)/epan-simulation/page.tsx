@@ -18,11 +18,30 @@ import { type EPANAadhaarDetails } from "@/components/simulation/income-tax/epan
 import { VALIDATION_REGEX } from "@/lib/simulation/income-tax/epan-registration/constants";
 
 type EPANSeedFieldKey = "fullName" | "dob" | "gender" | "mobile" | "email" | "address";
+const EPAN_MAPPING_CACHE_PREFIX = "epan-simulation-mappings:";
 
 interface SimulationFieldRecord {
     field_name: string;
     expected_value: string | null;
     field_label: string | null;
+}
+
+function getCachedMappings(questionId: string | null): EvaluationMapping[] {
+    if (typeof window === "undefined" || !questionId) {
+        return [];
+    }
+
+    try {
+        const raw = window.localStorage.getItem(`${EPAN_MAPPING_CACHE_PREFIX}${questionId}`);
+        if (!raw) {
+            return [];
+        }
+
+        const parsed = JSON.parse(raw) as EvaluationMapping[];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
 }
 
 function EPANSimulationContent() {
@@ -109,16 +128,22 @@ function EPANSimulationContent() {
                         updateData({ uidaiConsent: true, otpConsentAccepted: false });
                     } else {
                         // Seed data from evaluation mappings before going to step 3
-                        const seededData: Partial<Record<EPANSeedFieldKey, string>> = {};
+                        const seededData: Partial<Record<EPANSeedFieldKey, string>> = {
+                            // Default sample values for empty fields as requested by USER
+                            fullName: "Priya Nambiar",
+                            dob: "01/01/1990",
+                            gender: "Female",
+                            mobile: "9876543210",
+                            email: "priya.nambiar@example.com",
+                            address: "123, Sector 4, Lotus Valley, Bengaluru, KA - 560001"
+                        };
                         const relevantFields: EPANSeedFieldKey[] = ["fullName", "dob", "gender", "mobile", "email", "address"];
                         evaluationMappings.forEach(m => {
-                            if (relevantFields.includes(m.fieldPath as EPANSeedFieldKey)) {
+                            if (relevantFields.includes(m.fieldPath as EPANSeedFieldKey) && m.expectedValue) {
                                 seededData[m.fieldPath as EPANSeedFieldKey] = m.expectedValue;
                             }
                         });
-                        if (Object.keys(seededData).length > 0) {
-                            updateData(seededData);
-                        }
+                        updateData(seededData);
                         nextStep();
                     }
                 };
@@ -161,7 +186,7 @@ function EPANSimulationContent() {
                             acknowledgementNumber: "210456789012345",
                             successMessage: "Your request for e-PAN has been submitted successfully"
                         }}
-                        onLogin={() => window.location.href = "/"}
+                        onLogin={() => window.location.href = "/simulation/gateway"}
                         onViewEvaluation={() => setShowEvaluationPopup(true)}
                     />
                 );
@@ -228,8 +253,12 @@ export default function EPANSimulationPage() {
 function EPANProviderWrapper() {
     const searchParams = useSearchParams();
     const questionId = searchParams.get("questionId");
-    const [mappings, setMappings] = useState<EvaluationMapping[]>([]);
-    const [loading, setLoading] = useState(true);
+
+    return <EPANProviderLoader key={questionId ?? "missing-question"} questionId={questionId} />;
+}
+
+function EPANProviderLoader({ questionId }: { questionId: string | null }) {
+    const [mappings, setMappings] = useState<EvaluationMapping[]>(() => getCachedMappings(questionId));
 
     useEffect(() => {
         async function fetchMappings() {
@@ -272,22 +301,24 @@ function EPANProviderWrapper() {
                                 weight: 1
                             }));
                             setMappings(formattedMappings);
+                            try {
+                                window.localStorage.setItem(
+                                    `${EPAN_MAPPING_CACHE_PREFIX}${questionId}`,
+                                    JSON.stringify(formattedMappings),
+                                );
+                            } catch {
+                                // ignore storage errors
+                            }
                         }
                     }
                 }
             } catch (err) {
                 console.error("Error fetching evaluation mappings:", err);
-            } finally {
-                setLoading(false);
             }
         }
 
         fetchMappings();
     }, [questionId]);
-
-    if (loading) {
-        return <div className="flex items-center justify-center min-h-screen">Loading simulation...</div>;
-    }
 
     return (
         <EPANProvider initialMappings={mappings}>
