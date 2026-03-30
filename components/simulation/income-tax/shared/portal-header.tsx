@@ -87,7 +87,6 @@ export function PortalHeader() {
                     <li><a className="sim-nav-link" href="#">Help</a></li>
                 </ul>
                 <div className="sim-nav-right">
-                    <span className="sim-nav-question">Question No. 1</span>
                     <span className="sim-nav-call">Call Us</span>
                     <Link
                         href="/simulation"

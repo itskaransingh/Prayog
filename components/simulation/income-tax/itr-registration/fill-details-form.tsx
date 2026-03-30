@@ -100,7 +100,7 @@ export function FillDetailsForm({ onContinue, onBack }: FillDetailsFormProps) {
         // Contact Details
         if (!contact.mobile.trim()) {
             errs.mobile = "Mobile number is required";
-        } else if (!MOBILE_REGEX.test(contact.mobile)) {
+        } else if (contact.mobile.length !== 10) {
             errs.mobile = "Enter valid 10-digit mobile number";
         }
         if (!contact.email.trim()) {

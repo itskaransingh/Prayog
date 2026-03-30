@@ -2,8 +2,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getSubmoduleHref } from "@/lib/learning-contents";
 import { getModuleBySlug, getSubmodules } from "@/lib/supabase/modules";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { notFound } from "next/navigation";
 
 interface ModulePageProps {
@@ -34,13 +35,21 @@ export default async function ModuleSubtopicsPage({ params }: ModulePageProps) {
 
     return (
         <div className="flex flex-1 flex-col gap-6 p-6 w-full max-w-4xl mx-auto">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight text-foreground">
-                    {learningModule.title}
-                </h1>
-                <p className="text-muted-foreground mt-1 text-sm">
-                    Select a subtopic to view learning content and assignments.
-                </p>
+            <div className="flex flex-col gap-4">
+                <Link href="/learning-contents" className="w-fit">
+                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
+                        <ChevronLeft className="size-4" />
+                        Back to Modules
+                    </Button>
+                </Link>
+                <div>
+                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                        {learningModule.title}
+                    </h1>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                        Select a subtopic to view learning content and assignments.
+                    </p>
+                </div>
             </div>
 
             <div className="flex flex-col gap-3">
