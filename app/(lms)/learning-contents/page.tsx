@@ -1,11 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getModulePresentation } from "@/lib/learning-contents";
-import { getModules } from "@/lib/supabase/modules";
+import { getCachedModules } from "@/lib/supabase/lms-cache";
 import Link from "next/link";
 
 export default async function LearningContentsPage() {
-    const modules = await getModules();
+    const modules = await getCachedModules();
 
     return (
         <div className="flex flex-1 flex-col gap-6 p-6 w-full container mx-auto">

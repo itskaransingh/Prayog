@@ -1,6 +1,11 @@
 import { CaseStudyContent } from "@/components/lms/case-study-content";
-import { getQuestionsBySubmodule } from "@/lib/supabase/questions";
-import { getSubmoduleBySlug, getSubmodules, getModuleById, type Submodule } from "@/lib/supabase/modules";
+import {
+    getCachedModuleById,
+    getCachedQuestionsBySubmodule,
+    getCachedSubmoduleBySlug,
+    getCachedSubmodules,
+} from "@/lib/supabase/lms-cache";
+import type { Submodule } from "@/lib/supabase/modules";
 import { notFound } from "next/navigation";
 
 interface CoursePageProps {
@@ -18,12 +23,12 @@ export default async function CoursePage({ params }: CoursePageProps) {
     let moduleSlug = "";
 
     try {
-        submodule = await getSubmoduleBySlug(submoduleSlug);
+        submodule = await getCachedSubmoduleBySlug(submoduleSlug);
 
         const [questionList, allSubmodules, parentModule] = await Promise.all([
-            getQuestionsBySubmodule(submodule.id),
-            getSubmodules(submodule.module_id),
-            getModuleById(submodule.module_id),
+            getCachedQuestionsBySubmodule(submodule.id),
+            getCachedSubmodules(submodule.module_id),
+            getCachedModuleById(submodule.module_id),
         ]);
 
         questions = questionList;

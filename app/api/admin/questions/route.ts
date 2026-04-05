@@ -1,5 +1,11 @@
 import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
+import {
+    LMS_MODULES_TAG,
+    LMS_QUESTIONS_TAG,
+    LMS_SUBMODULES_TAG,
+} from "../../../../lib/supabase/lms-cache-tags";
 import { createClient } from "@/lib/supabase/server";
+import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
@@ -83,6 +89,10 @@ export async function POST(request: Request) {
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        revalidateTag(LMS_MODULES_TAG, "max");
+        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_QUESTIONS_TAG, "max");
 
         return NextResponse.json({ question: data }, { status: 201 });
     } catch (error: unknown) {

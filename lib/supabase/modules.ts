@@ -6,6 +6,7 @@ export interface Module {
     id: string;
     title: string;
     slug: string;
+    is_active: boolean;
     course_count: number;
     icon_name: string;
     bg_color: string;
@@ -20,6 +21,7 @@ export interface Submodule {
     module_id: string;
     title: string;
     slug: string;
+    is_active: boolean;
     task_count: number;
     progress: number;
     sort_order: number;
@@ -28,12 +30,17 @@ export interface Submodule {
 }
 
 export type ModuleInsert = Pick<Module, "title" | "slug"> &
-    Partial<Pick<Module, "course_count" | "icon_name" | "bg_color" | "text_color" | "progress">>;
+    Partial<
+        Pick<
+            Module,
+            "course_count" | "icon_name" | "bg_color" | "text_color" | "progress" | "is_active"
+        >
+    >;
 
 export type ModuleUpdate = Partial<Omit<Module, "id" | "created_at" | "updated_at">>;
 
 export type SubmoduleInsert = Pick<Submodule, "module_id" | "title" | "slug"> &
-    Partial<Pick<Submodule, "task_count" | "progress" | "sort_order">>;
+    Partial<Pick<Submodule, "task_count" | "progress" | "sort_order" | "is_active">>;
 
 export type SubmoduleUpdate = Partial<Omit<Submodule, "id" | "module_id" | "created_at" | "updated_at">>;
 
@@ -44,6 +51,7 @@ export async function getModules() {
     const { data, error } = await supabase
         .from("modules")
         .select("*")
+        .eq("is_active", true)
         .order("created_at", { ascending: true });
     if (error) throw error;
     return data as Module[];
@@ -55,6 +63,7 @@ export async function getModuleBySlug(slug: string) {
         .from("modules")
         .select("*")
         .eq("slug", slug)
+        .eq("is_active", true)
         .single();
     if (error) throw error;
     return data as Module;
@@ -66,6 +75,7 @@ export async function getModuleById(id: string) {
         .from("modules")
         .select("*")
         .eq("id", id)
+        .eq("is_active", true)
         .single();
     if (error) throw error;
     return data as Module;
@@ -111,6 +121,7 @@ export async function getSubmodules(moduleId: string) {
         .from("submodules")
         .select("*")
         .eq("module_id", moduleId)
+        .eq("is_active", true)
         .order("sort_order", { ascending: true });
     if (error) throw error;
     return data as Submodule[];
@@ -122,6 +133,7 @@ export async function getSubmoduleBySlug(slug: string) {
         .from("submodules")
         .select("*")
         .eq("slug", slug)
+        .eq("is_active", true)
         .single();
     if (error) throw error;
     return data as Submodule;

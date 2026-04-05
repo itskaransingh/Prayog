@@ -1,4 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+    LMS_MODULES_TAG,
+    LMS_QUESTIONS_TAG,
+    LMS_SUBMODULES_TAG,
+} from "../../../../lib/supabase/lms-cache-tags";
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -48,21 +54,37 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { title, slug, course_count, icon_name, bg_color, text_color } = body;
+        const { title, slug, course_count, icon_name, bg_color, text_color, is_active } = body;
 
         if (!title || !slug) {
             return NextResponse.json({ error: "title and slug are required" }, { status: 400 });
         }
 
+        if (is_active !== undefined && typeof is_active !== "boolean") {
+            return NextResponse.json({ error: "is_active must be a boolean" }, { status: 400 });
+        }
+
         const { data, error } = await supabase
             .from("modules")
-            .insert({ title, slug, course_count, icon_name, bg_color, text_color })
+            .insert({
+                title,
+                slug,
+                course_count,
+                icon_name,
+                bg_color,
+                text_color,
+                is_active: is_active ?? true,
+            })
             .select()
             .single();
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        revalidateTag(LMS_MODULES_TAG, "max");
+        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_QUESTIONS_TAG, "max");
 
         return NextResponse.json({ module: data }, { status: 201 });
     } catch (error: unknown) {

@@ -1,4 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import {
+    LMS_MODULES_TAG,
+    LMS_QUESTIONS_TAG,
+    LMS_SUBMODULES_TAG,
+} from "../../../../../lib/supabase/lms-cache-tags";
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
@@ -28,7 +34,16 @@ export async function PUT(
         }
 
         const body = await request.json();
-        const { title, slug, course_count, icon_name, bg_color, text_color, progress } = body;
+        const {
+            title,
+            slug,
+            course_count,
+            icon_name,
+            bg_color,
+            text_color,
+            progress,
+            is_active,
+        } = body;
 
         const updateData: Record<string, unknown> = {};
         if (title !== undefined) updateData.title = title;
@@ -38,6 +53,13 @@ export async function PUT(
         if (bg_color !== undefined) updateData.bg_color = bg_color;
         if (text_color !== undefined) updateData.text_color = text_color;
         if (progress !== undefined) updateData.progress = progress;
+
+        if (is_active !== undefined) {
+            if (typeof is_active !== "boolean") {
+                return NextResponse.json({ error: "is_active must be a boolean" }, { status: 400 });
+            }
+            updateData.is_active = is_active;
+        }
 
         if (Object.keys(updateData).length === 0) {
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
@@ -53,6 +75,10 @@ export async function PUT(
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        revalidateTag(LMS_MODULES_TAG, "max");
+        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_QUESTIONS_TAG, "max");
 
         return NextResponse.json({ module: data });
     } catch (error: unknown) {
@@ -81,6 +107,10 @@ export async function DELETE(
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        revalidateTag(LMS_MODULES_TAG, "max");
+        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_QUESTIONS_TAG, "max");
 
         return NextResponse.json({ message: "Module deleted" });
     } catch (error: unknown) {

@@ -48,6 +48,7 @@ interface Module {
     id: string;
     title: string;
     slug: string;
+    is_active: boolean;
     course_count: number;
     icon_name: string;
     bg_color: string;
@@ -61,6 +62,7 @@ interface Submodule {
     module_id: string;
     title: string;
     slug: string;
+    is_active: boolean;
     task_count: number;
     progress: number;
     sort_order: number;
@@ -73,6 +75,7 @@ interface ModuleFormData {
     bg_color: string;
     text_color: string;
     course_count: number;
+    is_active: boolean;
 }
 
 interface SubmoduleFormData {
@@ -80,6 +83,7 @@ interface SubmoduleFormData {
     slug: string;
     task_count: number;
     sort_order: number;
+    is_active: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -119,6 +123,7 @@ const emptyModuleForm: ModuleFormData = {
     bg_color: "bg-blue-50",
     text_color: "text-blue-600",
     course_count: 0,
+    is_active: true,
 };
 
 const emptySubmoduleForm: SubmoduleFormData = {
@@ -126,6 +131,7 @@ const emptySubmoduleForm: SubmoduleFormData = {
     slug: "",
     task_count: 0,
     sort_order: 0,
+    is_active: true,
 };
 
 // ─── Main Component ──────────────────────────────────────────────────
@@ -205,6 +211,7 @@ export default function AdminModulesPage() {
             bg_color: mod.bg_color,
             text_color: mod.text_color,
             course_count: mod.course_count,
+            is_active: typeof mod.is_active === "boolean" ? mod.is_active : true,
         });
         setShowModuleForm(true);
     };
@@ -294,6 +301,7 @@ export default function AdminModulesPage() {
             slug: sub.slug,
             task_count: sub.task_count,
             sort_order: sub.sort_order,
+            is_active: typeof sub.is_active === "boolean" ? sub.is_active : true,
         });
         setShowSubmoduleForm(true);
     };
@@ -502,6 +510,20 @@ export default function AdminModulesPage() {
                                 </div>
                             </div>
 
+                            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                                <input
+                                    type="checkbox"
+                                    checked={moduleForm.is_active}
+                                    onChange={(e) =>
+                                        setModuleForm((prev) => ({
+                                            ...prev,
+                                            is_active: e.target.checked,
+                                        }))
+                                    }
+                                />
+                                Module is enabled (visible to learners)
+                            </label>
+
                             {/* Preview */}
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
                                 <div
@@ -517,7 +539,7 @@ export default function AdminModulesPage() {
                                         {moduleForm.title || "Module Title"}
                                     </p>
                                     <p className="text-xs text-slate-500">
-                                        /{moduleForm.slug || "slug"} · {moduleForm.course_count} courses · Icon: {moduleForm.icon_name}
+                                        /{moduleForm.slug || "slug"} · {moduleForm.course_count} courses · Icon: {moduleForm.icon_name} · {moduleForm.is_active ? "Enabled" : "Disabled"}
                                     </p>
                                 </div>
                             </div>
@@ -612,6 +634,12 @@ export default function AdminModulesPage() {
                                                 </h3>
                                                 <Badge variant="secondary" className="text-[10px]">
                                                     {mod.slug}
+                                                </Badge>
+                                                <Badge
+                                                    variant={mod.is_active ? "default" : "outline"}
+                                                    className="text-[10px]"
+                                                >
+                                                    {mod.is_active ? "Enabled" : "Disabled"}
                                                 </Badge>
                                             </div>
                                             <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
@@ -768,6 +796,19 @@ export default function AdminModulesPage() {
                                                             />
                                                         </div>
                                                     </div>
+                                                    <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={submoduleForm.is_active}
+                                                            onChange={(e) =>
+                                                                setSubmoduleForm((prev) => ({
+                                                                    ...prev,
+                                                                    is_active: e.target.checked,
+                                                                }))
+                                                            }
+                                                        />
+                                                        Submodule is enabled (visible to learners)
+                                                    </label>
                                                     <div className="flex justify-end gap-2">
                                                         <Button
                                                             variant="outline"
@@ -825,6 +866,12 @@ export default function AdminModulesPage() {
                                                                     /{sub.slug} · {sub.task_count} tasks · Progress: {sub.progress}%
                                                                 </p>
                                                             </div>
+                                                            <Badge
+                                                                variant={sub.is_active ? "default" : "outline"}
+                                                                className="text-[10px]"
+                                                            >
+                                                                {sub.is_active ? "Enabled" : "Disabled"}
+                                                            </Badge>
                                                             <div className="flex items-center gap-1">
                                                                 <button
                                                                     onClick={() => openEditSubmodule(sub)}

@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getSubmoduleHref } from "@/lib/learning-contents";
-import { getModuleBySlug, getSubmodules } from "@/lib/supabase/modules";
+import { getCachedModuleBySlug, getCachedSubmodules } from "@/lib/supabase/lms-cache";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,8 @@ export default async function ModuleSubtopicsPage({ params }: ModulePageProps) {
     let submodules;
 
     try {
-        learningModule = await getModuleBySlug(moduleSlug);
-        submodules = await getSubmodules(learningModule.id);
+        learningModule = await getCachedModuleBySlug(moduleSlug);
+        submodules = await getCachedSubmodules(learningModule.id);
     } catch (error) {
         const code = typeof error === "object" && error !== null && "code" in error
             ? String(error.code)

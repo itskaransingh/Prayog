@@ -17,6 +17,8 @@ interface Topic {
     type: string;
 }
 
+const sidebarCache = new Map<string, { title: string; topics: Topic[] }>();
+
 export function CourseTopicsSidebar() {
     const [isItrCompleted, setIsItrCompleted] = React.useState(false);
     const pathname = usePathname();
@@ -28,9 +30,6 @@ export function CourseTopicsSidebar() {
     const [submoduleTitle, setSubmoduleTitle] = React.useState("Loading...");
     const [topics, setTopics] = React.useState<Topic[]>([]);
     const [activeQid, setActiveQid] = React.useState<string | null>(qid);
-    const sidebarCacheRef = React.useRef<Map<string, { title: string; topics: Topic[] }>>(
-        new Map()
-    );
 
     React.useEffect(() => {
         setActiveQid(qid);
@@ -83,7 +82,7 @@ export function CourseTopicsSidebar() {
             setIsItrCompleted(false);
         }
 
-        const cached = sidebarCacheRef.current.get(submoduleSlug);
+        const cached = sidebarCache.get(submoduleSlug);
         if (cached) {
             setSubmoduleTitle(cached.title);
             setTopics(cached.topics);
@@ -99,6 +98,7 @@ export function CourseTopicsSidebar() {
                     .from("submodules")
                     .select("id, title")
                     .eq("slug", submoduleSlug)
+                    .eq("is_active", true)
                     .single();
 
                 if (subError) {
@@ -139,7 +139,7 @@ export function CourseTopicsSidebar() {
                             };
                         });
 
-                        sidebarCacheRef.current.set(submoduleSlug, {
+                        sidebarCache.set(submoduleSlug, {
                             title: subData.title,
                             topics: dynamicTopics,
                         });
