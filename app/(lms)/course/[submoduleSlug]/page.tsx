@@ -19,10 +19,16 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
     try {
         submodule = await getSubmoduleBySlug(submoduleSlug);
-        questions = await getQuestionsBySubmodule(submodule.id);
-        
+
+        const [questionList, allSubmodules, parentModule] = await Promise.all([
+            getQuestionsBySubmodule(submodule.id),
+            getSubmodules(submodule.module_id),
+            getModuleById(submodule.module_id),
+        ]);
+
+        questions = questionList;
+
         // Fetch all submodules to find next/prev
-        const allSubmodules = await getSubmodules(submodule.module_id);
         const currentIndex = allSubmodules.findIndex(s => s.id === submodule.id);
         
         if (currentIndex > 0) {
@@ -36,7 +42,6 @@ export default async function CoursePage({ params }: CoursePageProps) {
         }
 
         // Get module slug for URL generation if needed
-        const parentModule = await getModuleById(submodule.module_id);
         moduleSlug = parentModule.slug;
 
     } catch (error) {

@@ -2,17 +2,19 @@
 
 import * as React from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/client";
+import {
+    COURSE_TOPIC_CHANGE_EVENT,
+    dispatchCourseTopicChange,
+    type CourseTopicChangeDetail,
+} from "@/lib/lms/task-navigation";
 
 interface Topic {
     id: string;
     question_id: string;
     title: string;
     type: string;
-    href: string;
-    isActive: boolean;
 }
 
 export function CourseTopicsSidebar() {
@@ -25,14 +27,67 @@ export function CourseTopicsSidebar() {
 
     const [submoduleTitle, setSubmoduleTitle] = React.useState("Loading...");
     const [topics, setTopics] = React.useState<Topic[]>([]);
+    const [activeQid, setActiveQid] = React.useState<string | null>(qid);
+    const sidebarCacheRef = React.useRef<Map<string, { title: string; topics: Topic[] }>>(
+        new Map()
+    );
+
+    React.useEffect(() => {
+        setActiveQid(qid);
+    }, [qid]);
+
+    React.useEffect(() => {
+        const handlePopState = () => {
+            const params = new URL(window.location.href).searchParams;
+            setActiveQid(params.get("qid"));
+        };
+
+        const handleTopicChange = (event: Event) => {
+            const customEvent = event as CustomEvent<CourseTopicChangeDetail>;
+            setActiveQid(customEvent.detail?.qid ?? null);
+        };
+
+        window.addEventListener("popstate", handlePopState);
+        window.addEventListener(COURSE_TOPIC_CHANGE_EVENT, handleTopicChange as EventListener);
+
+        return () => {
+            window.removeEventListener("popstate", handlePopState);
+            window.removeEventListener(COURSE_TOPIC_CHANGE_EVENT, handleTopicChange as EventListener);
+        };
+    }, []);
+
+    const handleTopicSelect = React.useCallback((questionId: string) => {
+        if (typeof window === "undefined") return;
+
+        const currentUrl = new URL(window.location.href);
+        if (currentUrl.searchParams.get("qid") === questionId) {
+            return;
+        }
+
+        currentUrl.searchParams.set("qid", questionId);
+        const query = currentUrl.searchParams.toString();
+        const nextUrl = query ? `${currentUrl.pathname}?${query}` : currentUrl.pathname;
+
+        window.history.pushState({}, "", nextUrl);
+        setActiveQid(questionId);
+        dispatchCourseTopicChange(questionId);
+    }, []);
 
     React.useEffect(() => {
         if (!submoduleSlug) return;
+
         const completed = localStorage.getItem(`${submoduleSlug}-completed`);
         if (completed === "true") {
             setIsItrCompleted(true);
         } else {
             setIsItrCompleted(false);
+        }
+
+        const cached = sidebarCacheRef.current.get(submoduleSlug);
+        if (cached) {
+            setSubmoduleTitle(cached.title);
+            setTopics(cached.topics);
+            return;
         }
 
         const fetchSidebarData = async () => {
@@ -81,10 +136,14 @@ export function CourseTopicsSidebar() {
                                 question_id: q.id,
                                 title: q.title || `Question ${index + 1}`,
                                 type,
-                                href: `${pathname}?qid=${q.id}`,
-                                isActive: false
                             };
                         });
+
+                        sidebarCacheRef.current.set(submoduleSlug, {
+                            title: subData.title,
+                            topics: dynamicTopics,
+                        });
+
                         setTopics(dynamicTopics);
                     } else {
                         setTopics([]);
@@ -97,7 +156,7 @@ export function CourseTopicsSidebar() {
         };
 
         fetchSidebarData();
-    }, [pathname, submoduleSlug]);
+    }, [submoduleSlug]);
 
     return (
         <aside className="course-sidebar">
@@ -109,12 +168,12 @@ export function CourseTopicsSidebar() {
 
             <nav className="course-sidebar-nav">
                 {topics.map((topic, index) => {
-                    const isActive = qid ? qid === topic.question_id : index === 0;
+                    const isActive = activeQid ? activeQid === topic.question_id : index === 0;
                     return (
-                        <Link
+                        <button
                             key={topic.question_id || topic.id}
-                            href={topic.href}
-                            scroll={false}
+                            type="button"
+                            onClick={() => handleTopicSelect(topic.question_id)}
                             className={`course-sidebar-item ${isActive ? "active" : ""}`}
                         >
                             <span
@@ -135,7 +194,7 @@ export function CourseTopicsSidebar() {
                                     {topic.type}
                                 </span>
                             </div>
-                        </Link>
+                        </button>
                     );
                 })}
             </nav>
@@ -185,12 +244,15 @@ export function CourseTopicsSidebar() {
                     padding: 12px 14px;
                     border-radius: 10px;
                     text-decoration: none;
+                    text-align: left;
+                    font: inherit;
                     color: var(--foreground);
                     transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
                     cursor: pointer;
                     border: 1px solid var(--border);
                     background: var(--card);
                     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+                    appearance: none;
                 }
                 .course-sidebar-item:hover {
                     background: color-mix(in srgb, var(--accent) 75%, var(--card) 25%);

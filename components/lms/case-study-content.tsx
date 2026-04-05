@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useSearchParams } from "next/navigation";
 
 import type { QuestionTableData, Question } from "@/lib/supabase/questions";
@@ -9,6 +10,10 @@ import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Play } from "lucid
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { getSubmoduleHref } from "@/lib/learning-contents";
+import {
+    COURSE_TOPIC_CHANGE_EVENT,
+    type CourseTopicChangeDetail,
+} from "@/lib/lms/task-navigation";
 
 interface CaseStudyContentProps {
     title: string;
@@ -136,12 +141,37 @@ export function CaseStudyContent({
 }: CaseStudyContentProps) {
     const searchParams = useSearchParams();
     const qid = searchParams.get("qid");
+    const [activeQid, setActiveQid] = React.useState<string | null>(qid);
 
-    const activeQuestion = qid
-        ? questions.find((q) => q.id === qid)
-        : questions.length > 0
-        ? questions[0]
+    React.useEffect(() => {
+        setActiveQid(qid);
+    }, [qid]);
+
+    React.useEffect(() => {
+        const handlePopState = () => {
+            const params = new URL(window.location.href).searchParams;
+            setActiveQid(params.get("qid"));
+        };
+
+        const handleTopicChange = (event: Event) => {
+            const customEvent = event as CustomEvent<CourseTopicChangeDetail>;
+            setActiveQid(customEvent.detail?.qid ?? null);
+        };
+
+        window.addEventListener("popstate", handlePopState);
+        window.addEventListener(COURSE_TOPIC_CHANGE_EVENT, handleTopicChange as EventListener);
+
+        return () => {
+            window.removeEventListener("popstate", handlePopState);
+            window.removeEventListener(COURSE_TOPIC_CHANGE_EVENT, handleTopicChange as EventListener);
+        };
+    }, []);
+
+    const selectedQuestion = activeQid
+        ? questions.find((q) => q.id === activeQid)
         : null;
+
+    const activeQuestion = selectedQuestion ?? (questions.length > 0 ? questions[0] : null);
 
     const hasQuestions = questions.length > 0;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CourseTopicsSidebar } from "@/components/lms/course-topics-sidebar";
@@ -18,7 +18,7 @@ export default function LmsLayout({
 }) {
     const pathname = usePathname();
     const router = useRouter();
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
     const [role, setRole] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
