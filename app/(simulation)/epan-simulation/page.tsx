@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useMemo } from "react";
+import { useEffect, useState, Suspense, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { EPANProvider, useEPAN } from "@/lib/simulation/income-tax/epan-registration/epan-context";
 import { EPAN_STEPS } from "@/lib/simulation/income-tax/epan-registration/constants";
@@ -16,11 +16,13 @@ import { type EvaluationMapping } from "@/lib/evaluation";
 import { createClient } from "@/lib/supabase/client";
 import { type EPANAadhaarDetails } from "@/components/simulation/income-tax/epan-registration/types";
 import { VALIDATION_REGEX } from "@/lib/simulation/income-tax/epan-registration/constants";
+import { buildAttemptAnswers, saveSimulationAttempt, type PersistableEvaluationMapping } from "@/lib/simulation/attempts";
 
 type EPANSeedFieldKey = "fullName" | "dob" | "gender" | "mobile" | "email" | "address";
 const EPAN_MAPPING_CACHE_PREFIX = "epan-simulation-mappings:";
 
 interface SimulationFieldRecord {
+    id: string;
     field_name: string;
     expected_value: string | null;
     field_label: string | null;
@@ -44,10 +46,11 @@ function getCachedMappings(questionId: string | null): EvaluationMapping[] {
     }
 }
 
-function EPANSimulationContent() {
+function EPANSimulationContent({ taskId }: { taskId: string | null }) {
     const searchParams = useSearchParams();
     const questionId = searchParams.get("questionId");
     const [showEvaluationPopup, setShowEvaluationPopup] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
     const { 
         data,
         currentStep, 
@@ -59,10 +62,12 @@ function EPANSimulationContent() {
         updateAadhaarOtp,
         updateEmailOtp,
         evaluationMappings,
+        startTime,
         nextStep,
         prevStep,
         completeEPAN
     } = useEPAN();
+    const hasSavedAttemptRef = useRef(false);
     const completedSteps = useMemo(() => {
         if (isCompleted || currentStep >= 4) {
             return EPAN_STEPS.map((step) => step.number);
@@ -101,6 +106,38 @@ function EPANSimulationContent() {
             return () => window.clearTimeout(timer);
         }
     }, [evaluationResults, isCompleted]);
+
+    useEffect(() => {
+        async function persistAttempt() {
+            if (
+                !questionId ||
+                !isCompleted ||
+                !evaluationResults ||
+                !startTime ||
+                hasSavedAttemptRef.current
+            ) {
+                return;
+            }
+
+            hasSavedAttemptRef.current = true;
+            setSaveError(null);
+
+            try {
+                await saveSimulationAttempt({
+                    questionId,
+                    taskId,
+                    startTime,
+                    endTime: startTime + evaluationResults.timeTakenSeconds * 1000,
+                    answers: buildAttemptAnswers(data, evaluationMappings as PersistableEvaluationMapping[]),
+                });
+            } catch (error) {
+                hasSavedAttemptRef.current = false;
+                setSaveError(error instanceof Error ? error.message : "Failed to save attempt.");
+            }
+        }
+
+        persistAttempt();
+    }, [data, evaluationMappings, evaluationResults, isCompleted, questionId, startTime, taskId]);
 
     const aadhaarValidationError =
         data.aadhaarNumber.length > 0 && !VALIDATION_REGEX.AADHAAR.test(data.aadhaarNumber)
@@ -227,6 +264,11 @@ function EPANSimulationContent() {
                             <p className="epan-mandatory-note"><span>*</span> Indicates mandatory fields</p>
                         </div>
                     )}
+                    {saveError && (
+                        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {saveError}
+                        </div>
+                    )}
                     {renderStep()}
                 </div>
             </main>
@@ -258,7 +300,8 @@ function EPANProviderWrapper() {
 }
 
 function EPANProviderLoader({ questionId }: { questionId: string | null }) {
-    const [mappings, setMappings] = useState<EvaluationMapping[]>(() => getCachedMappings(questionId));
+    const [mappings, setMappings] = useState<PersistableEvaluationMapping[]>(() => getCachedMappings(questionId) as PersistableEvaluationMapping[]);
+    const [taskId, setTaskId] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchMappings() {
@@ -275,6 +318,7 @@ function EPANProviderLoader({ questionId }: { questionId: string | null }) {
 
                 if (tasks && tasks.length > 0) {
                     const taskId = tasks[0].id;
+                    setTaskId(taskId);
 
                     // 2. Get all steps for this task
                     const { data: steps } = await supabase
@@ -288,13 +332,15 @@ function EPANProviderLoader({ questionId }: { questionId: string | null }) {
                         // 3. Get all fields for these steps
                         const { data: fields, error: fieldsError } = await supabase
                             .from("simulation_fields")
-                            .select("field_name, expected_value, field_label")
+                            .select("id, field_name, expected_value, field_label")
                             .in("step_id", stepIds);
 
                         if (fieldsError) throw fieldsError;
 
                         if (fields) {
-                            const formattedMappings: EvaluationMapping[] = (fields as SimulationFieldRecord[]).map((f) => ({
+                            const formattedMappings: PersistableEvaluationMapping[] = (fields as SimulationFieldRecord[]).map((f) => ({
+                                fieldId: f.id,
+                                fieldName: f.field_name,
                                 fieldPath: f.field_name,
                                 expectedValue: f.expected_value || "",
                                 label: f.field_label || f.field_name,
@@ -322,7 +368,7 @@ function EPANProviderLoader({ questionId }: { questionId: string | null }) {
 
     return (
         <EPANProvider initialMappings={mappings}>
-            <EPANSimulationContent />
+            <EPANSimulationContent taskId={taskId} />
         </EPANProvider>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { PortalHeader } from "@/components/simulation/income-tax/shared/portal-header";
 import { PortalFooter } from "@/components/simulation/income-tax/shared/portal-footer";
 import { ProgressStepper } from "@/components/simulation/income-tax/shared/progress-stepper";
@@ -67,6 +67,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { EvaluationMapping } from "@/lib/evaluation";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { buildAttemptAnswers, saveSimulationAttempt, type PersistableEvaluationMapping } from "@/lib/simulation/attempts";
 
 const ITR_MAPPING_CACHE_PREFIX = "itr-simulation-mappings:";
 
@@ -104,7 +105,8 @@ function SimulationPageContent() {
 }
 
 function SimulationPageQuestion({ questionId }: { questionId: string }) {
-    const [mappings, setMappings] = useState<EvaluationMapping[]>(() => getCachedMappings(questionId));
+    const [mappings, setMappings] = useState<PersistableEvaluationMapping[]>(() => getCachedMappings(questionId) as PersistableEvaluationMapping[]);
+    const [taskId, setTaskId] = useState<string | null>(null);
 
     useEffect(() => {
         async function loadMappings() {
@@ -120,6 +122,7 @@ function SimulationPageQuestion({ questionId }: { questionId: string }) {
 
                 if (tasks && tasks.length > 0) {
                         const taskId = tasks[0].id;
+                        setTaskId(taskId);
 
                         // 3. Get all steps and fields
                         const { data: steps } = await supabase
@@ -131,11 +134,13 @@ function SimulationPageQuestion({ questionId }: { questionId: string }) {
                             const stepIds = steps.map(s => s.id);
                             const { data: fields } = await supabase
                                 .from("simulation_fields")
-                                .select("*")
+                                .select("id, field_name, expected_value, field_label")
                                 .in("step_id", stepIds);
 
                             if (fields) {
-                                const newMappings: EvaluationMapping[] = fields.map(f => ({
+                                const newMappings: PersistableEvaluationMapping[] = fields.map(f => ({
+                                    fieldId: f.id,
+                                    fieldName: f.field_name,
                                     fieldPath: f.field_name,
                                     expectedValue: f.expected_value || "",
                                     label: f.field_label || f.field_name,
@@ -162,14 +167,16 @@ function SimulationPageQuestion({ questionId }: { questionId: string }) {
 
     return (
         <RegistrationProvider initialMappings={mappings}>
-            <SimulationContent />
+            <SimulationContent questionId={questionId} taskId={taskId} />
         </RegistrationProvider>
     );
 }
 
-function SimulationContent() {
-    const { data, transactionId, isCompleted, completeRegistration, evaluationResults } = useRegistration();
+function SimulationContent({ questionId, taskId }: { questionId: string; taskId: string | null }) {
+    const { data, transactionId, isCompleted, completeRegistration, evaluationResults, evaluationMappings, startTime } = useRegistration();
     const [showEvalPopup, setShowEvalPopup] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const hasSavedAttemptRef = useRef(false);
 
     // Auto-show evaluation popup after 1 second
     useEffect(() => {
@@ -178,6 +185,32 @@ function SimulationContent() {
             return () => clearTimeout(timer);
         }
     }, [isCompleted, evaluationResults]);
+
+    useEffect(() => {
+        async function persistAttempt() {
+            if (!isCompleted || !evaluationResults || !startTime || hasSavedAttemptRef.current) {
+                return;
+            }
+
+            hasSavedAttemptRef.current = true;
+            setSaveError(null);
+
+            try {
+                await saveSimulationAttempt({
+                    questionId,
+                    taskId,
+                    startTime,
+                    endTime: startTime + evaluationResults.timeTakenSeconds * 1000,
+                    answers: buildAttemptAnswers(data, evaluationMappings as PersistableEvaluationMapping[]),
+                });
+            } catch (error) {
+                hasSavedAttemptRef.current = false;
+                setSaveError(error instanceof Error ? error.message : "Failed to save attempt.");
+            }
+        }
+
+        persistAttempt();
+    }, [data, evaluationMappings, evaluationResults, isCompleted, questionId, startTime, taskId]);
 
     if (isCompleted) {
         // Mask helpers
@@ -237,6 +270,12 @@ function SimulationContent() {
                             </span>
                         </div>
                     </div>
+
+                    {saveError && (
+                        <div className="sim-userid-card" style={{ borderColor: "#fecaca", background: "#fef2f2", color: "#991b1b" }}>
+                            <p>{saveError}</p>
+                        </div>
+                    )}
 
                     {/* Action buttons */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

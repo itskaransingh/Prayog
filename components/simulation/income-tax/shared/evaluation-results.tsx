@@ -8,9 +8,15 @@ interface EvaluationPopupProps {
     open: boolean;
     onClose: () => void;
     results?: any; // Allow passing results directly
+    showExpectedValues?: boolean;
 }
 
-export function EvaluationPopup({ open, onClose, results }: EvaluationPopupProps) {
+export function EvaluationPopup({
+    open,
+    onClose,
+    results,
+    showExpectedValues = true,
+}: EvaluationPopupProps) {
     const itr = useContext(RegistrationContext);
     const evaluationResults = results || itr?.evaluationResults;
 
@@ -90,7 +96,7 @@ export function EvaluationPopup({ open, onClose, results }: EvaluationPopupProps
                                 <tr>
                                     <th>Field</th>
                                     <th>Entered</th>
-                                    <th>Expected</th>
+                                    {showExpectedValues && <th>Expected</th>}
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -101,9 +107,11 @@ export function EvaluationPopup({ open, onClose, results }: EvaluationPopupProps
                                         <td>
                                             <span className="sim-eval-entered">{item.entered}</span>
                                         </td>
-                                        <td>
-                                            <span className="sim-eval-expected">{item.expected}</span>
-                                        </td>
+                                        {showExpectedValues && (
+                                            <td>
+                                                <span className="sim-eval-expected">{item.expected}</span>
+                                            </td>
+                                        )}
                                         <td>
                                             <span className={`sim-eval-status ${item.status}`}>
                                                 {item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}

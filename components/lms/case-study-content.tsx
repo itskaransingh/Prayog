@@ -176,28 +176,18 @@ export function CaseStudyContent({
     const hasQuestions = questions.length > 0;
 
     return (
-        <div className="flex container mx-auto flex-1 flex-col gap-6 p-6 pb-32 bg-background text-foreground">
-            <div className="flex flex-col gap-4">
-                {moduleSlug && (
-                    <Link href={`/learning-contents/${moduleSlug}`} className="w-fit">
-                        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
-                            <ChevronLeft className="size-4" />
-                            Back to Sub-modules
-                        </Button>
-                    </Link>
-                )}
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-                    <p className="text-muted-foreground mt-1 text-sm">
-                        {breadcrumb}
-                    </p>
-                </div>
+        <div className="flex container mx-auto flex-1 flex-col gap-6 p-6 pb-32">
+            <div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
+                <p className="text-muted-foreground mt-1 text-sm">
+                    {breadcrumb}
+                </p>
             </div>
 
             <Separator className="bg-border" />
 
             {hasQuestions && activeQuestion ? (
-                <div id={`question-${activeQuestion.id}`} className="flex flex-col gap-6">
+                <div key={activeQuestion.id} id={`question-${activeQuestion.id}`} className="flex flex-col gap-6">
                     <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-900/10">
                         <CardContent className="pt-6">
                             <p className="text-lg leading-relaxed text-blue-900 dark:text-blue-200">
@@ -213,7 +203,6 @@ export function CaseStudyContent({
                             </CardContent>
                         </Card>
                     )}
-
                     {activeQuestion.has_image && activeQuestion.image_url && (
                         <Card className="border-border bg-card">
                             <CardContent className="pt-6">
@@ -283,6 +272,7 @@ export function CaseStudyContent({
                                 onClick={() => {
                                     if (typeof window === "undefined") return;
                                     const isEPANSubmodule = submoduleSlug === "e-pan-registration";
+                                    const isFinancialSubmodule = moduleSlug === "financial-accounting" || (submoduleSlug && submoduleSlug.startsWith("financial"));
                                     try {
                                         window.localStorage.setItem(
                                             isEPANSubmodule
@@ -293,8 +283,9 @@ export function CaseStudyContent({
                                     } catch {
                                         // ignore storage errors
                                     }
-                                    const gatewayPath = "/simulation/gateway";
-                                        
+
+                                    const gatewayPath = isFinancialSubmodule ? "/simulation/render" : "/simulation/gateway";
+
                                     window.open(
                                         activeQuestion ? `${gatewayPath}?questionId=${activeQuestion.id}` : gatewayPath,
                                         "_blank",

@@ -8,19 +8,23 @@ import {
     ShieldCheck,
     ArrowLeft,
     BookOpen,
-    FileText
+    FileText,
+    History
 } from "lucide-react";
 import { CreateUserForm } from "@/components/admin/create-user-form";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 
-type Tab = "overview" | "users" | "settings";
+type Tab = "overview" | "users" | "simulations" | "settings";
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("users");
     const [users, setUsers] = useState<any[]>([]);
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+    const [simulations, setSimulations] = useState<any[]>([]);
+    const [isLoadingSimulations, setIsLoadingSimulations] = useState(false);
+    const [errorSimulations, setErrorSimulations] = useState<string | null>(null);
 
     const fetchUsers = useCallback(async () => {
         setIsLoadingUsers(true);
@@ -39,15 +43,38 @@ export default function AdminDashboard() {
         }
     }, []);
 
+    const fetchSimulations = useCallback(async () => {
+        setIsLoadingSimulations(true);
+        setErrorSimulations(null);
+        try {
+            const res = await fetch("/api/admin/simulation-attempts");
+            const data = await res.json();
+            if (res.ok && data.attempts) {
+                setSimulations(data.attempts);
+            } else {
+                console.error("Failed to fetch simulations:", data.error);
+                setErrorSimulations(data.error || "Unknown error occurred");
+            }
+        } catch (error: any) {
+            console.error("Error fetching simulations:", error);
+            setErrorSimulations(error.message || String(error));
+        } finally {
+            setIsLoadingSimulations(false);
+        }
+    }, []);
+
     useEffect(() => {
         if (activeTab === "users") {
             fetchUsers();
+        } else if (activeTab === "simulations") {
+            fetchSimulations();
         }
-    }, [activeTab, fetchUsers]);
+    }, [activeTab, fetchUsers, fetchSimulations]);
 
     const tabs = [
         { id: "overview", label: "Overview", icon: LayoutDashboard },
         { id: "users", label: "Users", icon: Users },
+        { id: "simulations", label: "Simulation Attempts", icon: History },
         { id: "settings", label: "Settings", icon: Settings },
     ];
 
@@ -221,6 +248,83 @@ export default function AdminDashboard() {
                                         </div>
                                     )}
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === "simulations" && (
+                        <div className="space-y-6">
+                            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                                    <h3 className="font-semibold text-slate-900">User Simulation Attempts</h3>
+                                    <Button variant="outline" size="sm" onClick={fetchSimulations} disabled={isLoadingSimulations}>
+                                        Refresh
+                                    </Button>
+                                </div>
+                                {isLoadingSimulations ? (
+                                    <div className="p-12 text-center text-slate-500">
+                                        <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+                                        Loading attempts...
+                                    </div>
+                                ) : errorSimulations ? (
+                                    <div className="p-12 text-center">
+                                        <div className="h-10 w-10 text-red-500 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">!</div>
+                                        <p className="text-sm text-red-600 font-medium">Failed to load attempts</p>
+                                        <p className="text-xs text-slate-500 mt-2 max-w-md mx-auto">{errorSimulations}</p>
+                                    </div>
+                                ) : simulations.length === 0 ? (
+                                    <div className="p-12 text-center">
+                                        <History className="h-10 w-10 text-slate-200 mx-auto mb-4" />
+                                        <p className="text-sm text-slate-500 font-medium">No simulation attempts found</p>
+                                    </div>
+                                ) : (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm text-left">
+                                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                                <tr>
+                                                    <th className="px-6 py-3 font-medium">User Email</th>
+                                                    <th className="px-6 py-3 font-medium">Module</th>
+                                                    <th className="px-6 py-3 font-medium">Submodule</th>
+                                                    <th className="px-6 py-3 font-medium">Question</th>
+                                                    <th className="px-6 py-3 font-medium text-center">Attempt #</th>
+                                                    <th className="px-6 py-3 font-medium text-center">Score</th>
+                                                    <th className="px-6 py-3 font-medium text-center">Accuracy</th>
+                                                    <th className="px-6 py-3 font-medium">Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-100">
+                                                {simulations.map((attempt, idx) => (
+                                                    <tr key={idx} className="hover:bg-slate-50/50">
+                                                        <td className="px-6 py-3 font-medium text-slate-900">{attempt.email}</td>
+                                                        <td className="px-6 py-3 text-slate-600">{attempt.module_name}</td>
+                                                        <td className="px-6 py-3 text-slate-600">{attempt.submodule_name}</td>
+                                                        <td className="px-6 py-3 text-slate-600 max-w-[200px] truncate">{attempt.question_title}</td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-bold text-slate-600">
+                                                                #{attempt.attempt_number}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center font-semibold text-blue-600">
+                                                            {attempt.total_score}/{attempt.max_possible_score}
+                                                        </td>
+                                                        <td className="px-6 py-3 text-center">
+                                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                                                attempt.accuracy >= 80 ? 'bg-green-100 text-green-700' :
+                                                                attempt.accuracy >= 50 ? 'bg-amber-100 text-amber-700' :
+                                                                'bg-red-100 text-red-700'
+                                                            }`}>
+                                                                {Math.round(attempt.accuracy)}%
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-3 text-slate-500 text-xs">
+                                                            {new Date(attempt.created_at).toLocaleString()}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

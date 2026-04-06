@@ -47,7 +47,7 @@ function scoreField(entered: string, expected: string): { score: number; status:
     return { score: 0, status: "incorrect" };
 }
 
-function getValueAtPath<T>(
+export function getValueAtPath<T>(
     source: T,
     fieldPath: string
 ): string {
