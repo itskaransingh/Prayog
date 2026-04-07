@@ -269,10 +269,13 @@ export function CaseStudyContent({
                                 size="lg"
                                 className="gap-2 px-10 font-bold shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground"
                                 disabled={!hasQuestions}
+                                // Inside the "Start Task" Button onClick:
                                 onClick={() => {
                                     if (typeof window === "undefined") return;
+
                                     const isEPANSubmodule = submoduleSlug === "e-pan-registration";
                                     const isFinancialSubmodule = moduleSlug === "financial-accounting" || (submoduleSlug && submoduleSlug.startsWith("financial"));
+
                                     try {
                                         window.localStorage.setItem(
                                             isEPANSubmodule
@@ -284,7 +287,17 @@ export function CaseStudyContent({
                                         // ignore storage errors
                                     }
 
-                                    const gatewayPath = isFinancialSubmodule ? "/simulation/render" : "/simulation/gateway";
+                                    // --- NEW LOGIC START ---
+                                    let gatewayPath = "/simulation/gateway"; // Default fallback
+
+                                    if (submoduleSlug === "journal-entry") {
+                                        gatewayPath = "/simulation/render1a";
+                                    } else if (submoduleSlug === "ledger-creation") {
+                                        gatewayPath = "/simulation/render1b";
+                                    } else if (isFinancialSubmodule) {
+                                        gatewayPath = "/simulation/render";
+                                    }
+                                    // --- NEW LOGIC END ---
 
                                     window.open(
                                         activeQuestion ? `${gatewayPath}?questionId=${activeQuestion.id}` : gatewayPath,
