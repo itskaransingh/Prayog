@@ -294,6 +294,10 @@ export function CaseStudyContent({
                                         gatewayPath = "/simulation/render1a";
                                     } else if (submoduleSlug === "ledger-creation") {
                                         gatewayPath = "/simulation/render1b";
+                                    } else if (submoduleSlug === "preparation-of-trial-balance") {
+                                        gatewayPath = "/simulation/render2a";
+                                    } else if (submoduleSlug === "financial-statement") {
+                                        gatewayPath = "/simulation/render2b";
                                     } else if (isFinancialSubmodule) {
                                         gatewayPath = "/simulation/render";
                                     }
