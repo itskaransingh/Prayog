@@ -3,11 +3,10 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, ChevronDown } from "lucide-react";
 
 import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/client";
 import { evaluateRegistration, type EvaluationResult } from "@/lib/evaluation";
 import {
@@ -17,6 +16,7 @@ import {
 } from "@/lib/simulation/attempts";
 import type { QuestionTableData } from "@/lib/supabase/questions";
 
+// --- Interfaces ---
 interface SimulationFieldRecord {
     id: string;
     field_name: string | null;
@@ -32,39 +32,26 @@ interface SimulationTaskPayload {
     fields: SimulationFieldRecord[];
 }
 
+// --- Helper Functions ---
 function parseOptions(options: unknown): string[] {
-    if (Array.isArray(options)) {
-        return options.filter((value): value is string => typeof value === "string");
-    }
-
+    if (Array.isArray(options)) return options.filter((v): v is string => typeof v === "string");
     if (typeof options === "string") {
         try {
             const parsed = JSON.parse(options) as unknown;
-            return Array.isArray(parsed)
-                ? parsed.filter((value): value is string => typeof value === "string")
-                : [];
-        } catch {
-            return [];
-        }
+            return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
+        } catch { return []; }
     }
-
     return [];
 }
 
 function extractContentCells(row: string[]): string[] {
-    if (row.length === 0) {
-        return [];
-    }
-
+    if (row.length === 0) return [];
     const looksLikeSerial = row[0] && !Number.isNaN(Number(row[0].trim()));
     return looksLikeSerial ? row.slice(1) : row;
 }
 
 function getQuestionBadge(questionId: string | null): string {
-    if (!questionId) {
-        return "Question";
-    }
-
+    if (!questionId) return "Question";
     return `Question No: ${questionId.slice(0, 8).toUpperCase()}`;
 }
 
@@ -83,205 +70,67 @@ function FinancialAccountingSimulationPageInner() {
     const [saveMessage, setSaveMessage] = useState<string | null>(null);
     const [startedAt, setStartedAt] = useState<number>(() => Date.now());
     const [task, setTask] = useState<SimulationTaskPayload | null>(null);
+    const [questionTitle, setQuestionTitle] = useState<string>("Revenue or Capital Identification");
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
     const [evaluationResults, setEvaluationResults] = useState<EvaluationResult | null>(null);
     const [showEvaluation, setShowEvaluation] = useState(false);
 
-    useEffect(() => {
-        setStartedAt(Date.now());
-    }, [questionId]);
+    useEffect(() => { setStartedAt(Date.now()); }, [questionId]);
 
     useEffect(() => {
         async function loadSimulation() {
-            if (!questionId) {
-                setError("No question specified.");
-                setLoading(false);
-                return;
-            }
-
-            setLoading(true);
-            setError(null);
-
+            if (!questionId) { setError("No question specified."); setLoading(false); return; }
+            setLoading(true); setError(null);
             try {
-                const { data: taskRecord, error: taskError } = await supabase
-                    .from("simulation_tasks")
-                    .select("id")
-                    .eq("question_id", questionId)
-                    .limit(1)
-                    .maybeSingle();
-
-                if (taskError) {
-                    throw taskError;
-                }
-
-                if (!taskRecord) {
-                    throw new Error("No simulation task found for this question.");
-                }
-
-                const { data: stepRecord, error: stepError } = await supabase
-                    .from("simulation_steps")
-                    .select("id")
-                    .eq("task_id", taskRecord.id)
-                    .order("step_order", { ascending: true })
-                    .limit(1)
-                    .maybeSingle();
-
-                if (stepError) {
-                    throw stepError;
-                }
-
-                if (!stepRecord) {
-                    throw new Error("No simulation step found for this task.");
-                }
-
-                const { data: fields, error: fieldsError } = await supabase
-                    .from("simulation_fields")
-                    .select("id, field_name, field_label, options, order_index, expected_value")
-                    .eq("step_id", stepRecord.id)
-                    .order("order_index", { ascending: true });
-
-                if (fieldsError) {
-                    throw fieldsError;
-                }
-
-                const { data: questionRecord, error: questionError } = await supabase
-                    .from("questions")
-                    .select("table_data")
-                    .eq("id", questionId)
-                    .limit(1)
-                    .maybeSingle();
-
-                if (questionError) {
-                    throw questionError;
-                }
-
-                setTask({
-                    taskId: taskRecord.id,
-                    tableData: (questionRecord?.table_data as QuestionTableData | null) ?? null,
-                    fields: (fields as SimulationFieldRecord[] | null) ?? [],
-                });
-                setSelectedAnswers({});
-                setSaveMessage(null);
-            } catch (loadError) {
-                const message = loadError instanceof Error ? loadError.message : "Failed to load simulation.";
-                console.error("Financial accounting simulation load failed", loadError);
-                setError(message);
-                setTask(null);
-            } finally {
-                setLoading(false);
-            }
+                const { data: taskRecord } = await supabase.from("simulation_tasks").select("id").eq("question_id", questionId).limit(1).maybeSingle();
+                if (!taskRecord) throw new Error("No simulation task found.");
+                const { data: stepRecord } = await supabase.from("simulation_steps").select("id").eq("task_id", taskRecord.id).order("step_order", { ascending: true }).limit(1).maybeSingle();
+                if (!stepRecord) throw new Error("No simulation step found.");
+                const { data: fields } = await supabase.from("simulation_fields").select("id, field_name, field_label, options, order_index, expected_value").eq("step_id", stepRecord.id).order("order_index", { ascending: true });
+                const { data: questionRecord } = await supabase.from("questions").select("table_data").eq("id", questionId).limit(1).maybeSingle();
+                setTask({ taskId: taskRecord.id, tableData: (questionRecord?.table_data as QuestionTableData | null) ?? null, fields: (fields as SimulationFieldRecord[] | null) ?? [], });
+                try {
+                    const { data: titleRecord } = await supabase.from("questions").select("title").eq("id", questionId).limit(1).maybeSingle();
+                    if (titleRecord?.title) setQuestionTitle(titleRecord.title);
+                } catch { /* title column may not exist */ }
+            } catch (err) { setError(err instanceof Error ? err.message : "Load failed"); } finally { setLoading(false); }
         }
-
         loadSimulation();
     }, [questionId, supabase]);
 
-    const fieldsByRowIndex = useMemo(() => {
-        const mapping = new Map<number, SimulationFieldRecord>();
-
-        for (const field of task?.fields ?? []) {
-            if (typeof field.order_index === "number") {
-                mapping.set(field.order_index - 1, field);
-            }
-        }
-
-        return mapping;
-    }, [task?.fields]);
-
     const baseHeaders = useMemo(() => {
         const headers = task?.tableData?.headers ?? [];
-        if (headers.length > 0) {
-            const withoutSerial = headers[0] && /^(sl|sr|#)/i.test(headers[0]) ? headers.slice(1) : headers;
-            return withoutSerial;
-        }
-
-        const firstRow = task?.tableData?.rows?.[0] ?? [];
-        return extractContentCells(firstRow).map((_, index) => (index === 0 ? "Transactions" : `Detail ${index + 1}`));
+        if (headers.length > 0) return headers[0] && /^(sl|sr|#)/i.test(headers[0]) ? headers.slice(1) : headers;
+        return ["Transactions"];
     }, [task?.tableData]);
 
-    const renderedRows = useMemo(
-        () =>
-            (task?.tableData?.rows ?? []).map((row, index) => {
-                const field = fieldsByRowIndex.get(index) ?? null;
-                const contentCells = extractContentCells(row);
+    const renderedRows = useMemo(() => (task?.tableData?.rows ?? []).map((row, index) => {
+        const field = (task?.fields ?? []).find(f => f.order_index === index + 1) || null;
+        return { rowIndex: index, field, contentCells: extractContentCells(row), accountName: field?.field_label?.trim() || "Untitled field", options: parseOptions(field?.options) };
+    }), [task]);
 
-                return {
-                    rowIndex: index,
-                    field,
-                    contentCells,
-                    accountName: field?.field_label?.trim() || "Untitled field",
-                    options: parseOptions(field?.options),
-                };
-            }),
-        [fieldsByRowIndex, task?.tableData?.rows],
-    );
-
-    const showDerivedAccountColumn = useMemo(() => {
-        if (baseHeaders.length === 0 || renderedRows.length === 0) {
-            return true;
-        }
-
-        const accountHeaderIndex = baseHeaders.findIndex((header) =>
-            ["account", "account name", "accounts", "ledger", "ledger name"].includes(normalizeLabel(header)),
-        );
-
-        if (accountHeaderIndex === -1) {
-            return true;
-        }
-
-        return !renderedRows.every((row) => {
-            const existingValue = row.contentCells[accountHeaderIndex]?.trim().toLowerCase();
-            const derivedValue = row.accountName.trim().toLowerCase();
-            return existingValue && derivedValue && existingValue === derivedValue;
-        });
-    }, [baseHeaders, renderedRows]);
-
-    const evaluationMappings = useMemo<PersistableEvaluationMapping[]>(
-        () =>
-            renderedRows
-                .filter((entry): entry is typeof entry & { field: SimulationFieldRecord } => entry.field !== null)
-                .map((entry) => ({
-                    fieldId: entry.field.id,
-                    fieldName: entry.field.field_name || undefined,
-                    fieldPath: entry.field.id,
-                    expectedValue: entry.field.expected_value ?? "",
-                    label: entry.field.field_label?.trim() || entry.accountName,
-                    weight: 1,
-                })),
-        [renderedRows],
-    );
-
-    async function handleLogout() {
-        await supabase.auth.signOut();
-        window.location.href = "/login";
-    }
+    async function handleLogout() { await supabase.auth.signOut(); window.location.href = "/login"; }
 
     async function handleSubmit() {
-        if (!questionId || !task) {
-            return;
-        }
-
+        if (!questionId || !task) return;
         setSubmitting(true);
         setError(null);
         setSaveMessage(null);
-
         try {
             const endTime = Date.now();
-            const localResults = evaluateRegistration(
-                selectedAnswers,
-                startedAt,
-                endTime,
-                evaluationMappings,
-            );
 
-            const answers: SimulationAttemptAnswerInput[] = renderedRows
-                .filter((entry): entry is typeof entry & { field: SimulationFieldRecord } => entry.field !== null)
-                .map((entry) => ({
-                    field_id: entry.field.id,
-                    field_name: entry.field.field_name || undefined,
-                    entered_value: selectedAnswers[entry.field.id] ?? "",
+            // FIX: Renamed 'fieldId' to 'fieldPath' to prevent the .split() error in evaluation.ts
+            const mappings = renderedRows
+                .filter(r => r.field)
+                .map(r => ({
+                    fieldPath: r.field!.id,
+                    expectedValue: r.field!.expected_value ?? "",
+                    label: r.accountName,
+                    weight: 1,
                 }));
 
-            setEvaluationResults(localResults);
+            const results = evaluateRegistration(selectedAnswers, startedAt, endTime, mappings as any);
+            setEvaluationResults(results);
             setShowEvaluation(true);
 
             await saveSimulationAttempt({
@@ -289,213 +138,161 @@ function FinancialAccountingSimulationPageInner() {
                 taskId: task.taskId,
                 startTime: startedAt,
                 endTime,
-                answers,
+                answers: renderedRows
+                    .filter(r => r.field)
+                    .map(r => ({
+                        field_id: r.field!.id,
+                        entered_value: selectedAnswers[r.field!.id] ?? "",
+                    } as SimulationAttemptAnswerInput)),
             });
-
             setSaveMessage("Attempt saved successfully.");
-        } catch (submitError) {
-            const message = submitError instanceof Error ? submitError.message : "Failed to submit attempt.";
-            console.error("Financial accounting simulation submission failed", submitError);
-            setError(message);
+        } catch (err) {
+            console.error("Submission error:", err);
+            setError(err instanceof Error ? err.message : "Submission failed.");
         } finally {
             setSubmitting(false);
         }
     }
 
-    if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-background px-6">
-                <p className="text-sm text-muted-foreground">Loading simulation...</p>
-            </div>
-        );
-    }
-
-    if (error && !task) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-background px-6">
-                <Card className="w-full max-w-xl border-red-200 shadow-sm">
-                    <CardContent className="pt-6 text-center">
-                        <p className="text-sm text-red-700">{error}</p>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
+    if (loading) return (
+        <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", background: "#f4f6f8", color: "#94a3b8", fontFamily: "sans-serif" }}>
+            Loading...
+        </div>
+    );
 
     return (
         <>
-            <div className="min-h-screen bg-[#f2f3f5] text-foreground">
-                <div className="h-3 bg-[#2e3a2f]" />
-                <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-                    <div className="mx-auto flex h-16 max-w-[1180px] items-center justify-between px-4 sm:px-6">
-                        <div className="flex items-center gap-4">
-                            <Link href="/" className="flex items-center gap-2">
-                                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-sm font-bold text-white">
-                                    P
-                                </div>
-                                <span className="text-base font-semibold tracking-tight text-slate-500">Prayog</span>
-                            </Link>
-                            <span className="rounded-xl border border-slate-300 bg-slate-50 px-4 py-1.5 text-sm font-semibold text-slate-600">
-                                Ledger Posting
-                            </span>
-                        </div>
+            <style>{`
+                html, body { margin: 0; padding: 0; }
+                .rci-page { min-height: 100vh; background: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+                .rci-header { position: sticky; top: 0; z-index: 50; width: 100%; background: #ffffff; border-bottom: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+                .rci-header-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+                .rci-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+                .rci-logo-icon { width: 32px; height: 32px; background: #1e40af; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 14px; }
+                .rci-logo-name { font-size: 16px; font-weight: 700; color: #1e293b; }
+                .rci-header-badge { border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px 14px; font-size: 13px; font-weight: 600; color: #334155; background: #fff; }
+                .rci-header-right { display: flex; align-items: center; gap: 16px; }
+                .rci-question-badge { border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px 14px; font-size: 13px; font-weight: 600; color: #334155; background: #fff; }
+                .rci-logout-btn { display: flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #64748b; padding: 4px 8px; border-radius: 6px; transition: color 0.15s; }
+                .rci-logout-btn:hover { color: #ef4444; }
+                .rci-main { max-width: 1100px; margin: 0 auto; padding: 48px 24px 120px; }
+                .rci-title { text-align: center; font-size: 26px; font-weight: 700; color: #1e293b; margin: 0 0 32px; letter-spacing: -0.3px; }
+                .rci-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04); }
+                .rci-table { width: 100%; border-collapse: collapse; }
+                .rci-table thead tr { background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; }
+                .rci-th { padding: 14px 24px; text-align: left; font-size: 13px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; }
+                .rci-th-num { width: 72px; }
+                .rci-th-nature { width: 260px; }
+                .rci-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
+                .rci-table tbody tr:last-child { border-bottom: none; }
+                .rci-table tbody tr:hover { background: #f8fafc; }
+                .rci-td { padding: 18px 24px; vertical-align: middle; }
+                .rci-td-num { font-size: 14px; font-weight: 500; color: #94a3b8; padding: 18px 24px; vertical-align: middle; }
+                .rci-td-text { font-size: 15px; color: #334155; line-height: 1.5; padding: 18px 24px; vertical-align: middle; }
+                .rci-select-wrap { position: relative; }
+                .rci-select { width: 100%; height: 40px; padding: 0 40px 0 14px; appearance: none; -webkit-appearance: none; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; color: #334155; cursor: pointer; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+                .rci-select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.12); }
+                .rci-select-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: #94a3b8; pointer-events: none; }
+                .rci-feedback { margin-top: 20px; border-radius: 8px; padding: 12px 20px; font-size: 14px; font-weight: 600; text-align: center; }
+                .rci-feedback-error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+                .rci-feedback-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
+                .rci-footer { position: fixed; bottom: 0; left: 0; width: 100%; background: rgba(255,255,255,0.92); backdrop-filter: blur(10px); border-top: 1px solid #e2e8f0; padding: 16px 0; z-index: 40; }
+                .rci-footer-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; justify-content: flex-end; }
+                .rci-validate-btn { height: 44px; min-width: 160px; padding: 0 32px; background: #0f2d52; color: #ffffff; font-size: 14px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s, transform 0.1s; letter-spacing: 0.02em; }
+                .rci-validate-btn:hover { background: #1e3a6e; }
+                .rci-validate-btn:active { transform: scale(0.97); }
+                .rci-validate-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+            `}</style>
 
-                        <div className="flex items-center gap-3 sm:gap-4">
-                            <span className="hidden rounded-xl border border-slate-300 bg-slate-50 px-4 py-1.5 text-sm font-semibold text-slate-600 sm:inline-flex">
-                                {getQuestionBadge(questionId)}
-                            </span>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleLogout}
-                                className="gap-2 text-slate-500 hover:bg-red-50 hover:text-red-600"
-                            >
-                                <LogOut className="h-4 w-4" />
-                                <span className="hidden sm:inline">Logout</span>
-                            </Button>
+            <div className="rci-page">
+                <header className="rci-header">
+                    <div className="rci-header-inner">
+                        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                            <Link href="/" className="rci-logo">
+                                <div className="rci-logo-icon">P</div>
+                                <span className="rci-logo-name">Prayog</span>
+                            </Link>
+                            <div className="rci-header-badge">{questionTitle}</div>
+                        </div>
+                        <div className="rci-header-right">
+                            <div className="rci-question-badge">{getQuestionBadge(questionId)}</div>
+                            <button onClick={handleLogout} className="rci-logout-btn">
+                                <LogOut size={14} />
+                                Logout
+                            </button>
                         </div>
                     </div>
                 </header>
 
-                <main className="mx-auto max-w-[1180px] px-3 pb-28 pt-7 sm:px-6 sm:pt-8">
-                    <div className="mb-7 border-b border-slate-200 pb-5 text-center">
-                        <h1 className="text-4xl font-semibold tracking-tight text-[#0f172a] sm:text-5xl">
-                            Ledger Posting
-                        </h1>
-                    </div>
-
-                    <Card className="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-none">
-                        <CardContent className="p-0">
-                            <div className="border-b border-slate-200 bg-slate-50 px-5 py-3">
-                                <div className="flex items-center justify-between gap-4">
-                                    <div>
-                                        <h2 className="text-base font-semibold text-slate-900">Question Table</h2>
-                                    </div>
-                                    <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-500">
-                                        {renderedRows.length} rows
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="overflow-x-auto">
-                                <table className="w-full min-w-[840px] border-separate border-spacing-0">
-                                    <thead>
-                                        <tr>
-                                            <th className="border-b border-slate-200 bg-[#fafbfd] px-4 py-3 text-left text-sm font-semibold text-slate-900">
-                                                #
-                                            </th>
-                                            {baseHeaders.map((header, index) => (
-                                                <th
-                                                    key={`${header}-${index}`}
-                                                    className="border-b border-slate-200 bg-[#fafbfd] px-4 py-3 text-left text-sm font-semibold text-slate-900"
-                                                >
-                                                    {header}
-                                                </th>
-                                            ))}
-                                            {showDerivedAccountColumn && (
-                                                <th className="border-b border-slate-200 bg-[#fafbfd] px-4 py-3 text-left text-sm font-semibold text-slate-900">
-                                                    Accounts
-                                                </th>
-                                            )}
-                                            <th className="border-b border-slate-200 bg-[#fafbfd] px-4 py-3 text-left text-sm font-semibold text-slate-900">
-                                                Debit/Credit
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {renderedRows.map((entry) => (
-                                            <tr key={entry.field?.id ?? entry.rowIndex}>
-                                                <td className="border-b border-slate-100 px-4 py-3 align-top text-sm font-medium text-slate-700">
-                                                    {entry.rowIndex + 1}
-                                                </td>
-                                                {baseHeaders.map((_, index) => (
-                                                    <td
-                                                        key={`${entry.rowIndex}-${index}`}
-                                                        className="border-b border-slate-100 px-4 py-3 align-top text-[15px] leading-7 text-slate-700"
+                <main className="rci-main">
+                    <h1 className="rci-title">{questionTitle}</h1>
+                    <div className="rci-card">
+                        <table className="rci-table">
+                            <thead>
+                                <tr>
+                                    <th className="rci-th rci-th-num">#</th>
+                                    <th className="rci-th">{baseHeaders[0] ?? "Transactions"}</th>
+                                    <th className="rci-th rci-th-nature">Nature</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {renderedRows.map((row) => (
+                                    <tr key={row.field?.id || row.rowIndex}>
+                                        <td className="rci-td-num">{row.rowIndex + 1}</td>
+                                        <td className="rci-td-text">{row.contentCells[0]}</td>
+                                        <td className="rci-td">
+                                            {row.field && (
+                                                <div className="rci-select-wrap">
+                                                    <select
+                                                        className="rci-select"
+                                                        value={selectedAnswers[row.field.id] || ""}
+                                                        onChange={(e) => setSelectedAnswers(prev => ({ ...prev, [row.field!.id]: e.target.value }))}
                                                     >
-                                                        {entry.contentCells[index] || "—"}
-                                                    </td>
-                                                ))}
-                                                {showDerivedAccountColumn && (
-                                                    <td className="border-b border-slate-100 px-4 py-3 align-top text-[15px] font-medium text-slate-900">
-                                                        {entry.accountName}
-                                                    </td>
-                                                )}
-                                                <td className="border-b border-slate-100 px-4 py-2.5 align-top">
-                                                    {entry.field ? (
-                                                        <select
-                                                            value={selectedAnswers[entry.field.id] ?? ""}
-                                                            onChange={(event) =>
-                                                                setSelectedAnswers((current) => ({
-                                                                    ...current,
-                                                                    [entry.field!.id]: event.target.value,
-                                                                }))
-                                                            }
-                                                            aria-label={entry.field.field_label || entry.accountName}
-                                                            className="h-10 w-full min-w-[220px] rounded-xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-                                                        >
-                                                            <option value="">Choose</option>
-                                                            {entry.options.map((option) => (
-                                                                <option key={option} value={option}>
-                                                                    {option}
-                                                                </option>
-                                                            ))}
-                                                        </select>
-                                                    ) : (
-                                                        <span className="text-sm text-slate-500">No field mapping</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </CardContent>
-                    </Card>
-
+                                                        <option value="">Choose</option>
+                                                        {row.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                                    </select>
+                                                    <ChevronDown className="rci-select-icon" />
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                     {(error || saveMessage) && (
-                        <div className="mx-auto mt-5 max-w-4xl">
-                            {error && (
-                                <Card className="border-red-200 bg-red-50 shadow-none">
-                                    <CardContent className="px-5 py-3 text-sm text-red-700">{error}</CardContent>
-                                </Card>
-                            )}
-                            {!error && saveMessage && (
-                                <Card className="border-emerald-200 bg-emerald-50 shadow-none">
-                                    <CardContent className="px-5 py-3 text-sm text-emerald-700">{saveMessage}</CardContent>
-                                </Card>
-                            )}
+                        <div className={`rci-feedback ${error ? "rci-feedback-error" : "rci-feedback-success"}`}>
+                            {error || saveMessage}
                         </div>
                     )}
-
                 </main>
 
-                <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-[#f7f7f8]">
-                    <div className="mx-auto flex h-20 w-full max-w-[1180px] items-center justify-end px-6">
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                            className="h-11 rounded-full bg-[#1b3769] px-12 text-base font-semibold text-white transition hover:bg-[#152d56]"
-                        >
-                            {submitting ? "Saving..." : "Validate"}
-                        </Button>
+                <div className="rci-footer">
+                    <div className="rci-footer-inner">
+                        <button className="rci-validate-btn" onClick={handleSubmit} disabled={submitting}>
+                            {submitting ? "Processing..." : "Validate"}
+                        </button>
                     </div>
                 </div>
-            </div>
 
-            <EvaluationPopup
-                open={showEvaluation}
-                onClose={() => setShowEvaluation(false)}
-                results={evaluationResults}
-                showExpectedValues={false}
-            />
+                <EvaluationPopup
+                    open={showEvaluation}
+                    onClose={() => setShowEvaluation(false)}
+                    results={evaluationResults}
+                    showExpectedValues={false}
+                />
+            </div>
         </>
     );
 }
 
 export default function FinancialAccountingSimulationPage() {
     return (
-        <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading simulation...</div>}>
+        <Suspense fallback={
+            <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", background: "#f0f2f5" }}>
+                Loading...
+            </div>
+        }>
             <FinancialAccountingSimulationPageInner />
         </Suspense>
     );
