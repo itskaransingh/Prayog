@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { saveSimulationAttempt } from "@/lib/simulation/attempts";
+import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
+import {
+  buildGridEvaluationResult,
+  buildLedgerAttemptAnswers,
+  buildLedgerBreakdownRows,
+  normalizeGridFields,
+  type SimulationFieldRecord,
+} from "@/lib/simulation/grid-field-mapper";
 import { Loader2, AlertCircle, Trash2, ChevronDown, X } from "lucide-react";
 
 // ---------- Types ----------
@@ -11,6 +20,10 @@ interface LedgerEntry {
   account: string;
   amount: string;
 }
+
+type SimulationFieldWithOptions = SimulationFieldRecord & {
+  options?: string[] | null;
+};
 
 // ---------- Wrapper ----------
 export default function LedgerCreationPage() {
@@ -44,8 +57,8 @@ function LedgerCreationContent() {
   const [loading, setLoading] = useState(true);
   const [questionTitle, setQuestionTitle] = useState("Cash Account");
   const [questionNo, setQuestionNo] = useState("Ledger_003AC");
-  const [drOptions, setDrOptions] = useState<string[]>([]);
-  const [crOptions, setCrOptions] = useState<string[]>([]);
+  const [taskId, setTaskId] = useState<string | null>(null);
+  const [fields, setFields] = useState<SimulationFieldWithOptions[]>([]);
 
   // Each side: array of {id, account, amount}
   const [drEntries, setDrEntries] = useState<LedgerEntry[]>([
@@ -57,6 +70,9 @@ function LedgerCreationContent() {
 
   const [showPreview, setShowPreview] = useState(false);
   const [nextId, setNextId] = useState(2);
+  const [evaluation, setEvaluation] = useState<ReturnType<typeof buildGridEvaluationResult> | null>(null);
+  const [showEval, setShowEval] = useState(false);
+  const [startTime] = useState(Date.now());
 
   // ---------- Data fetch ----------
   useEffect(() => {
@@ -95,6 +111,7 @@ function LedgerCreationContent() {
         if (tErr) {
           console.error("❌ Task Error:", tErr.message);
         } else if (task) {
+          setTaskId(task.id);
           // 3. Fetch steps
           const { data: steps } = await supabase
             .from("simulation_steps")
@@ -112,34 +129,7 @@ function LedgerCreationContent() {
               .order("order_index");
 
             if (fields && fields.length > 0) {
-              // Find debit field (field_name contains "debit" or "dr")
-              const drField = fields.find(
-                (f) =>
-                  f.field_name?.toLowerCase().includes("debit") ||
-                  f.field_name?.toLowerCase().includes("dr") ||
-                  f.field_label?.toLowerCase().includes("debit") ||
-                  f.field_label?.toLowerCase().includes("dr")
-              );
-
-              // Find credit field (field_name contains "credit" or "cr")
-              const crField = fields.find(
-                (f) =>
-                  f.field_name?.toLowerCase().includes("credit") ||
-                  f.field_name?.toLowerCase().includes("cr") ||
-                  f.field_label?.toLowerCase().includes("credit") ||
-                  f.field_label?.toLowerCase().includes("cr")
-              );
-
-              // Fallback: if no separate dr/cr fields, use the first field for both
-              const fallbackField = fields[0];
-
-              const drOpts: string[] =
-                drField?.options || fallbackField?.options || [];
-              const crOpts: string[] =
-                crField?.options || fallbackField?.options || [];
-
-              setDrOptions(Array.isArray(drOpts) ? drOpts : []);
-              setCrOptions(Array.isArray(crOpts) ? crOpts : []);
+              setFields(fields);
             }
           }
         }
@@ -150,7 +140,21 @@ function LedgerCreationContent() {
       }
     }
     load();
-  }, [questionId]);
+  }, [questionId, supabase]);
+
+  const groupedFields = useMemo(() => normalizeGridFields(fields), [fields]);
+  const drOptions = useMemo(() => {
+    const options = fields
+      .filter((field) => field.field_name?.toLowerCase().includes("debit_account"))
+      .flatMap((field) => (Array.isArray(field.options) ? field.options : []));
+    return Array.from(new Set(options));
+  }, [fields]);
+  const crOptions = useMemo(() => {
+    const options = fields
+      .filter((field) => field.field_name?.toLowerCase().includes("credit_account"))
+      .flatMap((field) => (Array.isArray(field.options) ? field.options : []));
+    return Array.from(new Set(options));
+  }, [fields]);
 
   // ---------- Cascading logic ----------
   // Add a new row when the last entry's account is filled
@@ -237,6 +241,40 @@ function LedgerCreationContent() {
     return sum + (isNaN(v) ? 0 : v);
   }, 0);
 
+  async function handleSubmit() {
+    if (!taskId || !questionId) {
+      alert("Task ID or Question ID is missing. Cannot save attempt.");
+      return;
+    }
+    if (groupedFields.length === 0) {
+      alert("Simulation fields are not available. Cannot evaluate or save.");
+      return;
+    }
+
+    const endTime = Date.now();
+    const answers = buildLedgerAttemptAnswers(groupedFields, drEntries, crEntries);
+    const breakdownRows = buildLedgerBreakdownRows(groupedFields, drEntries, crEntries);
+
+    setEvaluation(buildGridEvaluationResult(breakdownRows, startTime, endTime));
+    setShowEval(true);
+
+    if (answers.length === 0) {
+      return;
+    }
+
+    try {
+      await saveSimulationAttempt({
+        questionId,
+        taskId,
+        startTime,
+        endTime,
+        answers,
+      });
+    } catch (error) {
+      console.error("Save Error:", error);
+    }
+  }
+
   // ---------- Loading ----------
   if (loading) {
     return (
@@ -280,34 +318,51 @@ function LedgerCreationContent() {
   // ---------- Preview or Editor ----------
   if (showPreview) {
     return (
-      <PreviewPage
-        questionTitle={questionTitle}
-        questionNo={questionNo}
-        drEntries={drEntries}
-        crEntries={crEntries}
-        drTotal={drTotal}
-        crTotal={crTotal}
-        onBack={() => setShowPreview(false)}
-      />
+      <>
+        <PreviewPage
+          questionTitle={questionTitle}
+          questionNo={questionNo}
+          drEntries={drEntries}
+          crEntries={crEntries}
+          drTotal={drTotal}
+          crTotal={crTotal}
+          onBack={() => setShowPreview(false)}
+          onValidate={handleSubmit}
+        />
+        <EvaluationPopup
+          open={showEval}
+          onClose={() => setShowEval(false)}
+          results={evaluation}
+          variant="grid"
+        />
+      </>
     );
   }
 
   return (
-    <EditorPage
-      questionTitle={questionTitle}
-      questionNo={questionNo}
-      drEntries={drEntries}
-      crEntries={crEntries}
-      drOptions={drOptions}
-      crOptions={crOptions}
-      drTotal={drTotal}
-      crTotal={crTotal}
-      updateDrEntry={updateDrEntry}
-      updateCrEntry={updateCrEntry}
-      deleteDrEntry={deleteDrEntry}
-      deleteCrEntry={deleteCrEntry}
-      onPreview={() => setShowPreview(true)}
-    />
+    <>
+      <EditorPage
+        questionTitle={questionTitle}
+        questionNo={questionNo}
+        drEntries={drEntries}
+        crEntries={crEntries}
+        drOptions={drOptions}
+        crOptions={crOptions}
+        drTotal={drTotal}
+        crTotal={crTotal}
+        updateDrEntry={updateDrEntry}
+        updateCrEntry={updateCrEntry}
+        deleteDrEntry={deleteDrEntry}
+        deleteCrEntry={deleteCrEntry}
+        onPreview={() => setShowPreview(true)}
+      />
+      <EvaluationPopup
+        open={showEval}
+        onClose={() => setShowEval(false)}
+        results={evaluation}
+        variant="grid"
+      />
+    </>
   );
 }
 
@@ -365,10 +420,10 @@ function LedgerHeader({
           </div>
           <div style={{ lineHeight: 1.1 }}>
             <div style={{ fontWeight: "700", color: "#1a3a5c", fontSize: "14px" }}>
-              Nergy
+              Prayog
             </div>
             <div style={{ fontWeight: "700", color: "#1a3a5c", fontSize: "14px" }}>
-              Vidya
+
             </div>
           </div>
           {/* Ledger badge */}
@@ -941,6 +996,7 @@ function PreviewPage({
   drTotal,
   crTotal,
   onBack,
+  onValidate,
 }: {
   questionTitle: string;
   questionNo: string;
@@ -949,10 +1005,8 @@ function PreviewPage({
   drTotal: number;
   crTotal: number;
   onBack: () => void;
+  onValidate: () => void;
 }) {
-  // Max rows to display
-  const maxRows = Math.max(drEntries.length, crEntries.length);
-
   return (
     <div style={{ minHeight: "100vh", background: "#f4f5f7", fontFamily: "Inter, sans-serif" }}>
       <LedgerHeader questionNo={questionNo} />
@@ -1153,9 +1207,7 @@ function PreviewPage({
           ‹ Back
         </button>
         <button
-          onClick={() => {
-            // Validate does nothing for now
-          }}
+          onClick={onValidate}
           style={{
             background: "#1a3a5c",
             color: "#fff",

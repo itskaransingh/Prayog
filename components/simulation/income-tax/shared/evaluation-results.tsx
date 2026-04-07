@@ -1,14 +1,33 @@
 "use client";
 
-import { useRegistration, RegistrationContext } from "@/lib/simulation/income-tax/itr-registration/registration-context";
-import { type FieldResult } from "@/lib/evaluation";
+import { RegistrationContext } from "@/lib/simulation/income-tax/itr-registration/registration-context";
+import { type EvaluationResult, type FieldResult } from "@/lib/evaluation";
 import { useContext } from "react";
+
+type EvaluationPopupVariant = "default" | "grid";
 
 interface EvaluationPopupProps {
     open: boolean;
     onClose: () => void;
-    results?: any; // Allow passing results directly
+    results?: EvaluationResult | null;
     showExpectedValues?: boolean;
+    variant?: EvaluationPopupVariant;
+}
+
+interface GridFieldBreakdownRow {
+    amountType?: string;
+    particular?: string;
+    amount?: string;
+    expectedParticular?: string;
+    expectedAmount?: string;
+    entered?: string;
+    expected?: string;
+}
+
+function getGridValue(value?: string) {
+    if (value === undefined || value === null) return "(empty)";
+    const trimmed = String(value).trim();
+    return trimmed.length > 0 ? trimmed : "(empty)";
 }
 
 export function EvaluationPopup({
@@ -16,6 +35,7 @@ export function EvaluationPopup({
     onClose,
     results,
     showExpectedValues = true,
+    variant = "default",
 }: EvaluationPopupProps) {
     const itr = useContext(RegistrationContext);
     const evaluationResults = results || itr?.evaluationResults;
@@ -92,34 +112,79 @@ export function EvaluationPopup({
 
                     <div className="sim-eval-breakdown">
                         <table className="sim-eval-table">
-                            <thead>
-                                <tr>
-                                    <th>Field</th>
-                                    <th>Entered</th>
-                                    {showExpectedValues && <th>Expected</th>}
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {fieldBreakdown.map((item: FieldResult, idx: number) => (
-                                    <tr key={idx}>
-                                        <td style={{ fontWeight: 500 }}>{item.field}</td>
-                                        <td>
-                                            <span className="sim-eval-entered">{item.entered}</span>
-                                        </td>
-                                        {showExpectedValues && (
-                                            <td>
-                                                <span className="sim-eval-expected">{item.expected}</span>
-                                            </td>
-                                        )}
-                                        <td>
-                                            <span className={`sim-eval-status ${item.status}`}>
-                                                {item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
+                            {variant === "grid" ? (
+                                <>
+                                    <thead>
+                                        <tr>
+                                            <th>Particular</th>
+                                            <th>Dr/Cr</th>
+                                            <th>Amount</th>
+                                            <th>Expected Particular</th>
+                                            <th>Expected Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {fieldBreakdown.map((item: GridFieldBreakdownRow, idx: number) => (
+                                            <tr key={idx}>
+                                                <td style={{ fontWeight: 500 }}>
+                                                    {getGridValue(item.particular ?? item.entered)}
+                                                </td>
+                                                <td>
+                                                    <span className="sim-eval-entered">
+                                                        {getGridValue(item.amountType)}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className="sim-eval-entered">
+                                                        {getGridValue(item.amount)}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className="sim-eval-expected">
+                                                        {getGridValue(item.expectedParticular ?? item.expected)}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span className="sim-eval-expected">
+                                                        {getGridValue(item.expectedAmount)}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </>
+                            ) : (
+                                <>
+                                    <thead>
+                                        <tr>
+                                            <th>Field</th>
+                                            <th>Entered</th>
+                                            {showExpectedValues && <th>Expected</th>}
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {fieldBreakdown.map((item: FieldResult, idx: number) => (
+                                            <tr key={idx}>
+                                                <td style={{ fontWeight: 500 }}>{item.field}</td>
+                                                <td>
+                                                    <span className="sim-eval-entered">{item.entered}</span>
+                                                </td>
+                                                {showExpectedValues && (
+                                                    <td>
+                                                        <span className="sim-eval-expected">{item.expected}</span>
+                                                    </td>
+                                                )}
+                                                <td>
+                                                    <span className={`sim-eval-status ${item.status}`}>
+                                                        {item.status === 'correct' ? '✅' : item.status === 'partial' ? '⚠️' : '❌'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </>
+                            )}
                         </table>
                     </div>
 

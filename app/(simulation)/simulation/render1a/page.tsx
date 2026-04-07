@@ -3,11 +3,20 @@
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { evaluateRegistration } from "@/lib/evaluation";
 import { saveSimulationAttempt } from "@/lib/simulation/attempts";
 import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
+import {
+    buildGridEvaluationResult,
+    buildJournalAttemptAnswers,
+    buildJournalBreakdownRows,
+    normalizeGridFields,
+    type JournalLineInput,
+    type SimulationFieldRecord,
+} from "@/lib/simulation/grid-field-mapper";
 import Link from "next/link";
 import { LogOut, Loader2, AlertCircle } from "lucide-react";
+
+type SimulationFieldWithOptions = SimulationFieldRecord & { options?: string[] | null };
 
 // Use a wrapper component because useSearchParams() requires a Suspense boundary in Next.js
 export default function JournalEntryPage() {
@@ -24,14 +33,13 @@ function JournalEntryContent() {
     const questionId = params.get("questionId");
 
     const [loading, setLoading] = useState(true);
-    const [rows, setRows] = useState<any[]>([]);
-    const [fields, setFields] = useState<any[]>([]);
+    const [rows, setRows] = useState<string[][]>([]);
+    const [fields, setFields] = useState<SimulationFieldWithOptions[]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
-    const [correctData, setCorrectData] = useState<any>(null);
 
-    const [entries, setEntries] = useState<Record<number, any[]>>({});
+    const [entries, setEntries] = useState<Record<number, JournalLineInput[]>>({});
     const [showPreview, setShowPreview] = useState(false);
-    const [evaluation, setEvaluation] = useState<any>(null);
+    const [evaluation, setEvaluation] = useState<ReturnType<typeof buildGridEvaluationResult> | null>(null);
     const [showEval, setShowEval] = useState(false);
     const [startTime] = useState(Date.now());
 
@@ -57,11 +65,10 @@ function JournalEntryContent() {
                     console.log("✅ Question Data Loaded:", q);
                     const tableRows = q?.table_data?.rows || [];
                     setRows(tableRows);
-                    setCorrectData(q?.solution_data || {});
 
                     // Initialize input rows
-                    const init: any = {};
-                    tableRows.forEach((_: any, i: number) => {
+                    const init: Record<number, JournalLineInput[]> = {};
+                    tableRows.forEach((_: string[], i: number) => {
                         init[i] = [{ account: "", dr: "", cr: "" }];
                     });
                     setEntries(init);
@@ -105,13 +112,12 @@ function JournalEntryContent() {
         load();
     }, [questionId, supabase]);
 
+    const groupedFields = useMemo(() => normalizeGridFields(fields), [fields]);
     const options = useMemo(() => {
-        // Try to find the field that contains "account" in its name
-        const accField = fields.find((f) =>
-            f.field_name?.toLowerCase().includes("account") ||
-            f.field_label?.toLowerCase().includes("account")
-        );
-        return accField?.options || [];
+        const opts = fields
+            .filter((field) => (field.field_name || "").toLowerCase().includes("account"))
+            .flatMap((field) => (Array.isArray(field.options) ? field.options : []));
+        return Array.from(new Set(opts));
     }, [fields]);
 
     const updateEntry = (row: number, idx: number, key: string, val: string) => {
@@ -143,32 +149,21 @@ function JournalEntryContent() {
             alert("Task ID or Question ID is missing. Cannot save attempt.");
             return;
         }
+        if (groupedFields.length === 0) {
+            alert("Simulation fields are not available. Cannot evaluate or save.");
+            return;
+        }
 
         const endTime = Date.now();
-        const evalMappings: any[] = [];
-        const finalAnswers: any[] = [];
+        const finalAnswers = buildJournalAttemptAnswers(groupedFields, entries);
+        const breakdownRows = buildJournalBreakdownRows(groupedFields, entries);
 
-        Object.entries(entries).forEach(([rowIndex, rowItems]) => {
-            rowItems.forEach((entry, idx) => {
-                const baseId = `r${rowIndex}_i${idx}`;
-                if (entry.account) {
-                    evalMappings.push({ fieldPath: `row_${rowIndex}_account`, entered_value: entry.account, label: `Row ${+rowIndex + 1} Account`, expectedValue: "" });
-                    finalAnswers.push({ field_id: `${baseId}_acc`, entered_value: entry.account });
-                }
-                if (entry.dr) {
-                    evalMappings.push({ fieldPath: `row_${rowIndex}_debit`, entered_value: entry.dr, label: `Row ${+rowIndex + 1} Debit`, expectedValue: "" });
-                    finalAnswers.push({ field_id: `${baseId}_dr`, entered_value: entry.dr.toString() });
-                }
-                if (entry.cr) {
-                    evalMappings.push({ fieldPath: `row_${rowIndex}_credit`, entered_value: entry.cr, label: `Row ${+rowIndex + 1} Credit`, expectedValue: "" });
-                    finalAnswers.push({ field_id: `${baseId}_cr`, entered_value: entry.cr.toString() });
-                }
-            });
-        });
-
-        const result = evaluateRegistration(correctData, startTime, endTime, evalMappings);
-        setEvaluation(result);
+        setEvaluation(buildGridEvaluationResult(breakdownRows, startTime, endTime));
         setShowEval(true);
+
+        if (finalAnswers.length === 0) {
+            return;
+        }
 
         try {
             await saveSimulationAttempt({ questionId, taskId, startTime, endTime, answers: finalAnswers });
@@ -191,7 +186,7 @@ function JournalEntryContent() {
                 <AlertCircle size={48} color="#ef4444" />
                 <h2 style={{ color: "#111827" }}>Data Not Found</h2>
                 <p style={{ color: "#6b7280", maxWidth: "400px" }}>
-                    We couldn't find row data for <b>Question ID: {questionId || "NULL"}</b>.
+                    We couldn&apos;t find row data for <b>Question ID: {questionId || "NULL"}</b>.
                     Please ensure the ID is correct and RLS policies allow access.
                 </p>
                 <Link href="/" style={{ color: "#1a3a5c", fontWeight: "600", marginTop: "10px" }}>Go Back Home</Link>
@@ -209,7 +204,7 @@ function JournalEntryContent() {
                     </div>
                     <div style={{ display: "flex", gap: "10px" }}>
                         <span style={{ border: "1px solid #1a3a5c", padding: "4px 12px", borderRadius: "20px", fontSize: "12px" }}>ID: {questionId}</span>
-                        <button style={{ background: "none", border: "none", color: "#6b7a8d", cursor: "pointer" }}><LogOut size={16} /></button>
+                        <button aria-label="Logout" style={{ background: "none", border: "none", color: "#6b7a8d", cursor: "pointer" }}><LogOut size={16} /></button>
                     </div>
                 </div>
             </header>
@@ -239,6 +234,7 @@ function JournalEntryContent() {
                                             {entries[i]?.map((e, idx) => (
                                                 <div key={idx} style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
                                                     <select
+                                                        aria-label={`Select account for row ${i + 1} line ${idx + 1}`}
                                                         style={{ height: "36px", width: "220px", borderRadius: "6px", border: "1px solid #d1d5db" }}
                                                         value={e.account}
                                                         onChange={(ev) => updateEntry(i, idx, "account", ev.target.value)}
@@ -301,7 +297,7 @@ function JournalEntryContent() {
                 )}
             </main>
 
-            <EvaluationPopup open={showEval} onClose={() => setShowEval(false)} results={evaluation} />
+            <EvaluationPopup open={showEval} onClose={() => setShowEval(false)} results={evaluation} variant="grid" />
         </div>
     );
 }
