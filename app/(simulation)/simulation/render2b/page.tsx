@@ -81,6 +81,7 @@ function FinancialStatementContent() {
   const [showPreview, setShowPreview] = useState(false);
   const [evaluation, setEvaluation] = useState<ReturnType<typeof buildFSEvaluationResult> | null>(null);
   const [showEval, setShowEval] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [startTime] = useState(Date.now());
 
   // ─── Data fetch ────────────────────────────────────────────────────────────
@@ -195,6 +196,12 @@ function FinancialStatementContent() {
       alert("Task ID or Question ID is missing.");
       return;
     }
+    if (fields.length === 0) {
+      const message = "Simulation fields are not available for this financial statement question.";
+      setSubmitError(message);
+      alert(message);
+      return;
+    }
     const endTime = Date.now();
     const entries: FSEntries = {
       directExpense: allRows.directExpense,
@@ -213,13 +220,26 @@ function FinancialStatementContent() {
     const evalResult = buildFSEvaluationResult(fields, entries, startTime, endTime);
     setEvaluation(evalResult);
     setShowEval(true);
+    setSubmitError(null);
 
-    if (answers.length > 0) {
-      try {
-        await saveSimulationAttempt({ questionId, taskId, startTime, endTime, answers });
-      } catch (e) {
-        console.error("Save error:", e);
-      }
+    if (answers.length === 0) {
+      const message =
+        "No simulation answers could be mapped from the loaded financial statement fields. Check the field naming pattern in simulation_fields.";
+      setSubmitError(message);
+      console.error("FS submit mapping error", {
+        questionId,
+        taskId,
+        fieldNames: fields.map((field) => field.field_name),
+      });
+      alert(message);
+      return;
+    }
+
+    try {
+      await saveSimulationAttempt({ questionId, taskId, startTime, endTime, answers });
+    } catch (e) {
+      console.error("Save error:", e);
+      setSubmitError(e instanceof Error ? e.message : "Failed to save financial statement attempt.");
     }
   }
 
@@ -244,6 +264,7 @@ function FinancialStatementContent() {
           questionNo={questionNo}
           allRows={allRows}
           sectionOptions={sectionOptions}
+          submitError={submitError}
           updateFSRow={updateFSRow}
           deleteFSRow={deleteFSRow}
           onPreview={() => setShowPreview(true)}
@@ -325,8 +346,8 @@ function NergyVidyaLogo() {
         <rect x="23" y="5" width="4" height="24" rx="1" fill="white" opacity="0.9" />
       </svg>
       <div style={{ lineHeight: 1.2 }}>
-        <div style={{ fontWeight: "700", color: "#1a3a5c", fontSize: "13px" }}>Nergy</div>
-        <div style={{ fontWeight: "400", color: "#5a7a9c", fontSize: "11px" }}>Vidya</div>
+        <div style={{ fontWeight: "700", color: "#1a3a5c", fontSize: "13px" }}>Prayog</div>
+        <div style={{ fontWeight: "400", color: "#5a7a9c", fontSize: "11px" }}></div>
       </div>
     </div>
   );
@@ -339,6 +360,7 @@ function EditorPage({
   questionNo,
   allRows,
   sectionOptions,
+  submitError,
   updateFSRow,
   deleteFSRow,
   onPreview,
@@ -346,6 +368,7 @@ function EditorPage({
   questionNo: string;
   allRows: AllRows;
   sectionOptions: Record<SectionKey, string[]>;
+  submitError: string | null;
   updateFSRow: (section: SectionKey, idx: number, key: "account" | "amount", val: string) => void;
   deleteFSRow: (section: SectionKey, idx: number) => void;
   onPreview: () => void;
@@ -354,6 +377,21 @@ function EditorPage({
     <div style={{ minHeight: "100vh", background: "#f4f5f7", fontFamily: "'Inter','Segoe UI',sans-serif" }}>
       <FSHeader questionNo={questionNo} />
       <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "32px 20px 80px" }}>
+        {submitError ? (
+          <div
+            style={{
+              marginBottom: "20px",
+              border: "1px solid #fecaca",
+              background: "#fef2f2",
+              color: "#991b1b",
+              borderRadius: "10px",
+              padding: "12px 14px",
+              fontSize: "14px",
+            }}
+          >
+            {submitError}
+          </div>
+        ) : null}
 
         {/* ── P&L Section ─────────────────────────────────────────────────── */}
         <h2 style={{ textAlign: "center", fontWeight: "700", fontSize: "19px", color: "#111827", marginBottom: "20px" }}>

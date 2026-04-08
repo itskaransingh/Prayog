@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   buildFSAttemptAnswers,
   buildFSEvaluationResult,
+  getFSOptions,
   type FSFieldRecord,
   type FSEntries,
   type FSRow,
@@ -253,5 +254,69 @@ describe("Financial Statement Evaluation", () => {
       { field_id: "f3", entered_value: "" },
       { field_id: "f4", entered_value: "" },
     ]);
+  });
+
+  it("should support fs_ prefixed financial statement field names", () => {
+    const fields = [
+      makeField("fs_pl_direct_expense_row1_account", "Administration Expenses", "f1", ["Administration Expenses"]),
+      makeField("fs_pl_direct_expense_row1_amount", "12000", "f2"),
+    ];
+
+    const entries: FSEntries = {
+      directExpense: [row("Administration Expenses", "12000", 1)],
+      directIncome: [],
+      indirectExpense: [],
+      indirectIncome: [],
+      capital: [],
+      ncl: [],
+      cl: [],
+      ppe: [],
+      onca: [],
+      ca: [],
+    };
+
+    assert.deepEqual(buildFSAttemptAnswers(fields, entries), [
+      { field_id: "f1", entered_value: "Administration Expenses" },
+      { field_id: "f2", entered_value: "12000" },
+    ]);
+    assert.deepEqual(getFSOptions(fields, "pl_direct_expense"), ["Administration Expenses"]);
+  });
+
+  it("should support legacy flat financial-statement rows from older preseeded questions", () => {
+    const fields = [
+      makeField("row1_account", "Sales", "f1"),
+      makeField("row1_debit_amount", "0", "f2"),
+      makeField("row1_credit_amount", "500000", "f3"),
+      makeField("row2_account", "Purchase", "f4"),
+      makeField("row2_debit_amount", "350000", "f5"),
+      makeField("row2_credit_amount", "0", "f6"),
+    ];
+
+    const entries: FSEntries = {
+      directExpense: [row("Purchase", "350000", 1)],
+      directIncome: [row("Sales", "500000", 2)],
+      indirectExpense: [],
+      indirectIncome: [],
+      capital: [],
+      ncl: [],
+      cl: [],
+      ppe: [],
+      onca: [],
+      ca: [],
+    };
+
+    const answers = buildFSAttemptAnswers(fields, entries);
+    const result = evaluate(fields, entries);
+
+    assert.deepEqual(answers, [
+      { field_id: "f1", entered_value: "Sales" },
+      { field_id: "f2", entered_value: "0" },
+      { field_id: "f3", entered_value: "500000" },
+      { field_id: "f4", entered_value: "Purchase" },
+      { field_id: "f5", entered_value: "350000" },
+      { field_id: "f6", entered_value: "0" },
+    ]);
+    assert.equal(result.accuracy, 100);
+    assert.equal(result.fieldBreakdown.length, 2);
   });
 });

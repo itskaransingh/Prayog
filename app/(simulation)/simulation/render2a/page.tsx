@@ -8,7 +8,7 @@ import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evalu
 import {
   buildGridEvaluationResult,
   buildJournalAttemptAnswers,
-  buildJournalBreakdownRows,
+  buildTrialBalanceBreakdownRows,
   normalizeGridFields,
   type JournalLineInput,
   type SimulationFieldRecord,
@@ -131,6 +131,10 @@ function TrialBalanceContent() {
       alert("Task ID or Question ID is missing.");
       return;
     }
+    if (groupedFields.length === 0) {
+      alert("Simulation fields are not available. Cannot evaluate or save.");
+      return;
+    }
     const endTime = Date.now();
     const entriesByRow: Record<number, JournalLineInput[]> = {};
     rows.forEach((row, idx) => {
@@ -138,16 +142,19 @@ function TrialBalanceContent() {
     });
 
     const answers = buildJournalAttemptAnswers(groupedFields, entriesByRow);
-    const breakdownRows = buildJournalBreakdownRows(groupedFields, entriesByRow);
+    const breakdownRows = buildTrialBalanceBreakdownRows(groupedFields, entriesByRow);
     setEvaluation(buildGridEvaluationResult(breakdownRows, startTime, endTime));
     setShowEval(true);
 
-    if (answers.length > 0) {
-      try {
-        await saveSimulationAttempt({ questionId, taskId, startTime, endTime, answers });
-      } catch (e) {
-        console.error("Save error:", e);
-      }
+    if (answers.length === 0) {
+      alert("No simulation answers could be mapped from the current trial balance fields.");
+      return;
+    }
+
+    try {
+      await saveSimulationAttempt({ questionId, taskId, startTime, endTime, answers });
+    } catch (e) {
+      console.error("Save error:", e);
     }
   }
 

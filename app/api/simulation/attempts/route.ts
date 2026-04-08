@@ -24,7 +24,11 @@ function normalizeValue(value: string | null | undefined): string {
 function normalizeFieldName(value: string | null | undefined): string {
     let normalized = (value ?? "").trim().toLowerCase();
 
-    while (normalized.startsWith("fs_") || normalized.startsWith("pl_")) {
+    while (
+        normalized.startsWith("fs_") ||
+        normalized.startsWith("pl_") ||
+        normalized.startsWith("bs_")
+    ) {
         normalized = normalized.slice(3);
     }
 

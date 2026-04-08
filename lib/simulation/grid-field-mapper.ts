@@ -11,6 +11,7 @@ export interface SimulationFieldRecord {
 
 export interface GridFieldGroup {
   rowNumber: number;
+  account?: SimulationFieldRecord;
   debitAccount?: SimulationFieldRecord;
   debitAmount?: SimulationFieldRecord;
   creditAccount?: SimulationFieldRecord;
@@ -39,7 +40,34 @@ export interface GridBreakdownRow {
   status: "correct" | "incorrect";
 }
 
+const ROW_ACCOUNT_PATTERN = /^row(\d+)_account$/i;
 const ROW_FIELD_PATTERN = /^row(\d+)_(debit|credit)_(account|amount)$/i;
+
+function isZeroAmount(value: string | null | undefined): boolean {
+  return Number((value ?? "").trim().replaceAll(",", "") || "0") === 0;
+}
+
+function getExpectedSide(rowGroup: GridFieldGroup): "debit" | "credit" | null {
+  if (rowGroup.debitAmount && rowGroup.creditAmount) {
+    const debitIsZero = isZeroAmount(rowGroup.debitAmount.expected_value);
+    const creditIsZero = isZeroAmount(rowGroup.creditAmount.expected_value);
+
+    if (!debitIsZero && creditIsZero) {
+      return "debit";
+    }
+    if (!creditIsZero && debitIsZero) {
+      return "credit";
+    }
+  }
+
+  if (rowGroup.debitAccount || rowGroup.debitAmount) {
+    return "debit";
+  }
+  if (rowGroup.creditAccount || rowGroup.creditAmount) {
+    return "credit";
+  }
+  return null;
+}
 
 function trimValue(value: string | null | undefined): string {
   return (value ?? "").trim();
@@ -75,6 +103,15 @@ function groupByRowAndSide(fields: SimulationFieldRecord[]): Map<number, GridFie
 
   for (const field of fields) {
     const rawName = field.field_name ?? "";
+    const accountMatch = rawName.match(ROW_ACCOUNT_PATTERN);
+    if (accountMatch) {
+      const rowNumber = Number(accountMatch[1]);
+      const current = grouped.get(rowNumber) ?? { rowNumber };
+      current.account = field;
+      grouped.set(rowNumber, current);
+      continue;
+    }
+
     const match = rawName.match(ROW_FIELD_PATTERN);
     if (!match) {
       continue;
@@ -122,6 +159,12 @@ export function buildJournalAttemptAnswers(
     const debitAmount = normalizeAmount(debitLine?.dr);
     const creditAmount = normalizeAmount(creditLine?.cr);
 
+    if (rowGroup.account) {
+      answers.push({
+        field_id: rowGroup.account.id,
+        entered_value: trimValue(getFirstFilledJournalLine(lines)?.account),
+      });
+    }
     if (rowGroup.debitAccount) {
       answers.push({ field_id: rowGroup.debitAccount.id, entered_value: debitAccount });
     }
@@ -275,6 +318,55 @@ export function buildLedgerBreakdownRows(
     if (creditRow) {
       rows.push(creditRow);
     }
+  }
+
+  return rows;
+}
+
+export function buildTrialBalanceBreakdownRows(
+  groupedFields: GridFieldGroup[],
+  entriesByRow: Record<number, JournalLineInput[]>,
+): GridBreakdownRow[] {
+  const rows: GridBreakdownRow[] = [];
+
+  for (const rowGroup of groupedFields) {
+    const expectedSide = getExpectedSide(rowGroup);
+    if (!expectedSide) {
+      continue;
+    }
+
+    const line = entriesByRow[rowGroup.rowNumber - 1]?.[0];
+    const enteredAccount = trimValue(line?.account);
+    const enteredDebitAmount = trimValue(line?.dr);
+    const enteredCreditAmount = trimValue(line?.cr);
+    const enteredSide = enteredDebitAmount
+      ? "debit"
+      : enteredCreditAmount
+      ? "credit"
+      : expectedSide;
+    const enteredAmount = enteredSide === "debit" ? enteredDebitAmount : enteredCreditAmount;
+    const expectedAccount =
+      trimValue(rowGroup.account?.expected_value) ||
+      (expectedSide === "debit"
+        ? trimValue(rowGroup.debitAccount?.expected_value)
+        : trimValue(rowGroup.creditAccount?.expected_value));
+    const expectedAmount =
+      expectedSide === "debit"
+        ? trimValue(rowGroup.debitAmount?.expected_value)
+        : trimValue(rowGroup.creditAmount?.expected_value);
+    const accountOk = enteredAccount === expectedAccount;
+    const amountOk = normalizeAmount(enteredAmount) === normalizeAmount(expectedAmount);
+
+    rows.push({
+      rowNumber: rowGroup.rowNumber,
+      side: enteredSide,
+      amountType: enteredSide === "debit" ? "Debit" : "Credit",
+      particular: enteredAccount || "(empty)",
+      amount: enteredAmount || "(empty)",
+      expectedParticular: expectedAccount || "(empty)",
+      expectedAmount: expectedAmount || "(empty)",
+      status: enteredSide === expectedSide && accountOk && amountOk ? "correct" : "incorrect",
+    });
   }
 
   return rows;

@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import {
   buildGridEvaluationResult,
   buildJournalAttemptAnswers,
-  buildJournalBreakdownRows,
+  buildTrialBalanceBreakdownRows,
   normalizeGridFields,
   type JournalLineInput,
   type SimulationFieldRecord,
@@ -21,7 +21,7 @@ function makeField(field: Partial<SimulationFieldRecord> & Pick<SimulationFieldR
 function evaluate(fields: SimulationFieldRecord[], entriesByRow: Record<number, JournalLineInput[]>) {
   const groupedFields = normalizeGridFields(fields);
   const answers = buildJournalAttemptAnswers(groupedFields, entriesByRow);
-  const breakdownRows = buildJournalBreakdownRows(groupedFields, entriesByRow);
+  const breakdownRows = buildTrialBalanceBreakdownRows(groupedFields, entriesByRow);
   const result = buildGridEvaluationResult(breakdownRows, 0, 1000);
 
   return { answers, breakdownRows, result };
@@ -143,5 +143,55 @@ describe("Trial Balance Evaluation", () => {
       { field_id: "f3", entered_value: "" },
       { field_id: "f4", entered_value: "" },
     ]);
+  });
+
+  it("should support legacy trial balance rows with rowN_account plus debit and credit amounts", () => {
+    const fields = [
+      makeField({ id: "f1", field_name: "row1_account", expected_value: "Bank" }),
+      makeField({ id: "f2", field_name: "row1_debit_amount", expected_value: "75200" }),
+      makeField({ id: "f3", field_name: "row1_credit_amount", expected_value: "0" }),
+      makeField({ id: "f4", field_name: "row2_account", expected_value: "Sundry Creditors" }),
+      makeField({ id: "f5", field_name: "row2_debit_amount", expected_value: "0" }),
+      makeField({ id: "f6", field_name: "row2_credit_amount", expected_value: "25450" }),
+    ];
+
+    const groupedFields = normalizeGridFields(fields);
+    const answers = buildJournalAttemptAnswers(groupedFields, {
+      0: [{ account: "Bank", dr: "75200", cr: "" }],
+      1: [{ account: "Sundry Creditors", dr: "", cr: "25450" }],
+    });
+    const breakdownRows = buildTrialBalanceBreakdownRows(groupedFields, {
+      0: [{ account: "Bank", dr: "75200", cr: "" }],
+      1: [{ account: "Sundry Creditors", dr: "", cr: "25450" }],
+    });
+
+    assert.deepEqual(answers, [
+      { field_id: "f1", entered_value: "Bank" },
+      { field_id: "f2", entered_value: "75200" },
+      { field_id: "f3", entered_value: "" },
+      { field_id: "f4", entered_value: "Sundry Creditors" },
+      { field_id: "f5", entered_value: "" },
+      { field_id: "f6", entered_value: "25450" },
+    ]);
+    assert.equal(breakdownRows[0].expectedParticular, "Bank");
+    assert.equal(breakdownRows[1].expectedParticular, "Sundry Creditors");
+  });
+
+  it("should show expected trial balance values even when the user enters the amount on the wrong side", () => {
+    const fields = [
+      makeField({ id: "f1", field_name: "row1_credit_account", expected_value: "Capital Account" }),
+      makeField({ id: "f2", field_name: "row1_credit_amount", expected_value: "50000" }),
+    ];
+
+    const groupedFields = normalizeGridFields(fields);
+    const breakdownRows = buildTrialBalanceBreakdownRows(groupedFields, {
+      0: [{ account: "Capital Account", dr: "50000", cr: "" }],
+    });
+
+    assert.equal(breakdownRows.length, 1);
+    assert.equal(breakdownRows[0].expectedParticular, "Capital Account");
+    assert.equal(breakdownRows[0].expectedAmount, "50000");
+    assert.equal(breakdownRows[0].amountType, "Debit");
+    assert.equal(breakdownRows[0].status, "incorrect");
   });
 });
