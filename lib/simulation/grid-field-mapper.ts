@@ -116,25 +116,22 @@ export function buildJournalAttemptAnswers(
     const lines = entriesByRow[rowGroup.rowNumber - 1] ?? [];
     const debitLine = getFirstDebitJournalLine(lines);
     const creditLine = getFirstCreditJournalLine(lines);
-    if (!debitLine && !creditLine) {
-      continue;
-    }
 
     const debitAccount = trimValue(debitLine?.account);
     const creditAccount = trimValue(creditLine?.account);
     const debitAmount = normalizeAmount(debitLine?.dr);
     const creditAmount = normalizeAmount(creditLine?.cr);
 
-    if (rowGroup.debitAccount && debitAccount) {
+    if (rowGroup.debitAccount) {
       answers.push({ field_id: rowGroup.debitAccount.id, entered_value: debitAccount });
     }
-    if (rowGroup.debitAmount && debitAmount) {
+    if (rowGroup.debitAmount) {
       answers.push({ field_id: rowGroup.debitAmount.id, entered_value: debitAmount });
     }
-    if (rowGroup.creditAccount && creditAccount) {
+    if (rowGroup.creditAccount) {
       answers.push({ field_id: rowGroup.creditAccount.id, entered_value: creditAccount });
     }
-    if (rowGroup.creditAmount && creditAmount) {
+    if (rowGroup.creditAmount) {
       answers.push({ field_id: rowGroup.creditAmount.id, entered_value: creditAmount });
     }
   }
@@ -153,17 +150,17 @@ export function buildLedgerAttemptAnswers(
     const drLine = drEntries[rowGroup.rowNumber - 1];
     const crLine = crEntries[rowGroup.rowNumber - 1];
 
-    if (rowGroup.debitAccount && trimValue(drLine?.account)) {
-      answers.push({ field_id: rowGroup.debitAccount.id, entered_value: trimValue(drLine.account) });
+    if (rowGroup.debitAccount) {
+      answers.push({ field_id: rowGroup.debitAccount.id, entered_value: trimValue(drLine?.account) });
     }
-    if (rowGroup.debitAmount && trimValue(drLine?.amount)) {
-      answers.push({ field_id: rowGroup.debitAmount.id, entered_value: normalizeAmount(drLine.amount) });
+    if (rowGroup.debitAmount) {
+      answers.push({ field_id: rowGroup.debitAmount.id, entered_value: normalizeAmount(drLine?.amount) });
     }
-    if (rowGroup.creditAccount && trimValue(crLine?.account)) {
-      answers.push({ field_id: rowGroup.creditAccount.id, entered_value: trimValue(crLine.account) });
+    if (rowGroup.creditAccount) {
+      answers.push({ field_id: rowGroup.creditAccount.id, entered_value: trimValue(crLine?.account) });
     }
-    if (rowGroup.creditAmount && trimValue(crLine?.amount)) {
-      answers.push({ field_id: rowGroup.creditAmount.id, entered_value: normalizeAmount(crLine.amount) });
+    if (rowGroup.creditAmount) {
+      answers.push({ field_id: rowGroup.creditAmount.id, entered_value: normalizeAmount(crLine?.amount) });
     }
   }
 

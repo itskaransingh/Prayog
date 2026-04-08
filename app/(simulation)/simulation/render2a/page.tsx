@@ -256,8 +256,8 @@ function NergyVidyaLogo() {
         <rect x="23" y="5" width="4" height="24" rx="1" fill="white" opacity="0.9" />
       </svg>
       <div style={{ lineHeight: 1.2 }}>
-        <div style={{ fontWeight: "700", color: "#1a3a5c", fontSize: "13px" }}>Nergy</div>
-        <div style={{ fontWeight: "400", color: "#5a7a9c", fontSize: "11px" }}>Vidya</div>
+        <div style={{ fontWeight: "700", color: "#1a3a5c", fontSize: "13px" }}>Prayog</div>
+        <div style={{ fontWeight: "400", color: "#5a7a9c", fontSize: "11px" }}></div>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { RegistrationContext } from "@/lib/simulation/income-tax/itr-registratio
 import { type EvaluationResult, type FieldResult } from "@/lib/evaluation";
 import { useContext } from "react";
 
-type EvaluationPopupVariant = "default" | "grid";
+type EvaluationPopupVariant = "default" | "grid" | "fs";
 
 interface EvaluationPopupProps {
     open: boolean;
@@ -24,10 +24,34 @@ interface GridFieldBreakdownRow {
     expected?: string;
 }
 
+interface FSFieldBreakdownRow {
+    field?: string;
+    entered?: string;
+    expected?: string;
+    status?: FieldResult["status"];
+}
+
 function getGridValue(value?: string) {
     if (value === undefined || value === null) return "(empty)";
     const trimmed = String(value).trim();
     return trimmed.length > 0 ? trimmed : "(empty)";
+}
+
+function splitFsDisplayValue(value?: string) {
+    const trimmed = getGridValue(value);
+    const [accountPart, amountPart] = trimmed.split("|");
+
+    return {
+        account: getGridValue(accountPart),
+        amount: getGridValue(amountPart?.replace(/^₹\s*/, "")),
+    };
+}
+
+function getFsSectionLabel(field?: string) {
+    if (!field) return "(empty)";
+
+    const match = field.match(/^(.*)\s+Row\s+\d+$/i);
+    return match ? match[1] : field;
 }
 
 export function EvaluationPopup({
@@ -151,6 +175,58 @@ export function EvaluationPopup({
                                                 </td>
                                             </tr>
                                         ))}
+                                    </tbody>
+                                </>
+                            ) : variant === "fs" ? (
+                                <>
+                                    <thead>
+                                        <tr>
+                                            <th>Section</th>
+                                            <th>Account</th>
+                                            <th>Amount</th>
+                                            <th>Expected Account</th>
+                                            <th>Expected Amount</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {fieldBreakdown.map((item: FSFieldBreakdownRow, idx: number) => {
+                                            const entered = splitFsDisplayValue(item.entered);
+                                            const expected = splitFsDisplayValue(item.expected);
+
+                                            return (
+                                                <tr key={idx}>
+                                                    <td style={{ fontWeight: 500 }}>
+                                                        {getFsSectionLabel(item.field)}
+                                                    </td>
+                                                    <td>
+                                                        <span className="sim-eval-entered">
+                                                            {entered.account}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="sim-eval-entered">
+                                                            {entered.amount}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="sim-eval-expected">
+                                                            {expected.account}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className="sim-eval-expected">
+                                                            {expected.amount}
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <span className={`sim-eval-status ${item.status ?? "incorrect"}`}>
+                                                            {item.status === "correct" ? "✅" : item.status === "partial" ? "⚠️" : "❌"}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </>
                             ) : (

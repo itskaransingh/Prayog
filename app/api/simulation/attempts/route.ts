@@ -21,6 +21,16 @@ function normalizeValue(value: string | null | undefined): string {
     return (value ?? "").trim();
 }
 
+function normalizeFieldName(value: string | null | undefined): string {
+    let normalized = (value ?? "").trim().toLowerCase();
+
+    while (normalized.startsWith("fs_") || normalized.startsWith("pl_")) {
+        normalized = normalized.slice(3);
+    }
+
+    return normalized;
+}
+
 function getErrorMessage(error: unknown): string {
     if (error && typeof error === "object" && "message" in error) {
         return String(error.message);
@@ -112,6 +122,18 @@ export async function POST(request: Request) {
                 .filter((field): field is SimulationFieldRecord & { field_name: string } => Boolean(field.field_name))
                 .map((field) => [field.field_name, field]),
         );
+        const fieldMapByNormalizedName = new Map<string, SimulationFieldRecord>();
+
+        for (const field of fieldRecords) {
+            if (!field.field_name) {
+                continue;
+            }
+
+            const normalizedName = normalizeFieldName(field.field_name);
+            if (!fieldMapByNormalizedName.has(normalizedName)) {
+                fieldMapByNormalizedName.set(normalizedName, field);
+            }
+        }
 
         const resolvedAnswers = task_answers.map((answer) => {
             const field = answer.field_id
@@ -120,18 +142,24 @@ export async function POST(request: Request) {
                 ? fieldMapByName.get(answer.field_name)
                 : undefined;
 
-            if (!field) {
+            const normalizedField = field
+                ? field
+                : answer.field_name
+                ? fieldMapByNormalizedName.get(normalizeFieldName(answer.field_name))
+                : undefined;
+
+            if (!normalizedField) {
                 throw new Error(
                     `Unable to match submitted answer to a simulation field (${answer.field_name || answer.field_id || "unknown"}).`,
                 );
             }
 
             const entered = normalizeValue(answer.entered_value);
-            const expected = normalizeValue(field.expected_value);
+            const expected = normalizeValue(normalizedField.expected_value);
             const isCorrect = entered === expected;
 
             return {
-                field,
+                field: normalizedField,
                 entered,
                 expected,
                 isCorrect,

@@ -34,6 +34,17 @@ export interface FSRow {
   amount: string;
 }
 
+export interface FSSectionResult {
+  section: string;
+  totalScore: number;
+  maxScore: number;
+  accuracy: number;
+}
+
+export interface FSEvaluationResult extends EvaluationResult {
+  sectionBreakdown?: FSSectionResult[];
+}
+
 export type FSSectionKey =
   | "pl_direct_expense"
   | "pl_direct_income"
@@ -61,6 +72,71 @@ export interface FSEntries {
 
 // ─── Pattern ──────────────────────────────────────────────────────────────────
 const FS_FIELD_PATTERN = /^(pl|bs)_([\w]+)_row(\d+)_(account|amount)$/i;
+
+function normalizeValue(value: string | null | undefined): string {
+  return (value ?? "").trim().toLowerCase();
+}
+
+function normalizeAmountInput(value: string | null | undefined): string {
+  return (value ?? "").trim().replaceAll(",", "");
+}
+
+function getSectionLabel(sectionKey: string): string {
+  return sectionKey
+    .replace("pl_", "")
+    .replace("bs_", "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function scoreAccount(entered: string, expected: string): number {
+  const enteredNorm = normalizeValue(entered);
+  const expectedNorm = normalizeValue(expected);
+
+  if (enteredNorm === expectedNorm) {
+    return 1;
+  }
+
+  if (!enteredNorm || !expectedNorm) {
+    return 0;
+  }
+
+  const enteredContainsExpected = enteredNorm.includes(expectedNorm);
+  const expectedContainsEntered = expectedNorm.includes(enteredNorm);
+  const shorterLength = Math.min(enteredNorm.length, expectedNorm.length);
+  const expectedThreshold = expectedNorm.length * 0.6;
+
+  if ((enteredContainsExpected || expectedContainsEntered) && shorterLength >= expectedThreshold) {
+    return 0.5;
+  }
+
+  return 0;
+}
+
+function scoreAmount(entered: string, expected: string): number {
+  const enteredAmount = parseFloat(entered.replaceAll(",", "").trim()) || 0;
+  const expectedAmount = parseFloat(expected.replaceAll(",", "").trim()) || 0;
+
+  return Math.abs(enteredAmount - expectedAmount) <= 1 ? 1 : 0;
+}
+
+function scoreRow(enteredAccount: string, expectedAccount: string, enteredAmount: string, expectedAmount: string) {
+  const accountScore = scoreAccount(enteredAccount, expectedAccount);
+  const amountScore = scoreAmount(enteredAmount, expectedAmount);
+  const totalScore = (accountScore + amountScore) / 2;
+
+  return {
+    accountScore,
+    amountScore,
+    totalScore,
+    status:
+      totalScore === 1
+        ? "correct"
+        : totalScore > 0
+          ? "partial"
+          : "incorrect",
+  } as const;
+}
 
 // ─── Parsing helpers ──────────────────────────────────────────────────────────
 export function parseFSFields(fields: FSFieldRecord[]): Map<string, FSFieldRecord[]> {
@@ -111,24 +187,102 @@ export function buildFSAttemptAnswers(
 
   for (const [sectionKey, rows] of Object.entries(sectionMap)) {
     const sectionFields = grouped.get(sectionKey) ?? [];
-    rows.forEach((row, idx) => {
-      const rowN = idx + 1;
+    const maxRows = Math.max(rows.length, Math.ceil(sectionFields.length / 2));
+
+    for (let rowN = 1; rowN <= maxRows; rowN++) {
+      const row = rows[rowN - 1];
       const accountField = sectionFields.find(
         (f) => f.field_name === `${sectionKey}_row${rowN}_account`
       );
       const amountField = sectionFields.find(
         (f) => f.field_name === `${sectionKey}_row${rowN}_amount`
       );
-      if (accountField && row.account.trim()) {
-        answers.push({ field_id: accountField.id, entered_value: row.account.trim() });
+
+      if (!accountField && !amountField) {
+        continue;
       }
-      if (amountField && row.amount.trim()) {
-        answers.push({ field_id: amountField.id, entered_value: row.amount.trim() });
+
+      if (accountField) {
+        answers.push({
+          field_id: accountField.id,
+          entered_value: (row?.account ?? "").trim(),
+        });
       }
-    });
+
+      if (amountField) {
+        answers.push({
+          field_id: amountField.id,
+          entered_value: normalizeAmountInput(row?.amount),
+        });
+      }
+    }
   }
 
   return answers;
+}
+
+// ─── Section breakdown builder ────────────────────────────────────────────────
+export function buildFSSectionBreakdown(
+  fields: FSFieldRecord[],
+  entries: FSEntries
+): FSSectionResult[] {
+  const grouped = parseFSFields(fields);
+
+  const sectionMap: Record<string, FSRow[]> = {
+    pl_direct_expense: entries.directExpense,
+    pl_direct_income: entries.directIncome,
+    pl_indirect_expense: entries.indirectExpense,
+    pl_indirect_income: entries.indirectIncome,
+    bs_capital: entries.capital,
+    bs_ncl: entries.ncl,
+    bs_cl: entries.cl,
+    bs_ppe: entries.ppe,
+    bs_onca: entries.onca,
+    bs_ca: entries.ca,
+  };
+
+  const breakdown: FSSectionResult[] = [];
+
+  for (const [sectionKey, rows] of Object.entries(sectionMap)) {
+    const sectionFields = grouped.get(sectionKey) ?? [];
+    const maxRows = Math.max(rows.length, Math.ceil(sectionFields.length / 2));
+    let totalScore = 0;
+
+    for (let rowN = 1; rowN <= maxRows; rowN++) {
+      const accountField = sectionFields.find(
+        (f) => f.field_name === `${sectionKey}_row${rowN}_account`
+      );
+      const amountField = sectionFields.find(
+        (f) => f.field_name === `${sectionKey}_row${rowN}_amount`
+      );
+
+      if (!accountField && !amountField) continue;
+
+      const expectedAccount = (accountField?.expected_value ?? "").trim();
+      const expectedAmount = (amountField?.expected_value ?? "").trim();
+      const enteredAccount = (rows[rowN - 1]?.account ?? "").trim();
+      const enteredAmount = (rows[rowN - 1]?.amount ?? "").trim();
+
+      const { totalScore: rowScore } = scoreRow(
+        enteredAccount,
+        expectedAccount,
+        enteredAmount,
+        expectedAmount
+      );
+
+      totalScore += rowScore;
+    }
+
+    const maxScore = Math.max(maxRows, 0);
+    breakdown.push({
+      section: getSectionLabel(sectionKey),
+      totalScore,
+      maxScore,
+      accuracy: maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0,
+    });
+  }
+
+  return breakdown;
 }
 
 // ─── Evaluation result builder ────────────────────────────────────────────────
@@ -137,8 +291,9 @@ export function buildFSEvaluationResult(
   entries: FSEntries,
   startTime: number,
   endTime: number
-): EvaluationResult {
+): FSEvaluationResult {
   const grouped = parseFSFields(fields);
+  const sectionBreakdown = buildFSSectionBreakdown(fields, entries);
 
   const sectionMap: Record<string, FSRow[]> = {
     pl_direct_expense: entries.directExpense,
@@ -174,22 +329,19 @@ export function buildFSEvaluationResult(
       const enteredAccount = (rows[rowN - 1]?.account ?? "").trim();
       const enteredAmount = (rows[rowN - 1]?.amount ?? "").trim();
 
-      const accountOk = enteredAccount === expectedAccount;
-      const amountOk = enteredAmount.replaceAll(",", "") === expectedAmount.replaceAll(",", "");
-      const isCorrect = accountOk && amountOk;
-
-      const sectionLabel = sectionKey
-        .replace("pl_", "")
-        .replace("bs_", "")
-        .replace(/_/g, " ")
-        .replace(/\b\w/g, (c) => c.toUpperCase());
+      const { totalScore: rowScore, status } = scoreRow(
+        enteredAccount,
+        expectedAccount,
+        enteredAmount,
+        expectedAmount
+      );
 
       fieldBreakdown.push({
-        field: `${sectionLabel} Row ${rowN}`,
+        field: `${getSectionLabel(sectionKey)} Row ${rowN}`,
         entered: `${enteredAccount || "(empty)"} | ₹${enteredAmount || "0"}`,
         expected: `${expectedAccount || "(empty)"} | ₹${expectedAmount || "0"}`,
-        score: isCorrect ? 1 : 0,
-        status: isCorrect ? "correct" : "incorrect",
+        score: rowScore,
+        status,
       });
     }
   }
@@ -204,5 +356,6 @@ export function buildFSEvaluationResult(
     maxPossibleScore,
     timeTakenSeconds: Math.max(0, Math.round((endTime - startTime) / 1000)),
     fieldBreakdown,
+    sectionBreakdown,
   };
 }

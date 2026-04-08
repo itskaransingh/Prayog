@@ -253,7 +253,7 @@ function FinancialStatementContent() {
         open={showEval}
         onClose={() => setShowEval(false)}
         results={evaluation}
-        variant="default"
+        variant="fs"
       />
     </>
   );
