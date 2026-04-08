@@ -7,6 +7,17 @@ import {
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
+const VALID_SIMULATOR_TYPES = [
+    "none",
+    "classification",
+    "itr_registration",
+    "epan_registration",
+    "journal_entry",
+    "ledger",
+    "trial_balance",
+    "financial_statement",
+] as const;
+
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return null;
@@ -34,7 +45,7 @@ export async function PUT(
         }
 
         const body = await request.json();
-        const { title, slug, task_count, progress, sort_order, is_active } = body;
+        const { title, slug, task_count, progress, sort_order, is_active, simulator_type } = body;
 
         const updateData: Record<string, unknown> = {};
         if (title !== undefined) updateData.title = title;
@@ -48,6 +59,16 @@ export async function PUT(
                 return NextResponse.json({ error: "is_active must be a boolean" }, { status: 400 });
             }
             updateData.is_active = is_active;
+        }
+
+        if (simulator_type !== undefined) {
+            if (!VALID_SIMULATOR_TYPES.includes(simulator_type)) {
+                return NextResponse.json(
+                    { error: `simulator_type must be one of: ${VALID_SIMULATOR_TYPES.join(", ")}` },
+                    { status: 400 }
+                );
+            }
+            updateData.simulator_type = simulator_type;
         }
 
         if (Object.keys(updateData).length === 0) {

@@ -62,6 +62,16 @@ interface Submodule {
     module_id: string;
     title: string;
     slug: string;
+    simulator_type:
+        | "none"
+        | "classification"
+        | "itr_registration"
+        | "epan_registration"
+        | "journal_entry"
+        | "ledger"
+        | "trial_balance"
+        | "financial_statement"
+        | null;
     is_active: boolean;
     task_count: number;
     progress: number;
@@ -81,6 +91,15 @@ interface ModuleFormData {
 interface SubmoduleFormData {
     title: string;
     slug: string;
+    simulator_type:
+        | "none"
+        | "classification"
+        | "itr_registration"
+        | "epan_registration"
+        | "journal_entry"
+        | "ledger"
+        | "trial_balance"
+        | "financial_statement";
     task_count: number;
     sort_order: number;
     is_active: boolean;
@@ -129,10 +148,25 @@ const emptyModuleForm: ModuleFormData = {
 const emptySubmoduleForm: SubmoduleFormData = {
     title: "",
     slug: "",
+    simulator_type: "none",
     task_count: 0,
     sort_order: 0,
     is_active: true,
 };
+
+const SIMULATOR_TYPE_OPTIONS: Array<{
+    value: SubmoduleFormData["simulator_type"];
+    label: string;
+}> = [
+    { value: "none", label: "None" },
+    { value: "classification", label: "Classification" },
+    { value: "itr_registration", label: "ITR Registration" },
+    { value: "epan_registration", label: "ePAN Registration" },
+    { value: "journal_entry", label: "Journal Entry" },
+    { value: "ledger", label: "Ledger" },
+    { value: "trial_balance", label: "Trial Balance" },
+    { value: "financial_statement", label: "Financial Statement" },
+];
 
 // ─── Main Component ──────────────────────────────────────────────────
 
@@ -299,6 +333,7 @@ export default function AdminModulesPage() {
         setSubmoduleForm({
             title: sub.title,
             slug: sub.slug,
+            simulator_type: sub.simulator_type ?? "none",
             task_count: sub.task_count,
             sort_order: sub.sort_order,
             is_active: typeof sub.is_active === "boolean" ? sub.is_active : true,
@@ -760,7 +795,7 @@ export default function AdminModulesPage() {
                                                             />
                                                         </div>
                                                     </div>
-                                                    <div className="grid grid-cols-2 gap-3">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                         <div className="space-y-1">
                                                             <label className="text-xs font-medium text-slate-600">
                                                                 Task Count
@@ -794,6 +829,28 @@ export default function AdminModulesPage() {
                                                                 }
                                                                 className="rounded-lg h-8 text-sm"
                                                             />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-xs font-medium text-slate-600">
+                                                                Simulator Type
+                                                            </label>
+                                                            <select
+                                                                value={submoduleForm.simulator_type}
+                                                                onChange={(e) =>
+                                                                    setSubmoduleForm((prev) => ({
+                                                                        ...prev,
+                                                                        simulator_type:
+                                                                            e.target.value as SubmoduleFormData["simulator_type"],
+                                                                    }))
+                                                                }
+                                                                className="w-full h-8 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                                            >
+                                                                {SIMULATOR_TYPE_OPTIONS.map((option) => (
+                                                                    <option key={option.value} value={option.value}>
+                                                                        {option.label}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
                                                         </div>
                                                     </div>
                                                     <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
@@ -866,6 +923,15 @@ export default function AdminModulesPage() {
                                                                     /{sub.slug} · {sub.task_count} tasks · Progress: {sub.progress}%
                                                                 </p>
                                                             </div>
+                                                            <Badge
+                                                                variant="outline"
+                                                                className="text-[10px] hidden sm:inline-flex"
+                                                            >
+                                                                {SIMULATOR_TYPE_OPTIONS.find(
+                                                                    (option) =>
+                                                                        option.value === (sub.simulator_type ?? "none")
+                                                                )?.label ?? "None"}
+                                                            </Badge>
                                                             <Badge
                                                                 variant={sub.is_active ? "default" : "outline"}
                                                                 className="text-[10px]"

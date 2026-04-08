@@ -7,6 +7,17 @@ import {
 import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
+const VALID_SIMULATOR_TYPES = [
+    "none",
+    "classification",
+    "itr_registration",
+    "epan_registration",
+    "journal_entry",
+    "ledger",
+    "trial_balance",
+    "financial_statement",
+] as const;
+
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return null;
@@ -60,7 +71,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { module_id, title, slug, task_count, sort_order, is_active } = body;
+        const { module_id, title, slug, task_count, sort_order, is_active, simulator_type } = body;
 
         if (!module_id || !title || !slug) {
             return NextResponse.json({ error: "module_id, title, and slug are required" }, { status: 400 });
@@ -68,6 +79,16 @@ export async function POST(request: Request) {
 
         if (is_active !== undefined && typeof is_active !== "boolean") {
             return NextResponse.json({ error: "is_active must be a boolean" }, { status: 400 });
+        }
+
+        if (
+            simulator_type !== undefined &&
+            !VALID_SIMULATOR_TYPES.includes(simulator_type)
+        ) {
+            return NextResponse.json(
+                { error: `simulator_type must be one of: ${VALID_SIMULATOR_TYPES.join(", ")}` },
+                { status: 400 }
+            );
         }
 
         const { data, error } = await supabase
@@ -79,6 +100,7 @@ export async function POST(request: Request) {
                 task_count,
                 sort_order,
                 is_active: is_active ?? true,
+                simulator_type: simulator_type ?? "none",
             })
             .select()
             .single();

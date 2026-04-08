@@ -31,6 +31,12 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+    SimulationAnswersSection,
+    type SimulationFieldDraft,
+    type SimulationFieldRecord,
+    type SimulatorType,
+} from "@/components/admin/simulation-answers-section";
 
 interface Module {
     id: string;
@@ -43,6 +49,7 @@ interface Submodule {
     module_id: string;
     title: string;
     slug: string;
+    simulator_type: SimulatorType | null;
 }
 
 interface Question {
@@ -91,14 +98,21 @@ export default function AdminQuestionsPage() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [selectedModuleId, setSelectedModuleId] = useState("");
     const [selectedSubmoduleId, setSelectedSubmoduleId] = useState("");
+    const [selectedSubmoduleSimulatorType, setSelectedSubmoduleSimulatorType] =
+        useState<SimulatorType | null>(null);
     const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
     const [form, setForm] = useState<QuestionFormState>(getEmptyQuestionForm);
     const [isLoadingModules, setIsLoadingModules] = useState(true);
     const [isLoadingSubmodules, setIsLoadingSubmodules] = useState(false);
     const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
+    const [isSavingAnswers, setIsSavingAnswers] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [simulationTaskId, setSimulationTaskId] = useState<string | null>(null);
+    const [simulationStepId, setSimulationStepId] = useState<string | null>(null);
+    const [answerFields, setAnswerFields] = useState<SimulationFieldRecord[]>([]);
 
     const fetchModules = useCallback(async () => {
         setIsLoadingModules(true);
@@ -172,6 +186,7 @@ export default function AdminQuestionsPage() {
         if (!selectedModuleId) {
             setSubmodules([]);
             setSelectedSubmoduleId("");
+            setSelectedSubmoduleSimulatorType(null);
             setQuestions([]);
             return;
         }
@@ -191,7 +206,70 @@ export default function AdminQuestionsPage() {
     const resetForm = () => {
         setEditingQuestionId(null);
         setForm(getEmptyQuestionForm());
+        setSimulationTaskId(null);
+        setSimulationStepId(null);
+        setAnswerFields([]);
     };
+
+    const loadSimulationAnswers = useCallback(async (questionId: string) => {
+        setIsLoadingAnswers(true);
+        setSimulationTaskId(null);
+        setSimulationStepId(null);
+        setAnswerFields([]);
+
+        try {
+            const taskRes = await fetch(
+                `/api/admin/simulation-tasks?questionId=${questionId}`
+            );
+            const taskData = await taskRes.json();
+
+            if (!taskRes.ok) {
+                throw new Error(taskData.error || "Failed to load simulation task");
+            }
+
+            const task = taskData.tasks?.[0];
+            if (!task?.id) {
+                return;
+            }
+
+            setSimulationTaskId(task.id);
+
+            const stepRes = await fetch(
+                `/api/admin/simulation-steps?taskId=${task.id}`
+            );
+            const stepData = await stepRes.json();
+
+            if (!stepRes.ok) {
+                throw new Error(stepData.error || "Failed to load simulation step");
+            }
+
+            const step = stepData.steps?.[0];
+            if (!step?.id) {
+                return;
+            }
+
+            setSimulationStepId(step.id);
+
+            const fieldRes = await fetch(
+                `/api/admin/simulation-fields?stepId=${step.id}`
+            );
+            const fieldData = await fieldRes.json();
+
+            if (!fieldRes.ok) {
+                throw new Error(fieldData.error || "Failed to load simulation fields");
+            }
+
+            setAnswerFields(fieldData.fields || []);
+        } catch (err: unknown) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to load simulation answers"
+            );
+        } finally {
+            setIsLoadingAnswers(false);
+        }
+    }, []);
 
     const openQuestion = (question: Question) => {
         setEditingQuestionId(question.id);
@@ -211,6 +289,8 @@ export default function AdminQuestionsPage() {
             imageUrl: question.image_url || "",
         });
         setSuccessMessage(null);
+        setError(null);
+        void loadSimulationAnswers(question.id);
     };
 
     const saveQuestion = async () => {
@@ -360,6 +440,201 @@ export default function AdminQuestionsPage() {
         });
     };
 
+    const ensureSimulationTaskAndStep = useCallback(async (questionId: string) => {
+        let taskId = simulationTaskId;
+        let stepId = simulationStepId;
+
+        if (!taskId) {
+            const taskRes = await fetch("/api/admin/simulation-tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question_id: questionId }),
+            });
+            const taskData = await taskRes.json();
+
+            if (!taskRes.ok && taskRes.status !== 409) {
+                throw new Error(taskData.error || "Failed to create simulation task");
+            }
+
+            const task = taskData.task;
+            if (!task?.id) {
+                throw new Error("Simulation task was not returned by the API");
+            }
+
+            taskId = task.id;
+            setSimulationTaskId(task.id);
+        }
+
+        if (!stepId) {
+            const stepRes = await fetch(`/api/admin/simulation-steps?taskId=${taskId}`);
+            const stepData = await stepRes.json();
+
+            if (!stepRes.ok) {
+                throw new Error(stepData.error || "Failed to load simulation steps");
+            }
+
+            const existingStep = stepData.steps?.[0];
+            if (existingStep?.id) {
+                stepId = existingStep.id;
+            } else {
+                const createStepRes = await fetch("/api/admin/simulation-steps", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ task_id: taskId, step_order: 1 }),
+                });
+                const createStepData = await createStepRes.json();
+
+                if (!createStepRes.ok) {
+                    throw new Error(
+                        createStepData.error || "Failed to create simulation step"
+                    );
+                }
+
+                if (!createStepData.step?.id) {
+                    throw new Error("Simulation step was not returned by the API");
+                }
+
+                stepId = createStepData.step.id;
+            }
+
+            setSimulationStepId(stepId);
+        }
+
+        return { taskId, stepId };
+    }, [simulationStepId, simulationTaskId]);
+
+    const saveAnswerFields = useCallback(
+        async (nextFields: SimulationFieldDraft[]) => {
+            if (!editingQuestionId) {
+                setError("Select a question before saving answers.");
+                return;
+            }
+
+            setIsSavingAnswers(true);
+            setError(null);
+            setSuccessMessage(null);
+
+            try {
+                const { stepId } = await ensureSimulationTaskAndStep(editingQuestionId);
+                const existingByName = new Map(
+                    answerFields.map((field) => [field.field_name, field])
+                );
+                const nextByName = new Map(
+                    nextFields.map((field) => [field.field_name, field])
+                );
+
+                for (const draft of nextFields) {
+                    const matchingField = existingByName.get(draft.field_name);
+                    const payload = {
+                        step_id: stepId,
+                        field_name: draft.field_name,
+                        field_label: draft.field_label ?? null,
+                        expected_value: draft.expected_value ?? null,
+                        options: draft.options ?? [],
+                        order_index: draft.order_index,
+                    };
+
+                    if (matchingField) {
+                        const updateRes = await fetch(
+                            `/api/admin/simulation-fields/${matchingField.id}`,
+                            {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(payload),
+                            }
+                        );
+                        const updateData = await updateRes.json();
+
+                        if (!updateRes.ok) {
+                            throw new Error(
+                                updateData.error || "Failed to update simulation field"
+                            );
+                        }
+                    } else {
+                        const createRes = await fetch("/api/admin/simulation-fields", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload),
+                        });
+                        const createData = await createRes.json();
+
+                        if (!createRes.ok) {
+                            throw new Error(
+                                createData.error || "Failed to create simulation field"
+                            );
+                        }
+                    }
+                }
+
+                for (const field of answerFields) {
+                    if (nextByName.has(field.field_name)) {
+                        continue;
+                    }
+
+                    const deleteRes = await fetch(
+                        `/api/admin/simulation-fields/${field.id}`,
+                        {
+                            method: "DELETE",
+                        }
+                    );
+                    const deleteData = await deleteRes.json();
+
+                    if (!deleteRes.ok) {
+                        throw new Error(
+                            deleteData.error || "Failed to delete simulation field"
+                        );
+                    }
+                }
+
+                await loadSimulationAnswers(editingQuestionId);
+                setSuccessMessage("Simulation answers saved successfully.");
+            } catch (err: unknown) {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to save simulation answers"
+                );
+            } finally {
+                setIsSavingAnswers(false);
+            }
+        },
+        [answerFields, editingQuestionId, ensureSimulationTaskAndStep, loadSimulationAnswers]
+    );
+
+    const deleteAnswerField = useCallback(
+        async (fieldId: string) => {
+            setIsSavingAnswers(true);
+            setError(null);
+            setSuccessMessage(null);
+
+            try {
+                const res = await fetch(`/api/admin/simulation-fields/${fieldId}`, {
+                    method: "DELETE",
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || "Failed to delete simulation field");
+                }
+
+                if (editingQuestionId) {
+                    await loadSimulationAnswers(editingQuestionId);
+                }
+
+                setSuccessMessage("Simulation field deleted.");
+            } catch (err: unknown) {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to delete simulation field"
+                );
+            } finally {
+                setIsSavingAnswers(false);
+            }
+        },
+        [editingQuestionId, loadSimulationAnswers]
+    );
+
     return (
         <div className="min-h-screen bg-slate-50">
             <header className="sticky top-0 z-10 border-b border-slate-200 bg-white shadow-sm">
@@ -426,6 +701,7 @@ export default function AdminQuestionsPage() {
                                     onChange={(event) => {
                                         setSelectedModuleId(event.target.value);
                                         setSelectedSubmoduleId("");
+                                        setSelectedSubmoduleSimulatorType(null);
                                         setQuestions([]);
                                         resetForm();
                                     }}
@@ -447,7 +723,15 @@ export default function AdminQuestionsPage() {
                                 <select
                                     value={selectedSubmoduleId}
                                     onChange={(event) => {
-                                        setSelectedSubmoduleId(event.target.value);
+                                        const nextSubmoduleId = event.target.value;
+                                        const selectedSubmodule =
+                                            submodules.find(
+                                                (submodule) => submodule.id === nextSubmoduleId
+                                            ) ?? null;
+                                        setSelectedSubmoduleId(nextSubmoduleId);
+                                        setSelectedSubmoduleSimulatorType(
+                                            selectedSubmodule?.simulator_type ?? null
+                                        );
                                         resetForm();
                                     }}
                                     disabled={!selectedModuleId || isLoadingSubmodules}
@@ -852,6 +1136,41 @@ export default function AdminQuestionsPage() {
                                         )}
                                     </div>
                                 )}
+                            </div>
+
+                            <Separator />
+
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                                        <Target className="h-4 w-4 text-slate-500" />
+                                        Simulation Answers
+                                    </h3>
+                                    <p className="text-sm text-slate-500">
+                                        Configure ground-truth answers for each evaluated field.
+                                    </p>
+                                </div>
+
+                                <SimulationAnswersSection
+                                    simulatorType={selectedSubmoduleSimulatorType}
+                                    questionId={editingQuestionId}
+                                    questionHasTable={form.hasTable}
+                                    questionTableData={
+                                        form.hasTable
+                                            ? {
+                                                  headers: form.tableHeaders,
+                                                  rows: form.tableRows,
+                                              }
+                                            : null
+                                    }
+                                    fields={answerFields}
+                                    taskId={simulationTaskId}
+                                    stepId={simulationStepId}
+                                    isLoading={isLoadingAnswers}
+                                    isSaving={isSavingAnswers}
+                                    onSave={saveAnswerFields}
+                                    onDeleteField={deleteAnswerField}
+                                />
                             </div>
 
 

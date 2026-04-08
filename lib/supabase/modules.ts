@@ -21,6 +21,16 @@ export interface Submodule {
     module_id: string;
     title: string;
     slug: string;
+    simulator_type:
+        | "itr_registration"
+        | "epan_registration"
+        | "classification"
+        | "journal_entry"
+        | "ledger"
+        | "trial_balance"
+        | "financial_statement"
+        | "none"
+        | null;
     is_active: boolean;
     task_count: number;
     progress: number;
@@ -40,7 +50,12 @@ export type ModuleInsert = Pick<Module, "title" | "slug"> &
 export type ModuleUpdate = Partial<Omit<Module, "id" | "created_at" | "updated_at">>;
 
 export type SubmoduleInsert = Pick<Submodule, "module_id" | "title" | "slug"> &
-    Partial<Pick<Submodule, "task_count" | "progress" | "sort_order" | "is_active">>;
+    Partial<
+        Pick<
+            Submodule,
+            "task_count" | "progress" | "sort_order" | "is_active" | "simulator_type"
+        >
+    >;
 
 export type SubmoduleUpdate = Partial<Omit<Submodule, "id" | "module_id" | "created_at" | "updated_at">>;
 
