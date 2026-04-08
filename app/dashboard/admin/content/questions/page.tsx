@@ -510,6 +510,12 @@ export default function AdminQuestionsPage() {
                 return;
             }
 
+            const normalizedFieldNames = nextFields.map((field) => field.field_name.trim());
+            if (new Set(normalizedFieldNames).size !== normalizedFieldNames.length) {
+                setError("Each simulation field name must be unique.");
+                return;
+            }
+
             setIsSavingAnswers(true);
             setError(null);
             setSuccessMessage(null);

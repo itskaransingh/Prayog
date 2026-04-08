@@ -176,6 +176,10 @@ function parsePositiveInt(value: string) {
     return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function isRowBlank(values: string[]) {
+    return values.every((value) => value.trim().length === 0);
+}
+
 function defaultFieldLabelFromTableRow(row: string[], index: number) {
     const firstNonEmptyCell = row.find((cell) => cell.trim().length > 0);
     return firstNonEmptyCell?.trim() || `Row ${index + 1}`;
@@ -425,6 +429,15 @@ export function SimulationAnswersSection({
     }
 
     const saveRegistration = async () => {
+        const normalizedPaths = registrationRows
+            .map((row) => row.fieldPath.trim())
+            .filter(Boolean);
+        const uniquePaths = new Set(normalizedPaths);
+
+        if (uniquePaths.size !== normalizedPaths.length) {
+            return;
+        }
+
         const drafts = registrationRows
             .filter((row) => row.fieldPath.trim())
             .map((row, index) => ({
@@ -438,14 +451,20 @@ export function SimulationAnswersSection({
     };
 
     const saveClassification = async () => {
+        if (!questionHasTable) {
+            return;
+        }
+
         const options = splitOptions(classificationOptionsText);
-        const drafts = classificationRows.map((row, index) => ({
-            field_name: `row${index + 1}_classification`,
-            field_label: row.fieldLabel.trim(),
-            expected_value: row.expectedValue.trim(),
-            options,
-            order_index: index + 1,
-        }));
+        const drafts = classificationRows
+            .filter((row) => !isRowBlank([row.fieldLabel, row.expectedValue]))
+            .map((row, index) => ({
+                field_name: `row${index + 1}_classification`,
+                field_label: row.fieldLabel.trim(),
+                expected_value: row.expectedValue.trim(),
+                options,
+                order_index: index + 1,
+            }));
 
         await onSave(drafts);
     };
@@ -455,6 +474,17 @@ export function SimulationAnswersSection({
         const drafts: SimulationFieldDraft[] = [];
 
         gridRows.forEach((row, index) => {
+            if (
+                isRowBlank([
+                    row.debitAccount,
+                    row.debitAmount,
+                    row.creditAccount,
+                    row.creditAmount,
+                ])
+            ) {
+                return;
+            }
+
             const rowNumber = index + 1;
             drafts.push(
                 {
@@ -494,6 +524,10 @@ export function SimulationAnswersSection({
         const drafts: SimulationFieldDraft[] = [];
 
         trialBalanceRows.forEach((row, index) => {
+            if (isRowBlank([row.account, row.amount])) {
+                return;
+            }
+
             const rowNumber = index + 1;
             drafts.push(
                 {
@@ -683,11 +717,37 @@ export function SimulationAnswersSection({
                                     <Plus className="h-4 w-4" />
                                     Add Field
                                 </Button>
-                                <Button type="button" onClick={saveRegistration} disabled={isSaving}>
+                                <Button
+                                    type="button"
+                                    onClick={saveRegistration}
+                                    disabled={
+                                        isSaving ||
+                                        new Set(
+                                            registrationRows
+                                                .map((row) => row.fieldPath.trim())
+                                                .filter(Boolean)
+                                        ).size !==
+                                            registrationRows
+                                                .map((row) => row.fieldPath.trim())
+                                                .filter(Boolean).length
+                                    }
+                                >
                                     <Save className="h-4 w-4" />
                                     Save Answers
                                 </Button>
                             </div>
+                            {new Set(
+                                registrationRows
+                                    .map((row) => row.fieldPath.trim())
+                                    .filter(Boolean)
+                            ).size !==
+                                registrationRows
+                                    .map((row) => row.fieldPath.trim())
+                                    .filter(Boolean).length && (
+                                <p className="text-sm text-red-600">
+                                    Each field path can only be used once.
+                                </p>
+                            )}
                         </div>
                     )}
 
@@ -758,7 +818,11 @@ export function SimulationAnswersSection({
                                 ))}
                             </div>
 
-                            <Button type="button" onClick={saveClassification} disabled={isSaving}>
+                            <Button
+                                type="button"
+                                onClick={saveClassification}
+                                disabled={isSaving || !questionHasTable}
+                            >
                                 <Save className="h-4 w-4" />
                                 Save Answers
                             </Button>
@@ -780,7 +844,7 @@ export function SimulationAnswersSection({
                             {gridRows.map((row, index) => (
                                 <div
                                     key={`grid-row-${index}`}
-                                    className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-2"
+                                    className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_40px]"
                                 >
                                     <Input
                                         value={row.debitAccount}
@@ -846,6 +910,23 @@ export function SimulationAnswersSection({
                                         }
                                         placeholder="Credit amount"
                                     />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon-sm"
+                                        onClick={() =>
+                                            setGridRows((prev) =>
+                                                prev.length > 1
+                                                    ? prev.filter(
+                                                          (_, itemIndex) =>
+                                                              itemIndex !== index
+                                                      )
+                                                    : prev
+                                            )
+                                        }
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             ))}
 
@@ -886,7 +967,7 @@ export function SimulationAnswersSection({
                             {trialBalanceRows.map((row, index) => (
                                 <div
                                     key={`trial-balance-row-${index}`}
-                                    className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(0,1fr)_180px_180px]"
+                                    className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-[minmax(0,1fr)_180px_180px_40px]"
                                 >
                                     <Input
                                         value={row.account}
@@ -935,6 +1016,23 @@ export function SimulationAnswersSection({
                                         }
                                         placeholder="Amount"
                                     />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="icon-sm"
+                                        onClick={() =>
+                                            setTrialBalanceRows((prev) =>
+                                                prev.length > 1
+                                                    ? prev.filter(
+                                                          (_, itemIndex) =>
+                                                              itemIndex !== index
+                                                      )
+                                                    : prev
+                                            )
+                                        }
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
                                 </div>
                             ))}
 
