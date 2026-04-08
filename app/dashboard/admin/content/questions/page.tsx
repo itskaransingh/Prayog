@@ -10,16 +10,15 @@ import {
     Loader2,
     Plus,
     Save,
-    TableProperties,
-    Target,
     Trash2,
     X,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+
+import { QAEditor } from "@/components/admin/qa-editor";
+import type {
+    SimulatorType,
+    SyncAnswersPayload,
+} from "@/components/admin/qa-editor/types";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -31,12 +30,11 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-    SimulationAnswersSection,
-    type SimulationFieldDraft,
-    type SimulationFieldRecord,
-    type SimulatorType,
-} from "@/components/admin/simulation-answers-section";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Module {
     id: string;
@@ -69,9 +67,6 @@ interface Question {
 interface QuestionFormState {
     title: string;
     paragraph: string;
-    hasTable: boolean;
-    tableHeaders: string[];
-    tableRows: string[][];
     hasImage: boolean;
     imageUrl: string;
 }
@@ -80,16 +75,9 @@ function getEmptyQuestionForm(): QuestionFormState {
     return {
         title: "",
         paragraph: "",
-        hasTable: false,
-        tableHeaders: ["Field", "Value"],
-        tableRows: [["", ""]],
         hasImage: false,
         imageUrl: "",
     };
-}
-
-function createEmptyRow(columnCount: number) {
-    return Array.from({ length: columnCount }, () => "");
 }
 
 export default function AdminQuestionsPage() {
@@ -98,21 +86,17 @@ export default function AdminQuestionsPage() {
     const [questions, setQuestions] = useState<Question[]>([]);
     const [selectedModuleId, setSelectedModuleId] = useState("");
     const [selectedSubmoduleId, setSelectedSubmoduleId] = useState("");
-    const [selectedSubmoduleSimulatorType, setSelectedSubmoduleSimulatorType] =
-        useState<SimulatorType | null>(null);
+    const [simulatorType, setSimulatorType] = useState<SimulatorType | null>(null);
     const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
     const [form, setForm] = useState<QuestionFormState>(getEmptyQuestionForm);
+    const [qaPayload, setQaPayload] = useState<SyncAnswersPayload | null>(null);
     const [isLoadingModules, setIsLoadingModules] = useState(true);
     const [isLoadingSubmodules, setIsLoadingSubmodules] = useState(false);
     const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
     const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
-    const [isSavingAnswers, setIsSavingAnswers] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
-    const [simulationTaskId, setSimulationTaskId] = useState<string | null>(null);
-    const [simulationStepId, setSimulationStepId] = useState<string | null>(null);
-    const [answerFields, setAnswerFields] = useState<SimulationFieldRecord[]>([]);
 
     const fetchModules = useCallback(async () => {
         setIsLoadingModules(true);
@@ -148,7 +132,7 @@ export default function AdminQuestionsPage() {
             setSubmodules(data.submodules || []);
         } catch (err: unknown) {
             setError(
-                err instanceof Error ? err.message : "Failed to fetch submodules"
+                err instanceof Error ? err.message : "Failed to fetch submodules",
             );
             setSubmodules([]);
         } finally {
@@ -160,9 +144,7 @@ export default function AdminQuestionsPage() {
         setIsLoadingQuestions(true);
 
         try {
-            const res = await fetch(
-                `/api/admin/questions?submoduleId=${submoduleId}`
-            );
+            const res = await fetch(`/api/admin/questions?submoduleId=${submoduleId}`);
             const data = await res.json();
 
             if (!res.ok) {
@@ -179,19 +161,19 @@ export default function AdminQuestionsPage() {
     }, []);
 
     useEffect(() => {
-        fetchModules();
+        void fetchModules();
     }, [fetchModules]);
 
     useEffect(() => {
         if (!selectedModuleId) {
             setSubmodules([]);
             setSelectedSubmoduleId("");
-            setSelectedSubmoduleSimulatorType(null);
+            setSimulatorType(null);
             setQuestions([]);
             return;
         }
 
-        fetchSubmodules(selectedModuleId);
+        void fetchSubmodules(selectedModuleId);
     }, [fetchSubmodules, selectedModuleId]);
 
     useEffect(() => {
@@ -200,98 +182,54 @@ export default function AdminQuestionsPage() {
             return;
         }
 
-        fetchQuestions(selectedSubmoduleId);
+        void fetchQuestions(selectedSubmoduleId);
     }, [fetchQuestions, selectedSubmoduleId]);
 
-    const resetForm = () => {
+    const resetForm = useCallback(() => {
         setEditingQuestionId(null);
         setForm(getEmptyQuestionForm());
-        setSimulationTaskId(null);
-        setSimulationStepId(null);
-        setAnswerFields([]);
-    };
-
-    const loadSimulationAnswers = useCallback(async (questionId: string) => {
-        setIsLoadingAnswers(true);
-        setSimulationTaskId(null);
-        setSimulationStepId(null);
-        setAnswerFields([]);
-
-        try {
-            const taskRes = await fetch(
-                `/api/admin/simulation-tasks?questionId=${questionId}`
-            );
-            const taskData = await taskRes.json();
-
-            if (!taskRes.ok) {
-                throw new Error(taskData.error || "Failed to load simulation task");
-            }
-
-            const task = taskData.tasks?.[0];
-            if (!task?.id) {
-                return;
-            }
-
-            setSimulationTaskId(task.id);
-
-            const stepRes = await fetch(
-                `/api/admin/simulation-steps?taskId=${task.id}`
-            );
-            const stepData = await stepRes.json();
-
-            if (!stepRes.ok) {
-                throw new Error(stepData.error || "Failed to load simulation step");
-            }
-
-            const step = stepData.steps?.[0];
-            if (!step?.id) {
-                return;
-            }
-
-            setSimulationStepId(step.id);
-
-            const fieldRes = await fetch(
-                `/api/admin/simulation-fields?stepId=${step.id}`
-            );
-            const fieldData = await fieldRes.json();
-
-            if (!fieldRes.ok) {
-                throw new Error(fieldData.error || "Failed to load simulation fields");
-            }
-
-            setAnswerFields(fieldData.fields || []);
-        } catch (err: unknown) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Failed to load simulation answers"
-            );
-        } finally {
-            setIsLoadingAnswers(false);
-        }
+        setQaPayload(null);
+        setIsLoadingAnswers(false);
     }, []);
 
-    const openQuestion = (question: Question) => {
-        setEditingQuestionId(question.id);
-        setForm({
-            title: question.title,
-            paragraph: question.paragraph || "",
-            hasTable: question.has_table,
-            tableHeaders:
-                question.table_data?.headers?.length
-                    ? question.table_data.headers
-                    : ["Field", "Value"],
-            tableRows:
-                question.table_data?.rows?.length
-                    ? question.table_data.rows
-                    : [["", ""]],
-            hasImage: question.has_image,
-            imageUrl: question.image_url || "",
-        });
-        setSuccessMessage(null);
-        setError(null);
-        void loadSimulationAnswers(question.id);
-    };
+    const openQuestion = useCallback(
+        async (question: Question, options?: { preserveStatus?: boolean }) => {
+            setEditingQuestionId(question.id);
+            setForm({
+                title: question.title,
+                paragraph: question.paragraph || "",
+                hasImage: question.has_image,
+                imageUrl: question.image_url || "",
+            });
+            setQaPayload(null);
+            if (!options?.preserveStatus) {
+                setSuccessMessage(null);
+                setError(null);
+            }
+            setIsLoadingAnswers(true);
+
+            try {
+                const res = await fetch(`/api/admin/questions/${question.id}/answers`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || "Failed to load question answers");
+                }
+
+                setQaPayload(data.answers ?? null);
+                setSimulatorType(data.simulatorType ?? simulatorType ?? "none");
+            } catch (err: unknown) {
+                setError(
+                    err instanceof Error
+                        ? err.message
+                        : "Failed to load question answers",
+                );
+            } finally {
+                setIsLoadingAnswers(false);
+            }
+        },
+        [simulatorType],
+    );
 
     const saveQuestion = async () => {
         if (!selectedSubmoduleId || !form.title.trim()) {
@@ -303,17 +241,12 @@ export default function AdminQuestionsPage() {
         setError(null);
         setSuccessMessage(null);
 
+        let savedQuestion: Question | null = null;
+
         try {
             const questionPayload = {
                 title: form.title.trim(),
                 paragraph: form.paragraph.trim(),
-                has_table: form.hasTable,
-                table_data: form.hasTable
-                    ? {
-                          headers: form.tableHeaders,
-                          rows: form.tableRows,
-                      }
-                    : null,
                 has_image: form.hasImage,
                 image_url: form.hasImage ? form.imageUrl.trim() : null,
             };
@@ -331,9 +264,9 @@ export default function AdminQuestionsPage() {
                             : {
                                   ...questionPayload,
                                   submodule_id: selectedSubmoduleId,
-                              }
+                              },
                     ),
-                }
+                },
             );
             const questionData = await questionRes.json();
 
@@ -341,19 +274,41 @@ export default function AdminQuestionsPage() {
                 throw new Error(questionData.error || "Failed to save question");
             }
 
-            if (questionData.question) {
-                openQuestion(questionData.question);
+            savedQuestion = questionData.question ?? null;
+            if (!savedQuestion?.id) {
+                throw new Error("Question was not returned by the API");
             }
-            await fetchQuestions(selectedSubmoduleId);
 
-            setSuccessMessage(
-                editingQuestionId
-                    ? "Question updated successfully."
-                    : "Question created successfully."
-            );
+            if (qaPayload !== null) {
+                const answersRes = await fetch(
+                    `/api/admin/questions/${savedQuestion.id}/sync-answers`,
+                    {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(qaPayload),
+                    },
+                );
+                const answersData = await answersRes.json();
+
+                if (!answersRes.ok) {
+                    throw new Error(
+                        answersData.error || "Failed to sync question answers",
+                    );
+                }
+            }
+
+            setSuccessMessage("Question and answers saved.");
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Save failed");
         } finally {
+            if (selectedSubmoduleId) {
+                await fetchQuestions(selectedSubmoduleId);
+            }
+
+            if (savedQuestion) {
+                await openQuestion(savedQuestion, { preserveStatus: true });
+            }
+
             setIsSaving(false);
         }
     };
@@ -383,264 +338,6 @@ export default function AdminQuestionsPage() {
         }
     };
 
-    const updateHeader = (index: number, value: string) => {
-        setForm((prev) => {
-            const nextHeaders = [...prev.tableHeaders];
-            nextHeaders[index] = value;
-            return { ...prev, tableHeaders: nextHeaders };
-        });
-    };
-
-    const addTableColumn = () => {
-        setForm((prev) => ({
-            ...prev,
-            tableHeaders: [...prev.tableHeaders, `Column ${prev.tableHeaders.length + 1}`],
-            tableRows: prev.tableRows.map((row) => [...row, ""]),
-        }));
-    };
-
-    const removeTableColumn = (index: number) => {
-        setForm((prev) => {
-            if (prev.tableHeaders.length <= 1) {
-                return prev;
-            }
-
-            return {
-                ...prev,
-                tableHeaders: prev.tableHeaders.filter((_, i) => i !== index),
-                tableRows: prev.tableRows.map((row) =>
-                    row.filter((_, cellIndex) => cellIndex !== index)
-                ),
-            };
-        });
-    };
-
-    const addTableRow = () => {
-        setForm((prev) => ({
-            ...prev,
-            tableRows: [...prev.tableRows, createEmptyRow(prev.tableHeaders.length)],
-        }));
-    };
-
-    const removeTableRow = (rowIndex: number) => {
-        setForm((prev) => ({
-            ...prev,
-            tableRows:
-                prev.tableRows.length > 1
-                    ? prev.tableRows.filter((_, index) => index !== rowIndex)
-                    : prev.tableRows,
-        }));
-    };
-
-    const updateCell = (rowIndex: number, colIndex: number, value: string) => {
-        setForm((prev) => {
-            const nextRows = prev.tableRows.map((row) => [...row]);
-            nextRows[rowIndex][colIndex] = value;
-            return { ...prev, tableRows: nextRows };
-        });
-    };
-
-    const ensureSimulationTaskAndStep = useCallback(async (questionId: string) => {
-        let taskId = simulationTaskId;
-        let stepId = simulationStepId;
-
-        if (!taskId) {
-            const taskRes = await fetch("/api/admin/simulation-tasks", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ question_id: questionId }),
-            });
-            const taskData = await taskRes.json();
-
-            if (!taskRes.ok && taskRes.status !== 409) {
-                throw new Error(taskData.error || "Failed to create simulation task");
-            }
-
-            const task = taskData.task;
-            if (!task?.id) {
-                throw new Error("Simulation task was not returned by the API");
-            }
-
-            taskId = task.id;
-            setSimulationTaskId(task.id);
-        }
-
-        if (!stepId) {
-            const stepRes = await fetch(`/api/admin/simulation-steps?taskId=${taskId}`);
-            const stepData = await stepRes.json();
-
-            if (!stepRes.ok) {
-                throw new Error(stepData.error || "Failed to load simulation steps");
-            }
-
-            const existingStep = stepData.steps?.[0];
-            if (existingStep?.id) {
-                stepId = existingStep.id;
-            } else {
-                const createStepRes = await fetch("/api/admin/simulation-steps", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ task_id: taskId, step_order: 1 }),
-                });
-                const createStepData = await createStepRes.json();
-
-                if (!createStepRes.ok) {
-                    throw new Error(
-                        createStepData.error || "Failed to create simulation step"
-                    );
-                }
-
-                if (!createStepData.step?.id) {
-                    throw new Error("Simulation step was not returned by the API");
-                }
-
-                stepId = createStepData.step.id;
-            }
-
-            setSimulationStepId(stepId);
-        }
-
-        return { taskId, stepId };
-    }, [simulationStepId, simulationTaskId]);
-
-    const saveAnswerFields = useCallback(
-        async (nextFields: SimulationFieldDraft[]) => {
-            if (!editingQuestionId) {
-                setError("Select a question before saving answers.");
-                return;
-            }
-
-            const normalizedFieldNames = nextFields.map((field) => field.field_name.trim());
-            if (new Set(normalizedFieldNames).size !== normalizedFieldNames.length) {
-                setError("Each simulation field name must be unique.");
-                return;
-            }
-
-            setIsSavingAnswers(true);
-            setError(null);
-            setSuccessMessage(null);
-
-            try {
-                const { stepId } = await ensureSimulationTaskAndStep(editingQuestionId);
-                const existingByName = new Map(
-                    answerFields.map((field) => [field.field_name, field])
-                );
-                const nextByName = new Map(
-                    nextFields.map((field) => [field.field_name, field])
-                );
-
-                for (const draft of nextFields) {
-                    const matchingField = existingByName.get(draft.field_name);
-                    const payload = {
-                        step_id: stepId,
-                        field_name: draft.field_name,
-                        field_label: draft.field_label ?? null,
-                        expected_value: draft.expected_value ?? null,
-                        options: draft.options ?? [],
-                        order_index: draft.order_index,
-                    };
-
-                    if (matchingField) {
-                        const updateRes = await fetch(
-                            `/api/admin/simulation-fields/${matchingField.id}`,
-                            {
-                                method: "PUT",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(payload),
-                            }
-                        );
-                        const updateData = await updateRes.json();
-
-                        if (!updateRes.ok) {
-                            throw new Error(
-                                updateData.error || "Failed to update simulation field"
-                            );
-                        }
-                    } else {
-                        const createRes = await fetch("/api/admin/simulation-fields", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify(payload),
-                        });
-                        const createData = await createRes.json();
-
-                        if (!createRes.ok) {
-                            throw new Error(
-                                createData.error || "Failed to create simulation field"
-                            );
-                        }
-                    }
-                }
-
-                for (const field of answerFields) {
-                    if (nextByName.has(field.field_name)) {
-                        continue;
-                    }
-
-                    const deleteRes = await fetch(
-                        `/api/admin/simulation-fields/${field.id}`,
-                        {
-                            method: "DELETE",
-                        }
-                    );
-                    const deleteData = await deleteRes.json();
-
-                    if (!deleteRes.ok) {
-                        throw new Error(
-                            deleteData.error || "Failed to delete simulation field"
-                        );
-                    }
-                }
-
-                await loadSimulationAnswers(editingQuestionId);
-                setSuccessMessage("Simulation answers saved successfully.");
-            } catch (err: unknown) {
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to save simulation answers"
-                );
-            } finally {
-                setIsSavingAnswers(false);
-            }
-        },
-        [answerFields, editingQuestionId, ensureSimulationTaskAndStep, loadSimulationAnswers]
-    );
-
-    const deleteAnswerField = useCallback(
-        async (fieldId: string) => {
-            setIsSavingAnswers(true);
-            setError(null);
-            setSuccessMessage(null);
-
-            try {
-                const res = await fetch(`/api/admin/simulation-fields/${fieldId}`, {
-                    method: "DELETE",
-                });
-                const data = await res.json();
-
-                if (!res.ok) {
-                    throw new Error(data.error || "Failed to delete simulation field");
-                }
-
-                if (editingQuestionId) {
-                    await loadSimulationAnswers(editingQuestionId);
-                }
-
-                setSuccessMessage("Simulation field deleted.");
-            } catch (err: unknown) {
-                setError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to delete simulation field"
-                );
-            } finally {
-                setIsSavingAnswers(false);
-            }
-        },
-        [editingQuestionId, loadSimulationAnswers]
-    );
-
     return (
         <div className="min-h-screen bg-slate-50">
             <header className="sticky top-0 z-10 border-b border-slate-200 bg-white shadow-sm">
@@ -663,7 +360,7 @@ export default function AdminQuestionsPage() {
                                     Case Study Questions
                                 </h1>
                                 <p className="text-xs text-slate-500">
-                                    Configure prompts, evidence tables, images, and ground truth
+                                    Configure prompts, unified Q&amp;A, and supporting images
                                 </p>
                             </div>
                         </div>
@@ -676,6 +373,7 @@ export default function AdminQuestionsPage() {
                             onClick={() => {
                                 resetForm();
                                 setSuccessMessage(null);
+                                setError(null);
                             }}
                             disabled={!selectedSubmoduleId}
                             className="gap-2"
@@ -707,7 +405,7 @@ export default function AdminQuestionsPage() {
                                     onChange={(event) => {
                                         setSelectedModuleId(event.target.value);
                                         setSelectedSubmoduleId("");
-                                        setSelectedSubmoduleSimulatorType(null);
+                                        setSimulatorType(null);
                                         setQuestions([]);
                                         resetForm();
                                     }}
@@ -732,11 +430,12 @@ export default function AdminQuestionsPage() {
                                         const nextSubmoduleId = event.target.value;
                                         const selectedSubmodule =
                                             submodules.find(
-                                                (submodule) => submodule.id === nextSubmoduleId
+                                                (submodule) =>
+                                                    submodule.id === nextSubmoduleId,
                                             ) ?? null;
                                         setSelectedSubmoduleId(nextSubmoduleId);
-                                        setSelectedSubmoduleSimulatorType(
-                                            selectedSubmodule?.simulator_type ?? null
+                                        setSimulatorType(
+                                            selectedSubmodule?.simulator_type ?? null,
                                         );
                                         resetForm();
                                     }}
@@ -769,9 +468,7 @@ export default function AdminQuestionsPage() {
                                         Existing prompts for the selected submodule.
                                     </p>
                                 </div>
-                                <Badge variant="secondary">
-                                    {questions.length}
-                                </Badge>
+                                <Badge variant="secondary">{questions.length}</Badge>
                             </div>
                         </div>
 
@@ -795,7 +492,7 @@ export default function AdminQuestionsPage() {
                                         <button
                                             key={question.id}
                                             type="button"
-                                            onClick={() => openQuestion(question)}
+                                            onClick={() => void openQuestion(question)}
                                             className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                                                 editingQuestionId === question.id
                                                     ? "border-emerald-300 bg-emerald-50"
@@ -812,9 +509,6 @@ export default function AdminQuestionsPage() {
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-1">
-                                                    {question.has_table && (
-                                                        <TableProperties className="h-4 w-4 text-slate-400" />
-                                                    )}
                                                     {question.has_image && (
                                                         <ImageIcon className="h-4 w-4 text-slate-400" />
                                                     )}
@@ -850,18 +544,26 @@ export default function AdminQuestionsPage() {
                     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
                             <div>
-                                <h2 className="text-base font-semibold text-slate-900">
-                                    {editingQuestionId ? "Edit Question" : "New Question"}
-                                </h2>
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-base font-semibold text-slate-900">
+                                        {editingQuestionId ? "Edit Question" : "New Question"}
+                                    </h2>
+                                    <Badge variant="outline">
+                                        {simulatorType ?? "none"}
+                                    </Badge>
+                                </div>
                                 <p className="text-sm text-slate-500">
-                                    Author the prompt and map its correct answers for evaluation.
+                                    Author the prompt and expected answers in one place.
                                 </p>
                             </div>
                             <div className="flex items-center gap-3">
                                 {editingQuestionId && (
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <Button variant="outline" className="gap-2 text-red-600">
+                                            <Button
+                                                variant="outline"
+                                                className="gap-2 text-red-600"
+                                            >
                                                 <Trash2 className="h-4 w-4" />
                                                 Delete
                                             </Button>
@@ -904,7 +606,7 @@ export default function AdminQuestionsPage() {
                                     ) : (
                                         <Save className="h-4 w-4" />
                                     )}
-                                    Save Question
+                                    Save Q&amp;A
                                 </Button>
                             </div>
                         </div>
@@ -958,126 +660,28 @@ export default function AdminQuestionsPage() {
                             <Separator />
 
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                                            <TableProperties className="h-4 w-4 text-slate-500" />
-                                            Evidence Table
-                                        </h3>
-                                        <p className="text-sm text-slate-500">
-                                            Add structured details such as PAN, DOB, address, or source data.
-                                        </p>
-                                    </div>
-                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.hasTable}
-                                            onChange={(event) =>
-                                                setForm((prev) => ({
-                                                    ...prev,
-                                                    hasTable: event.target.checked,
-                                                }))
-                                            }
-                                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                        />
-                                        Include table
-                                    </label>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-900">
+                                        Unified Q&amp;A
+                                    </h3>
+                                    <p className="text-sm text-slate-500">
+                                        The answer grid adapts to the selected submodule&apos;s
+                                        simulator type.
+                                    </p>
                                 </div>
 
-                                {form.hasTable && (
-                                    <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={addTableColumn}
-                                            >
-                                                Add Column
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={addTableRow}
-                                            >
-                                                Add Row
-                                            </Button>
-                                        </div>
-
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full border-collapse">
-                                                <thead>
-                                                    <tr>
-                                                        {form.tableHeaders.map((header, index) => (
-                                                            <th
-                                                                key={`${header}-${index}`}
-                                                                className="border border-slate-200 bg-white p-2 align-top"
-                                                            >
-                                                                <div className="flex items-center gap-2">
-                                                                    <Input
-                                                                        value={header}
-                                                                        onChange={(event) =>
-                                                                            updateHeader(
-                                                                                index,
-                                                                                event.target.value
-                                                                            )
-                                                                        }
-                                                                        placeholder={`Column ${index + 1}`}
-                                                                    />
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            removeTableColumn(index)
-                                                                        }
-                                                                        className="text-slate-400 transition hover:text-red-600"
-                                                                        aria-label="Remove column"
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </button>
-                                                                </div>
-                                                            </th>
-                                                        ))}
-                                                        <th className="w-12 border border-slate-200 bg-white p-2" />
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {form.tableRows.map((row, rowIndex) => (
-                                                        <tr key={`row-${rowIndex}`}>
-                                                            {row.map((cell, colIndex) => (
-                                                                <td
-                                                                    key={`cell-${rowIndex}-${colIndex}`}
-                                                                    className="border border-slate-200 bg-white p-2"
-                                                                >
-                                                                    <Input
-                                                                        value={cell}
-                                                                        onChange={(event) =>
-                                                                            updateCell(
-                                                                                rowIndex,
-                                                                                colIndex,
-                                                                                event.target.value
-                                                                            )
-                                                                        }
-                                                                        placeholder="Value"
-                                                                    />
-                                                                </td>
-                                                            ))}
-                                                            <td className="border border-slate-200 bg-white p-2 text-center">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() =>
-                                                                        removeTableRow(rowIndex)
-                                                                    }
-                                                                    className="text-slate-400 transition hover:text-red-600"
-                                                                    aria-label="Remove row"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
+                                {isLoadingAnswers ? (
+                                    <div className="flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Loading answers...
                                     </div>
+                                ) : (
+                                    <QAEditor
+                                        simulatorType={simulatorType ?? "none"}
+                                        initialPayload={qaPayload}
+                                        onChange={setQaPayload}
+                                        disabled={isSaving}
+                                    />
                                 )}
                             </div>
 
@@ -1143,43 +747,6 @@ export default function AdminQuestionsPage() {
                                     </div>
                                 )}
                             </div>
-
-                            <Separator />
-
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                                        <Target className="h-4 w-4 text-slate-500" />
-                                        Simulation Answers
-                                    </h3>
-                                    <p className="text-sm text-slate-500">
-                                        Configure ground-truth answers for each evaluated field.
-                                    </p>
-                                </div>
-
-                                <SimulationAnswersSection
-                                    simulatorType={selectedSubmoduleSimulatorType}
-                                    questionId={editingQuestionId}
-                                    questionHasTable={form.hasTable}
-                                    questionTableData={
-                                        form.hasTable
-                                            ? {
-                                                  headers: form.tableHeaders,
-                                                  rows: form.tableRows,
-                                              }
-                                            : null
-                                    }
-                                    fields={answerFields}
-                                    taskId={simulationTaskId}
-                                    stepId={simulationStepId}
-                                    isLoading={isLoadingAnswers}
-                                    isSaving={isSavingAnswers}
-                                    onSave={saveAnswerFields}
-                                    onDeleteField={deleteAnswerField}
-                                />
-                            </div>
-
-
                         </div>
                     </div>
                 </section>
