@@ -1,7 +1,51 @@
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+
+import { createAdminClient } from "@/lib/supabase/admin";
+
+type JoinedAttemptRow = {
+    id: string;
+    question_id: string;
+    is_correct: boolean;
+    created_at: string;
+    user_simulation_attempts: {
+        id: string;
+        user_id: string;
+        task_id: string;
+        total_score: number;
+        max_possible_score: number;
+        accuracy: number;
+        created_at: string;
+        simulation_tasks: {
+            id: string;
+            title: string | null;
+            question_id: string;
+            questions: {
+                id: string;
+                title: string | null;
+                submodule_id: string;
+                submodules: {
+                    id: string;
+                    title: string | null;
+                    module_id: string;
+                    modules: {
+                        id: string;
+                        title: string | null;
+                    } | null;
+                } | null;
+            } | null;
+        } | null;
+    } | null;
+};
+
+function getFirst<T>(value: T | T[] | null | undefined): T | null {
+    if (Array.isArray(value)) {
+        return value[0] ?? null;
+    }
+
+    return value ?? null;
+}
 
 export async function GET(request: Request) {
     try {
@@ -17,23 +61,24 @@ export async function GET(request: Request) {
                     setAll(cookiesToSet) {
                         try {
                             cookiesToSet.forEach(({ name, value, options }) =>
-                                cookieStore.set(name, value, options)
+                                cookieStore.set(name, value, options),
                             );
                         } catch {
-                            // Ignored
+                            // Ignored in route handlers.
                         }
                     },
                 },
-            }
+            },
         );
 
-        // 1. Check if the requester is authenticated
-        const { data: { user: requester }, error: authError } = await supabase.auth.getUser();
+        const {
+            data: { user: requester },
+            error: authError,
+        } = await supabase.auth.getUser();
         if (authError || !requester) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // 2. Check if the requester is an admin
         const { data: profile, error: profileError } = await supabase
             .from("profiles")
             .select("role")
@@ -41,16 +86,23 @@ export async function GET(request: Request) {
             .single();
 
         if (profileError || !profile || profile.role !== "admin") {
-            return NextResponse.json({ error: "Forbidden: Admins only" }, { status: 403 });
+            return NextResponse.json(
+                { error: "Forbidden: Admins only" },
+                { status: 403 },
+            );
         }
 
-        // 3. Fetch all simulation attempts using Admin Client to bypass RLS
+        const url = new URL(request.url);
+        const selectedModuleId = url.searchParams.get("moduleId");
+        const selectedSubmoduleId = url.searchParams.get("submoduleId");
+
         const supabaseAdmin = createAdminClient();
-        
-        // We fetch attempts without trying to join profiles since the FK points to auth.users
-        const { data: attempts, error: fetchError } = await supabaseAdmin
-            .from("user_simulation_attempts")
-            .select(`
+        const selectQuery = `
+            id,
+            question_id,
+            is_correct,
+            created_at,
+            user_simulation_attempts!attempt_id (
                 id,
                 user_id,
                 task_id,
@@ -59,86 +111,232 @@ export async function GET(request: Request) {
                 accuracy,
                 created_at,
                 simulation_tasks!task_id (
+                    id,
                     title,
+                    question_id,
                     questions!question_id (
+                        id,
                         title,
+                        submodule_id,
                         submodules!submodule_id (
+                            id,
                             title,
+                            module_id,
                             modules!module_id (
+                                id,
                                 title
                             )
                         )
                     )
                 )
-            `)
+            )
+        `;
+
+        const { data: joinedAttempts, error: fetchError } = await supabaseAdmin
+            .from("user_question_attempts")
+            .select(selectQuery)
             .order("created_at", { ascending: true });
 
         if (fetchError) {
-            return NextResponse.json({ 
-                error: fetchError.message, 
-                details: fetchError.details,
-                hint: fetchError.hint,
-                code: fetchError.code
-            }, { status: 500 });
+            return NextResponse.json(
+                {
+                    error: fetchError.message,
+                    details: fetchError.details,
+                    hint: fetchError.hint,
+                    code: fetchError.code,
+                },
+                { status: 500 },
+            );
         }
 
-        // 4. Fetch profiles separately for the user IDs
-        const userIds = Array.from(new Set((attempts || []).map(a => a.user_id).filter(Boolean)));
-        let profileMap: Record<string, string> = {};
-        
+        const userIds = Array.from(
+            new Set(
+                (joinedAttempts ?? [])
+                    .map((attempt) => getFirst(attempt.user_simulation_attempts)?.user_id)
+                    .filter((userId): userId is string => Boolean(userId)),
+            ),
+        );
+
+        const profileMap: Record<string, string> = {};
         if (userIds.length > 0) {
-            const { data: profiles, error: profilesError } = await supabaseAdmin
+            const { data: profiles } = await supabaseAdmin
                 .from("profiles")
                 .select("id, email")
                 .in("id", userIds);
-                
-            if (!profilesError && profiles) {
-                profiles.forEach(p => {
-                    profileMap[p.id] = p.email || "Unknown";
-                });
-            }
+
+            (profiles ?? []).forEach((item) => {
+                profileMap[item.id] = item.email || "Unknown";
+            });
         }
 
-        // 5. Post-process to add attempt_number and flatten the structure
-        const attemptCounts: Record<string, number> = {};
-        const labeledAttempts = (attempts || []).map((attempt: any) => {
-            const key = `${attempt.user_id}-${attempt.task_id}`;
-            attemptCounts[key] = (attemptCounts[key] || 0) + 1;
-            
-            // Handle both object and array results from joins (Supabase can be inconsistent)
-            const getFirst = (val: any) => Array.isArray(val) ? val[0] : val;
-            
-            const task = getFirst(attempt.simulation_tasks);
-            const question = getFirst(task?.questions);
-            const submodule = getFirst(question?.submodules);
-            const module = getFirst(submodule?.modules);
-            
-            const email = attempt.user_id ? profileMap[attempt.user_id] : "Unknown";
+        const normalizedAttempts = ((joinedAttempts ?? []) as unknown as JoinedAttemptRow[])
+            .map((attempt) => {
+                const simulationAttempt = getFirst(attempt.user_simulation_attempts);
+                const simulationTask = getFirst(simulationAttempt?.simulation_tasks);
+                const question = getFirst(simulationTask?.questions);
+                const submodule = getFirst(question?.submodules);
+                const moduleRecord = getFirst(submodule?.modules);
+
+                if (!simulationAttempt || !question || !submodule) {
+                    return null;
+                }
+
+                return {
+                    question_attempt_id: attempt.id,
+                    attempt_id: simulationAttempt.id,
+                    user_id: simulationAttempt.user_id,
+                    email: profileMap[simulationAttempt.user_id] || "Unknown",
+                    module_id: moduleRecord?.id || "",
+                    module_name: moduleRecord?.title || "Unknown",
+                    submodule_id: submodule.id,
+                    submodule_name: submodule.title || "Unknown",
+                    question_id: question.id,
+                    question_title: question.title || "Untitled Question",
+                    task_id: simulationAttempt.task_id,
+                    task_title: simulationTask?.title || "Untitled Task",
+                    total_score: simulationAttempt.total_score,
+                    max_possible_score: simulationAttempt.max_possible_score,
+                    accuracy: simulationAttempt.accuracy,
+                    is_correct: attempt.is_correct,
+                    created_at: simulationAttempt.created_at || attempt.created_at,
+                    question_attempt_created_at: attempt.created_at,
+                };
+            })
+            .filter((attempt): attempt is NonNullable<typeof attempt> => Boolean(attempt))
+            .filter((attempt) => {
+                if (selectedModuleId && attempt.module_id !== selectedModuleId) {
+                    return false;
+                }
+
+                if (selectedSubmoduleId && attempt.submodule_id !== selectedSubmoduleId) {
+                    return false;
+                }
+
+                return true;
+            });
+
+        const attemptCounters = new Map<string, number>();
+        const flatAttempts = normalizedAttempts.map((attempt) => {
+            const counterKey = `${attempt.user_id}:${attempt.question_id}`;
+            const nextAttemptNumber = (attemptCounters.get(counterKey) ?? 0) + 1;
+            attemptCounters.set(counterKey, nextAttemptNumber);
 
             return {
-                email: email || "Unknown",
-                module_name: module?.title || "Unknown",
-                submodule_name: submodule?.title || "Unknown",
-                question_title: question?.title || "Unknown",
-                total_score: attempt.total_score,
-                max_possible_score: attempt.max_possible_score,
-                accuracy: attempt.accuracy,
-                created_at: attempt.created_at,
-                attempt_number: attemptCounts[key]
+                ...attempt,
+                attempt_number: nextAttemptNumber,
             };
         });
 
-        // 6. Return sorted by created_at DESC
-        const sortedAttempts = labeledAttempts.sort((a, b) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
+        const groupedBySubmodule = Array.from(
+            flatAttempts.reduce((submoduleMap, attempt) => {
+                const submoduleKey = attempt.submodule_id;
+                const existingSubmodule = submoduleMap.get(submoduleKey) ?? {
+                    module_id: attempt.module_id,
+                    module_name: attempt.module_name,
+                    submodule_id: attempt.submodule_id,
+                    submodule_name: attempt.submodule_name,
+                    users: new Map<
+                        string,
+                        {
+                            user_id: string;
+                            email: string;
+                            questions: Map<
+                                string,
+                                {
+                                    question_id: string;
+                                    question_title: string;
+                                    attempt_count: number;
+                                    attempts: typeof flatAttempts;
+                                }
+                            >;
+                        }
+                    >(),
+                };
 
-        return NextResponse.json({ 
-            attempts: sortedAttempts,
-            _count: attempts?.length || 0
+                const existingUser = existingSubmodule.users.get(attempt.user_id) ?? {
+                    user_id: attempt.user_id,
+                    email: attempt.email,
+                    questions: new Map(),
+                };
+
+                const existingQuestion = existingUser.questions.get(attempt.question_id) ?? {
+                    question_id: attempt.question_id,
+                    question_title: attempt.question_title,
+                    attempt_count: 0,
+                    attempts: [],
+                };
+
+                existingQuestion.attempts.push(attempt);
+                existingQuestion.attempt_count = existingQuestion.attempts.length;
+                existingUser.questions.set(attempt.question_id, existingQuestion);
+                existingSubmodule.users.set(attempt.user_id, existingUser);
+                submoduleMap.set(submoduleKey, existingSubmodule);
+                return submoduleMap;
+            }, new Map<string, {
+                module_id: string;
+                module_name: string;
+                submodule_id: string;
+                submodule_name: string;
+                users: Map<string, {
+                    user_id: string;
+                    email: string;
+                    questions: Map<string, {
+                        question_id: string;
+                        question_title: string;
+                        attempt_count: number;
+                        attempts: typeof flatAttempts;
+                    }>;
+                }>;
+            }>())
+                .values(),
+        ).map((submodule) => ({
+            module_id: submodule.module_id,
+            module_name: submodule.module_name,
+            submodule_id: submodule.submodule_id,
+            submodule_name: submodule.submodule_name,
+            users: Array.from(submodule.users.values())
+                .sort((left, right) => left.email.localeCompare(right.email))
+                .map((groupedUser) => ({
+                    user_id: groupedUser.user_id,
+                    email: groupedUser.email,
+                    questions: Array.from(groupedUser.questions.values())
+                        .map((question) => ({
+                            question_id: question.question_id,
+                            question_title: question.question_title,
+                            attempt_count: question.attempt_count,
+                            attempts: question.attempts.sort(
+                                (left, right) =>
+                                    new Date(left.created_at).getTime() -
+                                    new Date(right.created_at).getTime(),
+                            ),
+                        }))
+                        .sort((left, right) =>
+                            left.question_title.localeCompare(right.question_title),
+                        ),
+                })),
+        }))
+            .sort((left, right) =>
+                left.submodule_name.localeCompare(right.submodule_name),
+            );
+
+        return NextResponse.json({
+            attempts: [...flatAttempts].sort(
+                (left, right) =>
+                    new Date(right.created_at).getTime() -
+                    new Date(left.created_at).getTime(),
+            ),
+            groupedBySubmodule,
+            filters: {
+                moduleId: selectedModuleId,
+                submoduleId: selectedSubmoduleId,
+            },
+            _count: flatAttempts.length,
         });
-    } catch (error: any) {
+    } catch (error) {
         console.error("Simulation attempts fetch error:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return NextResponse.json(
+            { error: "Internal Server Error" },
+            { status: 500 },
+        );
     }
 }

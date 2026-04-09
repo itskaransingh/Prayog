@@ -13,16 +13,85 @@ import {
 } from "lucide-react";
 import { CreateUserForm } from "@/components/admin/create-user-form";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 
 type Tab = "overview" | "users" | "simulations" | "settings";
 
+interface ModuleOption {
+    id: string;
+    title: string;
+    slug: string;
+}
+
+interface SubmoduleOption {
+    id: string;
+    module_id: string;
+    title: string;
+    slug: string;
+}
+
+interface SimulationAttempt {
+    attempt_id: string;
+    question_attempt_id: string;
+    user_id: string;
+    email: string;
+    module_id: string;
+    module_name: string;
+    submodule_id: string;
+    submodule_name: string;
+    question_id: string;
+    question_title: string;
+    task_id: string;
+    task_title: string;
+    total_score: number;
+    max_possible_score: number;
+    accuracy: number;
+    is_correct: boolean;
+    created_at: string;
+    question_attempt_created_at: string;
+    attempt_number: number;
+}
+
+interface GroupedQuestion {
+    question_id: string;
+    question_title: string;
+    attempt_count: number;
+    attempts: SimulationAttempt[];
+}
+
+interface GroupedUser {
+    user_id: string;
+    email: string;
+    questions: GroupedQuestion[];
+}
+
+interface GroupedSubmodule {
+    module_id: string;
+    module_name: string;
+    submodule_id: string;
+    submodule_name: string;
+    users: GroupedUser[];
+}
+
+interface AdminUserRecord {
+    id: string;
+    email: string;
+    role: string;
+    created_at: string;
+}
+
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("users");
-    const [users, setUsers] = useState<any[]>([]);
+    const [users, setUsers] = useState<AdminUserRecord[]>([]);
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-    const [simulations, setSimulations] = useState<any[]>([]);
+    const [modules, setModules] = useState<ModuleOption[]>([]);
+    const [submodules, setSubmodules] = useState<SubmoduleOption[]>([]);
+    const [selectedModuleId, setSelectedModuleId] = useState("");
+    const [selectedSubmoduleId, setSelectedSubmoduleId] = useState("");
+    const [simulations, setSimulations] = useState<SimulationAttempt[]>([]);
+    const [groupedSimulations, setGroupedSimulations] = useState<GroupedSubmodule[]>([]);
+    const [isLoadingModules, setIsLoadingModules] = useState(false);
+    const [isLoadingSubmodules, setIsLoadingSubmodules] = useState(false);
     const [isLoadingSimulations, setIsLoadingSimulations] = useState(false);
     const [errorSimulations, setErrorSimulations] = useState<string | null>(null);
 
@@ -43,33 +112,97 @@ export default function AdminDashboard() {
         }
     }, []);
 
+    const fetchModules = useCallback(async () => {
+        setIsLoadingModules(true);
+        try {
+            const res = await fetch("/api/admin/modules");
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to fetch modules");
+            }
+
+            setModules(data.modules || []);
+        } catch (error) {
+            console.error("Error fetching modules:", error);
+        } finally {
+            setIsLoadingModules(false);
+        }
+    }, []);
+
+    const fetchSubmodules = useCallback(async (moduleId: string) => {
+        setIsLoadingSubmodules(true);
+        try {
+            const res = await fetch(`/api/admin/submodules?moduleId=${moduleId}`);
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to fetch submodules");
+            }
+
+            setSubmodules(data.submodules || []);
+        } catch (error) {
+            console.error("Error fetching submodules:", error);
+            setSubmodules([]);
+        } finally {
+            setIsLoadingSubmodules(false);
+        }
+    }, []);
+
     const fetchSimulations = useCallback(async () => {
         setIsLoadingSimulations(true);
         setErrorSimulations(null);
         try {
-            const res = await fetch("/api/admin/simulation-attempts");
+            const searchParams = new URLSearchParams();
+            if (selectedModuleId) {
+                searchParams.set("moduleId", selectedModuleId);
+            }
+            if (selectedSubmoduleId) {
+                searchParams.set("submoduleId", selectedSubmoduleId);
+            }
+
+            const queryString = searchParams.toString();
+            const res = await fetch(
+                `/api/admin/simulation-attempts${queryString ? `?${queryString}` : ""}`,
+            );
             const data = await res.json();
             if (res.ok && data.attempts) {
                 setSimulations(data.attempts);
+                setGroupedSimulations(data.groupedBySubmodule || []);
             } else {
                 console.error("Failed to fetch simulations:", data.error);
                 setErrorSimulations(data.error || "Unknown error occurred");
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Error fetching simulations:", error);
-            setErrorSimulations(error.message || String(error));
+            setErrorSimulations(
+                error instanceof Error ? error.message : String(error),
+            );
         } finally {
             setIsLoadingSimulations(false);
         }
-    }, []);
+    }, [selectedModuleId, selectedSubmoduleId]);
 
     useEffect(() => {
         if (activeTab === "users") {
             fetchUsers();
         } else if (activeTab === "simulations") {
+            fetchModules();
             fetchSimulations();
         }
-    }, [activeTab, fetchUsers, fetchSimulations]);
+    }, [activeTab, fetchUsers, fetchModules, fetchSimulations]);
+
+    useEffect(() => {
+        if (activeTab !== "simulations") {
+            return;
+        }
+
+        if (!selectedModuleId) {
+            setSubmodules([]);
+            setSelectedSubmoduleId("");
+            return;
+        }
+
+        void fetchSubmodules(selectedModuleId);
+    }, [activeTab, fetchSubmodules, selectedModuleId]);
 
     const tabs = [
         { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -191,7 +324,7 @@ export default function AdminDashboard() {
                                     <LayoutDashboard className="h-8 w-8 text-slate-400" />
                                 </div>
                                 <h3 className="text-lg font-semibold text-slate-900">Dashboard Overview Coming Soon</h3>
-                                <p className="text-sm text-slate-500 max-w-xs mt-2">We're currently building out the detailed analytics and reporting modules for the admin panel.</p>
+                                <p className="text-sm text-slate-500 max-w-xs mt-2">We&apos;re currently building out the detailed analytics and reporting modules for the admin panel.</p>
                             </div>
                         </div>
                     )}
@@ -255,11 +388,65 @@ export default function AdminDashboard() {
                     {activeTab === "simulations" && (
                         <div className="space-y-6">
                             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                                    <h3 className="font-semibold text-slate-900">User Simulation Attempts</h3>
-                                    <Button variant="outline" size="sm" onClick={fetchSimulations} disabled={isLoadingSimulations}>
-                                        Refresh
-                                    </Button>
+                                <div className="p-6 border-b border-slate-100 flex flex-col gap-4">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div>
+                                            <h3 className="font-semibold text-slate-900">User Simulation Attempts</h3>
+                                            <p className="text-sm text-slate-500 mt-1">
+                                                Filter by module and submodule, then review each learner&apos;s question-wise attempt history in chronological order.
+                                            </p>
+                                        </div>
+                                        <Button variant="outline" size="sm" onClick={fetchSimulations} disabled={isLoadingSimulations}>
+                                            Refresh
+                                        </Button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <label className="space-y-2 text-sm">
+                                            <span className="font-medium text-slate-700">Module</span>
+                                            <select
+                                                className="w-full h-11 rounded-lg border border-slate-200 bg-white px-3 text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                                value={selectedModuleId}
+                                                onChange={(event) => {
+                                                    setSelectedModuleId(event.target.value);
+                                                    setSelectedSubmoduleId("");
+                                                }}
+                                                disabled={isLoadingModules}
+                                            >
+                                                <option value="">
+                                                    {isLoadingModules ? "Loading modules..." : "All modules"}
+                                                </option>
+                                                {modules.map((module) => (
+                                                    <option key={module.id} value={module.id}>
+                                                        {module.title}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+
+                                        <label className="space-y-2 text-sm">
+                                            <span className="font-medium text-slate-700">Submodule</span>
+                                            <select
+                                                className="w-full h-11 rounded-lg border border-slate-200 bg-white px-3 text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                                                value={selectedSubmoduleId}
+                                                onChange={(event) => setSelectedSubmoduleId(event.target.value)}
+                                                disabled={!selectedModuleId || isLoadingSubmodules}
+                                            >
+                                                <option value="">
+                                                    {!selectedModuleId
+                                                        ? "Select a module first"
+                                                        : isLoadingSubmodules
+                                                        ? "Loading submodules..."
+                                                        : "All submodules"}
+                                                </option>
+                                                {submodules.map((submodule) => (
+                                                    <option key={submodule.id} value={submodule.id}>
+                                                        {submodule.title}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    </div>
                                 </div>
                                 {isLoadingSimulations ? (
                                     <div className="p-12 text-center text-slate-500">
@@ -278,51 +465,109 @@ export default function AdminDashboard() {
                                         <p className="text-sm text-slate-500 font-medium">No simulation attempts found</p>
                                     </div>
                                 ) : (
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm text-left">
-                                            <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-                                                <tr>
-                                                    <th className="px-6 py-3 font-medium">User Email</th>
-                                                    <th className="px-6 py-3 font-medium">Module</th>
-                                                    <th className="px-6 py-3 font-medium">Submodule</th>
-                                                    <th className="px-6 py-3 font-medium">Question</th>
-                                                    <th className="px-6 py-3 font-medium text-center">Attempt #</th>
-                                                    <th className="px-6 py-3 font-medium text-center">Score</th>
-                                                    <th className="px-6 py-3 font-medium text-center">Accuracy</th>
-                                                    <th className="px-6 py-3 font-medium">Date</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {simulations.map((attempt, idx) => (
-                                                    <tr key={idx} className="hover:bg-slate-50/50">
-                                                        <td className="px-6 py-3 font-medium text-slate-900">{attempt.email}</td>
-                                                        <td className="px-6 py-3 text-slate-600">{attempt.module_name}</td>
-                                                        <td className="px-6 py-3 text-slate-600">{attempt.submodule_name}</td>
-                                                        <td className="px-6 py-3 text-slate-600 max-w-[200px] truncate">{attempt.question_title}</td>
-                                                        <td className="px-6 py-3 text-center">
-                                                            <span className="px-2 py-1 bg-slate-100 rounded text-[10px] font-bold text-slate-600">
-                                                                #{attempt.attempt_number}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-center font-semibold text-blue-600">
-                                                            {attempt.total_score}/{attempt.max_possible_score}
-                                                        </td>
-                                                        <td className="px-6 py-3 text-center">
-                                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                                                                attempt.accuracy >= 80 ? 'bg-green-100 text-green-700' :
-                                                                attempt.accuracy >= 50 ? 'bg-amber-100 text-amber-700' :
-                                                                'bg-red-100 text-red-700'
-                                                            }`}>
-                                                                {Math.round(attempt.accuracy)}%
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-6 py-3 text-slate-500 text-xs">
-                                                            {new Date(attempt.created_at).toLocaleString()}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                    <div className="p-6 space-y-6 bg-slate-50/60">
+                                        {groupedSimulations.map((submoduleGroup) => (
+                                            <section
+                                                key={submoduleGroup.submodule_id}
+                                                className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
+                                            >
+                                                <div className="border-b border-slate-100 px-6 py-5 bg-slate-50/80">
+                                                    <div className="flex flex-wrap items-center gap-3">
+                                                        <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                                            {submoduleGroup.module_name}
+                                                        </span>
+                                                        <h4 className="text-lg font-semibold text-slate-900">
+                                                            {submoduleGroup.submodule_name}
+                                                        </h4>
+                                                        <span className="text-sm text-slate-500">
+                                                            {submoduleGroup.users.length} user{submoduleGroup.users.length === 1 ? "" : "s"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="divide-y divide-slate-100">
+                                                    {submoduleGroup.users.map((groupedUser) => (
+                                                        <div key={groupedUser.user_id} className="px-6 py-5 space-y-4">
+                                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                                <div>
+                                                                    <p className="text-base font-semibold text-slate-900">
+                                                                        {groupedUser.email}
+                                                                    </p>
+                                                                    <p className="text-sm text-slate-500">
+                                                                        {groupedUser.questions.length} question{groupedUser.questions.length === 1 ? "" : "s"} attempted in this submodule
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                                                {groupedUser.questions.map((question) => (
+                                                                    <div
+                                                                        key={question.question_id}
+                                                                        className="rounded-xl border border-slate-200 bg-slate-50/70 overflow-hidden"
+                                                                    >
+                                                                        <div className="px-4 py-3 border-b border-slate-200 bg-white">
+                                                                            <div className="flex items-center justify-between gap-3">
+                                                                                <p className="font-semibold text-slate-900">
+                                                                                    {question.question_title}
+                                                                                </p>
+                                                                                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                                                                                    {question.attempt_count} attempt{question.attempt_count === 1 ? "" : "s"}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div className="overflow-x-auto">
+                                                                            <table className="w-full text-sm text-left">
+                                                                                <thead className="bg-slate-100/80 text-slate-500">
+                                                                                    <tr>
+                                                                                        <th className="px-4 py-2.5 font-medium">Attempt</th>
+                                                                                        <th className="px-4 py-2.5 font-medium">Score</th>
+                                                                                        <th className="px-4 py-2.5 font-medium">Accuracy</th>
+                                                                                        <th className="px-4 py-2.5 font-medium">Submitted At</th>
+                                                                                    </tr>
+                                                                                </thead>
+                                                                                <tbody className="divide-y divide-slate-200">
+                                                                                    {question.attempts.map((attempt) => (
+                                                                                        <tr key={attempt.question_attempt_id} className="bg-white">
+                                                                                            <td className="px-4 py-3">
+                                                                                                <span className="inline-flex items-center rounded bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-600">
+                                                                                                    #{attempt.attempt_number}
+                                                                                                </span>
+                                                                                            </td>
+                                                                                            <td className="px-4 py-3 font-semibold text-blue-600">
+                                                                                                {attempt.total_score}/{attempt.max_possible_score}
+                                                                                            </td>
+                                                                                            <td className="px-4 py-3">
+                                                                                                <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                                                                                    attempt.accuracy >= 80 ? "bg-green-100 text-green-700" :
+                                                                                                    attempt.accuracy >= 50 ? "bg-amber-100 text-amber-700" :
+                                                                                                    "bg-red-100 text-red-700"
+                                                                                                }`}>
+                                                                                                    {Math.round(attempt.accuracy)}%
+                                                                                                </span>
+                                                                                            </td>
+                                                                                            <td className="px-4 py-3 text-slate-500 text-xs">
+                                                                                                {new Date(attempt.created_at).toLocaleString()}
+                                                                                            </td>
+                                                                                        </tr>
+                                                                                    ))}
+                                                                                </tbody>
+                                                                            </table>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </section>
+                                        ))}
+
+                                        <div className="rounded-xl border border-slate-200 bg-white px-6 py-4">
+                                            <p className="text-sm font-medium text-slate-700">
+                                                {simulations.length} total attempt record{simulations.length === 1 ? "" : "s"} in the current view
+                                            </p>
+                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -163,6 +163,53 @@ export function CaseStudyContent({
         };
     }, []);
 
+    const [attemptedQuestionIds, setAttemptedQuestionIds] = React.useState<Set<string>>(
+        () => new Set(),
+    );
+
+    React.useEffect(() => {
+        let isCancelled = false;
+
+        const fetchQuestionStatus = async () => {
+            try {
+                const response = await fetch(
+                    `/api/lms/submodules/${submoduleSlug}/question-status`,
+                    { cache: "no-store" },
+                );
+                const payload = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(payload.error || "Failed to load question status");
+                }
+
+                if (isCancelled) {
+                    return;
+                }
+
+                setAttemptedQuestionIds(
+                    new Set(
+                        (payload.questions ?? [])
+                            .filter((question: { attempted?: boolean }) => Boolean(question.attempted))
+                            .map((question: { id: string }) => question.id),
+                    ),
+                );
+            } catch (error) {
+                console.error("Failed to load attempt status", error);
+                if (!isCancelled) {
+                    setAttemptedQuestionIds(new Set());
+                }
+            }
+        };
+
+        void fetchQuestionStatus();
+        window.addEventListener("focus", fetchQuestionStatus);
+
+        return () => {
+            isCancelled = true;
+            window.removeEventListener("focus", fetchQuestionStatus);
+        };
+    }, [submoduleSlug]);
+
     const selectedQuestion = activeQid
         ? questions.find((q) => q.id === activeQid)
         : null;
@@ -192,6 +239,9 @@ export function CaseStudyContent({
     const nextQuestion = activeQuestionIndex >= 0 && activeQuestionIndex < questions.length - 1
         ? questions[activeQuestionIndex + 1]
         : null;
+    const hasAttemptedActiveQuestion = activeQuestion
+        ? attemptedQuestionIds.has(activeQuestion.id)
+        : false;
 
     return (
         <div className="flex container mx-auto flex-1 flex-col gap-6 p-6 pb-32">
@@ -344,7 +394,8 @@ export function CaseStudyContent({
                                     );
                                 }}
                             >
-                                Start Task <ArrowRight className="size-4" />
+                                {hasAttemptedActiveQuestion ? "Re-do Task" : "Start Task"}{" "}
+                                <ArrowRight className="size-4" />
                             </Button>
                         )}
                     </div>

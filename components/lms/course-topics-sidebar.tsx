@@ -3,7 +3,6 @@
 import * as React from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-import { createClient } from "@/lib/supabase/client";
 import {
     COURSE_TOPIC_CHANGE_EVENT,
     dispatchCourseTopicChange,
@@ -15,12 +14,10 @@ interface Topic {
     question_id: string;
     title: string;
     type: string;
+    attempted: boolean;
 }
 
-const sidebarCache = new Map<string, { title: string; topics: Topic[] }>();
-
 export function CourseTopicsSidebar() {
-    const [isItrCompleted, setIsItrCompleted] = React.useState(false);
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const qid = searchParams.get("qid");
@@ -75,87 +72,47 @@ export function CourseTopicsSidebar() {
     React.useEffect(() => {
         if (!submoduleSlug) return;
 
-        const completed = localStorage.getItem(`${submoduleSlug}-completed`);
-        if (completed === "true") {
-            setIsItrCompleted(true);
-        } else {
-            setIsItrCompleted(false);
-        }
-
-        const cached = sidebarCache.get(submoduleSlug);
-        if (cached) {
-            setSubmoduleTitle(cached.title);
-            setTopics(cached.topics);
-            return;
-        }
-
         const fetchSidebarData = async () => {
             try {
-                const supabase = createClient();
+                const response = await fetch(
+                    `/api/lms/submodules/${submoduleSlug}/question-status`,
+                    { cache: "no-store" },
+                );
+                const payload = await response.json();
 
-                // Fetch submodule title
-                const { data: subData, error: subError } = await supabase
-                    .from("submodules")
-                    .select("id, title")
-                    .eq("slug", submoduleSlug)
-                    .eq("is_active", true)
-                    .single();
-
-                if (subError) {
-                    console.error("Error fetching submodule:", subError);
-                    setSubmoduleTitle("Module Not Found");
-                    return;
+                if (!response.ok) {
+                    throw new Error(payload.error || "Failed to load sidebar data");
                 }
 
-                if (subData) {
-                    setSubmoduleTitle(subData.title);
+                const nextTitle = payload.submodule?.title || "Module Not Found";
+                const nextTopics: Topic[] = (payload.questions ?? []).map((question: {
+                    id: string;
+                    order: number;
+                    title: string;
+                    type: string;
+                    attempted: boolean;
+                }) => ({
+                    id: String(question.order),
+                    question_id: question.id,
+                    title: question.title,
+                    type: question.type,
+                    attempted: Boolean(question.attempted),
+                }));
 
-                    // Fetch questions for this submodule
-                    const { data: questions, error: questionsError } = await supabase
-                        .from("questions")
-                        .select("id, title, video_url, link_url")
-                        .eq("submodule_id", subData.id)
-                        .order("created_at", { ascending: true });
-
-                    if (questionsError) {
-                        console.error("Error fetching questions:", questionsError);
-                        return;
-                    }
-
-                    if (questions && questions.length > 0) {
-                        const dynamicTopics: Topic[] = questions.map((q, index) => {
-                            let type = "Task";
-                            if (q.video_url) {
-                                type = "Video";
-                            } else if (q.link_url) {
-                                type = "Document";
-                            }
-
-                            return {
-                                id: String(index + 1),
-                                question_id: q.id,
-                                title: q.title || `Question ${index + 1}`,
-                                type,
-                            };
-                        });
-
-                        sidebarCache.set(submoduleSlug, {
-                            title: subData.title,
-                            topics: dynamicTopics,
-                        });
-
-                        setTopics(dynamicTopics);
-                    } else {
-                        setTopics([]);
-                    }
-                }
+                setSubmoduleTitle(nextTitle);
+                setTopics(nextTopics);
             } catch (err) {
                 console.error("Sidebar fetch failed:", err);
                 setSubmoduleTitle("Error Loading");
             }
         };
 
-        fetchSidebarData();
+        void fetchSidebarData();
+        window.addEventListener("focus", fetchSidebarData);
+
+        return () => {
+            window.removeEventListener("focus", fetchSidebarData);
+        };
     }, [submoduleSlug]);
 
     return (
@@ -169,28 +126,33 @@ export function CourseTopicsSidebar() {
             <nav className="course-sidebar-nav">
                 {topics.map((topic, index) => {
                     const isActive = activeQid ? activeQid === topic.question_id : index === 0;
+                    const itemStateClassName = isActive
+                        ? "current"
+                        : topic.attempted
+                        ? "attempted"
+                        : "";
                     return (
                         <button
                             key={topic.question_id || topic.id}
                             type="button"
                             onClick={() => handleTopicSelect(topic.question_id)}
-                            className={`course-sidebar-item ${isActive ? "active" : ""}`}
+                            className={`course-sidebar-item ${itemStateClassName}`}
                         >
                             <span
-                                className={`course-sidebar-number ${isActive ? "active" : ""}`}
+                                className={`course-sidebar-number ${itemStateClassName}`}
                             >
                                 {topic.id}
                             </span>
                             <div className="course-sidebar-info">
-                                <span className={`course-sidebar-item-title ${isActive ? "active" : ""}`}>
+                                <span className={`course-sidebar-item-title ${itemStateClassName}`}>
                                     {topic.title}
-                                    {isActive && isItrCompleted && (
+                                    {!isActive && topic.attempted && (
                                         <span className="course-sidebar-completed-badge">
-                                            Completed
+                                            Attempted
                                         </span>
                                     )}
                                 </span>
-                                <span className={`course-sidebar-item-type ${isActive ? "active" : ""}`}>
+                                <span className={`course-sidebar-item-type ${itemStateClassName}`}>
                                     {topic.type}
                                 </span>
                             </div>
@@ -260,13 +222,24 @@ export function CourseTopicsSidebar() {
                     border-color: color-mix(in srgb, var(--primary) 22%, var(--border) 78%);
                     transform: translateY(-1px);
                 }
-                .course-sidebar-item.active {
+                .course-sidebar-item.current {
+                    background: #fef3c7;
+                    color: #92400e;
+                    border-color: #f59e0b;
+                    box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.16);
+                }
+                .course-sidebar-item.current:hover {
+                    background: #fef3c7;
+                    color: #92400e;
+                    border-color: #f59e0b;
+                }
+                .course-sidebar-item.attempted {
                     background: #dcfce7;
                     color: #14532d;
                     border-color: #22c55e;
                     box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
                 }
-                .course-sidebar-item.active:hover {
+                .course-sidebar-item.attempted:hover {
                     background: #dcfce7;
                     color: #14532d;
                     border-color: #22c55e;
@@ -285,7 +258,12 @@ export function CourseTopicsSidebar() {
                     flex-shrink: 0;
                     border: 2px solid var(--border);
                 }
-                .course-sidebar-item.active .course-sidebar-number {
+                .course-sidebar-number.current {
+                    background: #f59e0b;
+                    color: #fffbeb;
+                    border-color: #f59e0b;
+                }
+                .course-sidebar-number.attempted {
                     background: #16a34a;
                     color: #f0fdf4;
                     border-color: #16a34a;
@@ -303,7 +281,11 @@ export function CourseTopicsSidebar() {
                     overflow: hidden;
                     text-overflow: ellipsis;
                 }
-                .course-sidebar-item-title.active {
+                .course-sidebar-item-title.current {
+                    color: #b45309;
+                    font-weight: 700;
+                }
+                .course-sidebar-item-title.attempted {
                     color: #15803d;
                     font-weight: 700;
                 }
@@ -311,7 +293,12 @@ export function CourseTopicsSidebar() {
                     font-size: 12px;
                     color: var(--muted-foreground);
                 }
-                .course-sidebar-item-type.active {
+                .course-sidebar-item-type.current {
+                    color: #d97706;
+                    font-weight: 600;
+                    opacity: 1;
+                }
+                .course-sidebar-item-type.attempted {
                     color: #16a34a;
                     font-weight: 600;
                     opacity: 1;
@@ -327,26 +314,48 @@ export function CourseTopicsSidebar() {
                     font-weight: 500;
                     color: #22c55e;
                 }
-                :global(.dark) .course-sidebar-item.active {
+                :global(.dark) .course-sidebar-item.current {
+                    background: rgba(245, 158, 11, 0.22);
+                    color: #fef3c7;
+                    border-color: rgba(251, 191, 36, 0.88);
+                    box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.18);
+                }
+                :global(.dark) .course-sidebar-item.current:hover {
+                    background: rgba(245, 158, 11, 0.22);
+                    color: #fef3c7;
+                    border-color: rgba(251, 191, 36, 0.88);
+                }
+                :global(.dark) .course-sidebar-item.attempted {
                     background: rgba(34, 197, 94, 0.24);
                     color: #dcfce7;
                     border-color: rgba(74, 222, 128, 0.9);
                     box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2);
                 }
-                :global(.dark) .course-sidebar-item.active:hover {
+                :global(.dark) .course-sidebar-item.attempted:hover {
                     background: rgba(34, 197, 94, 0.24);
                     color: #dcfce7;
                     border-color: rgba(74, 222, 128, 0.9);
                 }
-                :global(.dark) .course-sidebar-item.active .course-sidebar-number {
+                :global(.dark) .course-sidebar-number.current {
+                    background: #f59e0b;
+                    color: #451a03;
+                    border-color: #f59e0b;
+                }
+                :global(.dark) .course-sidebar-number.attempted {
                     background: #22c55e;
                     color: #052e16;
                     border-color: #22c55e;
                 }
-                :global(.dark) .course-sidebar-item-title.active {
+                :global(.dark) .course-sidebar-item-title.current {
+                    color: #fde68a;
+                }
+                :global(.dark) .course-sidebar-item-title.attempted {
                     color: #86efac;
                 }
-                :global(.dark) .course-sidebar-item-type.active {
+                :global(.dark) .course-sidebar-item-type.current {
+                    color: #fcd34d;
+                }
+                :global(.dark) .course-sidebar-item-type.attempted {
                     color: #bbf7d0;
                 }
             `}</style>
