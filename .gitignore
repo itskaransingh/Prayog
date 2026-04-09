@@ -5,3 +5,4 @@ scripts/
 context/
 docs/
 supabase/
+.claude/
