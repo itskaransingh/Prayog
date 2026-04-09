@@ -15,7 +15,9 @@ import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Play } from "lucid
 import { Button } from "@/components/ui/button";
 import { LmsBreadcrumbs } from "@/components/lms/lms-breadcrumbs";
 import {
+    COURSE_STATUS_CHANGE_EVENT,
     COURSE_TOPIC_CHANGE_EVENT,
+    dispatchCourseStatusChange,
     dispatchCourseTopicChange,
     type CourseTopicChangeDetail,
 } from "@/lib/lms/task-navigation";
@@ -26,6 +28,12 @@ interface CaseStudyContentProps {
     questions: Question[];
     submoduleSlug: string;
     moduleSlug?: string;
+}
+
+interface QuestionStatusRecord {
+    attempted: boolean;
+    completed: boolean;
+    taskNumber: number | null;
 }
 
 function YoutubeEmbed({ url }: { url: string }) {
@@ -94,7 +102,16 @@ function GDriveLink({ url, title }: { url: string; title?: string | null }) {
 function ResourceDescription({ html }: { html: string }) {
     return (
         <div
-            className="prose prose-slate max-w-none text-slate-700 prose-p:my-2 prose-ul:my-2 prose-ol:my-2"
+            className="rich-text-content"
+            dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(html) }}
+        />
+    );
+}
+
+function TaskParagraph({ html }: { html: string }) {
+    return (
+        <div
+            className="rich-text-content rich-text-content--task"
             dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(html) }}
         />
     );
@@ -177,9 +194,10 @@ export function CaseStudyContent({
         };
     }, []);
 
-    const [attemptedQuestionIds, setAttemptedQuestionIds] = React.useState<Set<string>>(
-        () => new Set(),
-    );
+    const [questionStatuses, setQuestionStatuses] = React.useState<
+        Record<string, QuestionStatusRecord>
+    >({});
+    const [isMarkingComplete, setIsMarkingComplete] = React.useState(false);
 
     React.useEffect(() => {
         let isCancelled = false;
@@ -200,27 +218,48 @@ export function CaseStudyContent({
                     return;
                 }
 
-                setAttemptedQuestionIds(
-                    new Set(
-                        (payload.questions ?? [])
-                            .filter((question: { attempted?: boolean }) => Boolean(question.attempted))
-                            .map((question: { id: string }) => question.id),
+                setQuestionStatuses(
+                    Object.fromEntries(
+                        (payload.questions ?? []).map((question: {
+                            id: string;
+                            attempted?: boolean;
+                            completed?: boolean;
+                            taskNumber?: number | null;
+                        }) => [
+                            question.id,
+                            {
+                                attempted: Boolean(question.attempted),
+                                completed: Boolean(question.completed),
+                                taskNumber:
+                                    typeof question.taskNumber === "number"
+                                        ? question.taskNumber
+                                        : null,
+                            },
+                        ]),
                     ),
                 );
             } catch (error) {
                 console.error("Failed to load attempt status", error);
                 if (!isCancelled) {
-                    setAttemptedQuestionIds(new Set());
+                    setQuestionStatuses({});
                 }
             }
         };
 
         void fetchQuestionStatus();
         window.addEventListener("focus", fetchQuestionStatus);
+        window.addEventListener(
+            COURSE_STATUS_CHANGE_EVENT,
+            fetchQuestionStatus as EventListener,
+        );
 
         return () => {
             isCancelled = true;
             window.removeEventListener("focus", fetchQuestionStatus);
+            window.removeEventListener(
+                COURSE_STATUS_CHANGE_EVENT,
+                fetchQuestionStatus as EventListener,
+            );
         };
     }, [submoduleSlug]);
 
@@ -253,9 +292,57 @@ export function CaseStudyContent({
     const nextQuestion = activeQuestionIndex >= 0 && activeQuestionIndex < questions.length - 1
         ? questions[activeQuestionIndex + 1]
         : null;
-    const hasAttemptedActiveQuestion = activeQuestion
-        ? attemptedQuestionIds.has(activeQuestion.id)
-        : false;
+    const activeQuestionStatus = activeQuestion
+        ? questionStatuses[activeQuestion.id] ?? {
+            attempted: false,
+            completed: false,
+            taskNumber: null,
+        }
+        : null;
+    const hasAttemptedActiveQuestion = Boolean(activeQuestionStatus?.attempted);
+    const hasCompletedActiveQuestion = Boolean(activeQuestionStatus?.completed);
+    const isActiveTask = Boolean(activeQuestion && isTaskQuestionType(activeQuestion.type));
+    const isActiveResource = Boolean(activeQuestion && !isTaskQuestionType(activeQuestion.type));
+    const totalTaskCount = React.useMemo(
+        () => questions.filter((question) => isTaskQuestionType(question.type)).length,
+        [questions],
+    );
+
+    const handleMarkAsDone = React.useCallback(async () => {
+        if (!activeQuestion || isTaskQuestionType(activeQuestion.type) || hasCompletedActiveQuestion) {
+            return;
+        }
+
+        setIsMarkingComplete(true);
+
+        try {
+            const response = await fetch(
+                `/api/lms/questions/${activeQuestion.id}/completion`,
+                {
+                    method: "POST",
+                },
+            );
+            const payload = await response.json();
+
+            if (!response.ok) {
+                throw new Error(payload.error || "Failed to mark task as completed");
+            }
+
+            setQuestionStatuses((current) => ({
+                ...current,
+                [activeQuestion.id]: {
+                    attempted: current[activeQuestion.id]?.attempted ?? false,
+                    completed: true,
+                    taskNumber: current[activeQuestion.id]?.taskNumber ?? null,
+                },
+            }));
+            dispatchCourseStatusChange(activeQuestion.id);
+        } catch (error) {
+            console.error("Failed to mark task as completed", error);
+        } finally {
+            setIsMarkingComplete(false);
+        }
+    }, [activeQuestion, hasCompletedActiveQuestion]);
 
     return (
         <div className="flex container mx-auto flex-1 flex-col gap-6 p-6 pb-32">
@@ -264,7 +351,9 @@ export function CaseStudyContent({
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
                 {activeQuestion && (
                     <p className="text-muted-foreground mt-1 text-sm">
-                        Task {activeQuestionIndex + 1} of {questions.length}
+                        {isTaskQuestionType(activeQuestion.type)
+                            ? `Task ${activeQuestionStatus?.taskNumber ?? 1} of ${totalTaskCount}`
+                            : `${getQuestionTypeLabel(activeQuestion.type)} Resource`}
                     </p>
                 )}
             </div>
@@ -276,9 +365,7 @@ export function CaseStudyContent({
                     {isTaskQuestionType(activeQuestion.type) && activeQuestion.paragraph && (
                         <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-900/10">
                             <CardContent className="pt-6">
-                                <p className="text-lg leading-relaxed text-blue-900 dark:text-blue-200">
-                                    {activeQuestion.paragraph}
-                                </p>
+                                <TaskParagraph html={activeQuestion.paragraph} />
                             </CardContent>
                         </Card>
                     )}
@@ -375,55 +462,71 @@ export function CaseStudyContent({
                         )}
                     </div>
                     <div className="flex items-center gap-4">
-                        {activeQuestion && isTaskQuestionType(activeQuestion.type) && (
-                            <Button
-                                size="lg"
-                                className="gap-2 px-10 font-bold shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground"
-                                disabled={!hasQuestions}
-                                // Inside the "Start Task" Button onClick:
-                                onClick={() => {
-                                    if (typeof window === "undefined") return;
+                        {activeQuestion && (
+                            <>
+                                {isActiveResource && (
+                                    <Button
+                                        variant={hasCompletedActiveQuestion ? "secondary" : "outline"}
+                                        size="lg"
+                                        className="gap-2 px-8 font-semibold"
+                                        disabled={hasCompletedActiveQuestion || isMarkingComplete}
+                                        onClick={() => void handleMarkAsDone()}
+                                    >
+                                        {isMarkingComplete
+                                            ? "Saving..."
+                                            : hasCompletedActiveQuestion
+                                            ? "Completed"
+                                            : "Mark as Done"}
+                                    </Button>
+                                )}
+                                {isActiveTask && (
+                                    <Button
+                                        size="lg"
+                                        className="gap-2 px-10 font-bold shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground"
+                                        disabled={!hasQuestions}
+                                        onClick={() => {
+                                            if (typeof window === "undefined") return;
 
-                                    const isEPANSubmodule = submoduleSlug === "e-pan-registration";
-                                    const isFinancialSubmodule = moduleSlug === "financial-accounting" || (submoduleSlug && submoduleSlug.startsWith("financial"));
+                                            const isEPANSubmodule = submoduleSlug === "e-pan-registration";
+                                            const isFinancialSubmodule = moduleSlug === "financial-accounting" || (submoduleSlug && submoduleSlug.startsWith("financial"));
 
-                                    try {
-                                        window.localStorage.setItem(
-                                            isEPANSubmodule
-                                                ? "epan-registration-started"
-                                                : "itr-registration-started",
-                                            "true",
-                                        );
-                                    } catch {
-                                        // ignore storage errors
-                                    }
+                                            try {
+                                                window.localStorage.setItem(
+                                                    isEPANSubmodule
+                                                        ? "epan-registration-started"
+                                                        : "itr-registration-started",
+                                                    "true",
+                                                );
+                                            } catch {
+                                                // ignore storage errors
+                                            }
 
-                                    // --- NEW LOGIC START ---
-                                    let gatewayPath = "/simulation/gateway"; // Default fallback
+                                            let gatewayPath = "/simulation/gateway";
 
-                                    if (submoduleSlug === "journal-entry") {
-                                        gatewayPath = "/simulation/render1a";
-                                    } else if (submoduleSlug === "ledger-creation") {
-                                        gatewayPath = "/simulation/render1b";
-                                    } else if (submoduleSlug === "preparation-of-trial-balance") {
-                                        gatewayPath = "/simulation/render2a";
-                                    } else if (submoduleSlug === "financial-statement") {
-                                        gatewayPath = "/simulation/render2b";
-                                    } else if (isFinancialSubmodule) {
-                                        gatewayPath = "/simulation/render";
-                                    }
-                                    // --- NEW LOGIC END ---
+                                            if (submoduleSlug === "journal-entry") {
+                                                gatewayPath = "/simulation/render1a";
+                                            } else if (submoduleSlug === "ledger-creation") {
+                                                gatewayPath = "/simulation/render1b";
+                                            } else if (submoduleSlug === "preparation-of-trial-balance") {
+                                                gatewayPath = "/simulation/render2a";
+                                            } else if (submoduleSlug === "financial-statement") {
+                                                gatewayPath = "/simulation/render2b";
+                                            } else if (isFinancialSubmodule) {
+                                                gatewayPath = "/simulation/render";
+                                            }
 
-                                    window.open(
-                                        activeQuestion ? `${gatewayPath}?questionId=${activeQuestion.id}` : gatewayPath,
-                                        "_blank",
-                                        "noopener,noreferrer",
-                                    );
-                                }}
-                            >
-                                {hasAttemptedActiveQuestion ? "Re-do Task" : "Start Task"}{" "}
-                                <ArrowRight className="size-4" />
-                            </Button>
+                                            window.open(
+                                                activeQuestion ? `${gatewayPath}?questionId=${activeQuestion.id}` : gatewayPath,
+                                                "_blank",
+                                                "noopener,noreferrer",
+                                            );
+                                        }}
+                                    >
+                                        {hasAttemptedActiveQuestion ? "Re-do Task" : "Start Task"}{" "}
+                                        <ArrowRight className="size-4" />
+                                    </Button>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>

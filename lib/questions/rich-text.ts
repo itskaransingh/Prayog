@@ -3,18 +3,27 @@ const ALLOWED_TAGS = new Set([
     "B",
     "BLOCKQUOTE",
     "BR",
+    "CODE",
     "DIV",
     "EM",
+    "H1",
+    "H2",
+    "H3",
+    "H4",
+    "H5",
+    "H6",
     "I",
     "LI",
     "OL",
     "P",
+    "PRE",
+    "SPAN",
     "STRONG",
     "U",
     "UL",
 ]);
 
-const ALLOWED_ATTRS = new Set(["href", "rel", "target"]);
+const ALLOWED_ATTRS = new Set(["class", "href", "rel", "target"]);
 
 export function sanitizeRichTextHtml(html: string | null | undefined): string {
     if (!html) {
@@ -55,6 +64,18 @@ export function sanitizeRichTextHtml(html: string | null | undefined): string {
                     el.removeAttribute(attr.name);
                 }
             });
+
+            if (el.hasAttribute("class")) {
+                const safeClasses = (el.getAttribute("class") ?? "")
+                    .split(/\s+/)
+                    .filter((className) => /^ql-[a-z0-9-]+$/i.test(className));
+
+                if (safeClasses.length > 0) {
+                    el.setAttribute("class", safeClasses.join(" "));
+                } else {
+                    el.removeAttribute("class");
+                }
+            }
 
             if (el.tagName === "A") {
                 const href = el.getAttribute("href") ?? "";

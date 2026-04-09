@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { RegistrationPayload } from "@/lib/simulation/answer-field-generator";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +94,30 @@ function toPayload(rows: RegistrationRowState[]): RegistrationPayload {
     };
 }
 
+function getPayloadSignature(
+    payload: RegistrationPayload | null,
+    simulatorType: QAEditorProps["simulatorType"],
+): string {
+    return JSON.stringify({
+        simulatorType,
+        fields:
+            payload?.fields.map((field) => ({
+                fieldPath: field.fieldPath,
+                expectedValue: field.expectedValue,
+            })) ?? [],
+    });
+}
+
+function getRowsSignature(rows: RegistrationRowState[]): string {
+    return JSON.stringify(
+        rows.map((row) => ({
+            fieldPath: row.fieldPath,
+            expectedValue: row.expectedValue,
+            included: row.included,
+        })),
+    );
+}
+
 export function RegistrationEditor({
     simulatorType,
     initialPayload,
@@ -105,16 +129,26 @@ export function RegistrationEditor({
     const [rows, setRows] = useState<RegistrationRowState[]>(
         createRows(simulatorType, startingPayload),
     );
+    const lastIncomingSignatureRef = useRef(
+        getPayloadSignature(startingPayload, simulatorType),
+    );
+    const lastEmittedSignatureRef = useRef<string | null>(null);
 
     useEffect(() => {
-        const nextPayload =
-            initialPayload?.type === "registration" ? initialPayload : null;
-        setRows(createRows(simulatorType, nextPayload));
-    }, [initialPayload, simulatorType]);
+        const nextPayload = toPayload(rows);
+        const nextSignature = getRowsSignature(rows);
 
-    useEffect(() => {
-        onChange(toPayload(rows));
-    }, [onChange, rows]);
+        if (lastEmittedSignatureRef.current === nextSignature) {
+            return;
+        }
+
+        lastEmittedSignatureRef.current = nextSignature;
+        lastIncomingSignatureRef.current = getPayloadSignature(
+            nextPayload,
+            simulatorType,
+        );
+        onChange(nextPayload);
+    }, [onChange, rows, simulatorType]);
 
     const includedCount = useMemo(
         () => rows.filter((row) => row.included).length,

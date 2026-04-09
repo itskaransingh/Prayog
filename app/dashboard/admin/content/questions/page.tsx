@@ -38,7 +38,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import {
     getQuestionTypeLabel,
     isTaskQuestionType,
@@ -110,6 +109,22 @@ function getFormMode(type: QuestionType): "question" | "resource" {
 
 function getItemLabel(type: QuestionType): string {
     return type === "question" ? "Task" : getQuestionTypeLabel(type);
+}
+
+function getTaskNumber(items: Question[], targetId: string): number | null {
+    let taskNumber = 0;
+
+    for (const item of items) {
+        if (item.type === "question") {
+            taskNumber += 1;
+        }
+
+        if (item.id === targetId) {
+            return item.type === "question" ? taskNumber : null;
+        }
+    }
+
+    return null;
 }
 
 function normalizeFormForType(
@@ -611,7 +626,9 @@ export default function AdminQuestionsPage() {
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                                        {getItemLabel(question.type)} {index + 1}
+                                                        {question.type === "question"
+                                                            ? `Task ${getTaskNumber(questions, question.id) ?? index + 1}`
+                                                            : getItemLabel(question.type)}
                                                     </p>
                                                     <p className="mt-1 font-medium text-slate-900">
                                                         {question.title}
@@ -678,59 +695,6 @@ export default function AdminQuestionsPage() {
                                 <p className="text-sm text-slate-500">
                                     Build either a simulator task or a supporting learning resource.
                                 </p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                {editingQuestionId && (
-                                    <AlertDialog>
-                                        <AlertDialogTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className="gap-2 text-red-600"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                                Delete
-                                            </Button>
-                                        </AlertDialogTrigger>
-                                        <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                                <AlertDialogTitle>
-                                                    Delete this item?
-                                                </AlertDialogTitle>
-                                                <AlertDialogDescription>
-                                                    This removes the selected task or resource.
-                                                </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                <AlertDialogAction
-                                                    onClick={() =>
-                                                        editingQuestionId &&
-                                                        deleteQuestion(editingQuestionId)
-                                                    }
-                                                    className="bg-red-600 hover:bg-red-700"
-                                                >
-                                                    Delete
-                                                </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                        </AlertDialogContent>
-                                    </AlertDialog>
-                                )}
-
-                                <Button variant="outline" onClick={resetForm}>
-                                    Clear
-                                </Button>
-                                <Button
-                                    onClick={saveQuestion}
-                                    disabled={!selectedSubmoduleId || isSaving}
-                                    className="gap-2"
-                                >
-                                    {isSaving ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Save className="h-4 w-4" />
-                                    )}
-                                    Save
-                                </Button>
                             </div>
                         </div>
 
@@ -904,19 +868,17 @@ export default function AdminQuestionsPage() {
 
                                 {form.type === "question" ? (
                                     <div className="space-y-1.5">
-                                        <label className="text-sm font-medium text-slate-700">
-                                            Paragraph / Context
-                                        </label>
-                                        <Textarea
+                                        <RichTextEditor
+                                            label="Paragraph / Context"
                                             value={form.paragraph}
-                                            onChange={(event) =>
+                                            onChange={(value) =>
                                                 setForm((prev) => ({
                                                     ...prev,
-                                                    paragraph: event.target.value,
+                                                    paragraph: value,
                                                 }))
                                             }
                                             placeholder="Describe the scenario the learner needs to solve."
-                                            rows={6}
+                                            disabled={isSaving}
                                         />
                                     </div>
                                 ) : (
@@ -957,6 +919,7 @@ export default function AdminQuestionsPage() {
                                             </div>
                                         ) : (
                                             <QAEditor
+                                                key={`${editingQuestionId ?? "new"}:${simulatorType ?? "none"}`}
                                                 simulatorType={simulatorType ?? "none"}
                                                 initialPayload={qaPayload}
                                                 onChange={setQaPayload}
@@ -1104,6 +1067,62 @@ export default function AdminQuestionsPage() {
                                     </div>
                                 </>
                             )}
+
+                            <Separator />
+
+                            <div className="flex flex-wrap items-center justify-end gap-3">
+                                {editingQuestionId && (
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                className="gap-2 text-red-600"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                                Delete
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>
+                                                    Delete this item?
+                                                </AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    This removes the selected task or resource.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                <AlertDialogAction
+                                                    onClick={() =>
+                                                        editingQuestionId &&
+                                                        deleteQuestion(editingQuestionId)
+                                                    }
+                                                    className="bg-red-600 hover:bg-red-700"
+                                                >
+                                                    Delete
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+
+                                <Button variant="outline" onClick={resetForm}>
+                                    Clear
+                                </Button>
+                                <Button
+                                    onClick={saveQuestion}
+                                    disabled={!selectedSubmoduleId || isSaving}
+                                    className="gap-2"
+                                >
+                                    {isSaving ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Save className="h-4 w-4" />
+                                    )}
+                                    Save
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </section>

@@ -48,6 +48,7 @@ export async function GET(
 
         const questionIds = (questions ?? []).map((question) => question.id);
         let attemptedQuestionIds = new Set<string>();
+        let completedQuestionIds = new Set<string>();
 
         if (questionIds.length > 0) {
             const { data: attempts, error: attemptsError } = await supabaseAdmin
@@ -65,7 +66,25 @@ export async function GET(
                     .map((attempt) => attempt.question_id)
                     .filter((questionId): questionId is string => Boolean(questionId)),
             );
+
+            const { data: completions, error: completionsError } = await supabaseAdmin
+                .from("user_question_completions")
+                .select("question_id")
+                .in("question_id", questionIds)
+                .eq("user_id", user.id);
+
+            if (completionsError) {
+                throw completionsError;
+            }
+
+            completedQuestionIds = new Set(
+                (completions ?? [])
+                    .map((completion) => completion.question_id)
+                    .filter((questionId): questionId is string => Boolean(questionId)),
+            );
         }
+
+        let taskOrder = 0;
 
         return NextResponse.json({
             submodule: {
@@ -73,15 +92,26 @@ export async function GET(
                 slug: submoduleSlug,
                 title: submodule.title,
             },
-            questions: (questions ?? []).map((question, index) => ({
-                id: question.id,
-                order: index + 1,
-                title: question.title || `Question ${index + 1}`,
-                type: getQuestionTypeLabel((question.type ?? "question") as QuestionType),
-                attempted:
-                    (question.type ?? "question") === "question" &&
-                    attemptedQuestionIds.has(question.id),
-            })),
+            questions: (questions ?? []).map((question, index) => {
+                const normalizedType = (question.type ?? "question") as QuestionType;
+                const attempted =
+                    normalizedType === "question" &&
+                    attemptedQuestionIds.has(question.id);
+                const manuallyCompleted = completedQuestionIds.has(question.id);
+                const completed = attempted || manuallyCompleted;
+                const taskNumber =
+                    normalizedType === "question" ? ++taskOrder : null;
+
+                return {
+                    id: question.id,
+                    order: index + 1,
+                    taskNumber,
+                    title: question.title || `Question ${index + 1}`,
+                    type: getQuestionTypeLabel(normalizedType),
+                    attempted,
+                    completed,
+                };
+            }),
         });
     } catch (error) {
         console.error("Failed to fetch learner question status", error);

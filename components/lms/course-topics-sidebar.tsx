@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import {
+    COURSE_STATUS_CHANGE_EVENT,
     COURSE_TOPIC_CHANGE_EVENT,
     dispatchCourseTopicChange,
     type CourseTopicChangeDetail,
@@ -15,6 +16,8 @@ interface Topic {
     title: string;
     type: string;
     attempted: boolean;
+    completed: boolean;
+    taskNumber: number | null;
 }
 
 export function CourseTopicsSidebar() {
@@ -88,15 +91,24 @@ export function CourseTopicsSidebar() {
                 const nextTopics: Topic[] = (payload.questions ?? []).map((question: {
                     id: string;
                     order: number;
+                    taskNumber: number | null;
                     title: string;
                     type: string;
                     attempted: boolean;
+                    completed: boolean;
                 }) => ({
-                    id: String(question.order),
+                    id:
+                        typeof question.taskNumber === "number"
+                            ? String(question.taskNumber)
+                            : question.type === "Video"
+                            ? "V"
+                            : "D",
                     question_id: question.id,
+                    taskNumber: question.taskNumber,
                     title: question.title,
                     type: question.type,
                     attempted: Boolean(question.attempted),
+                    completed: Boolean(question.completed),
                 }));
 
                 setSubmoduleTitle(nextTitle);
@@ -109,9 +121,17 @@ export function CourseTopicsSidebar() {
 
         void fetchSidebarData();
         window.addEventListener("focus", fetchSidebarData);
+        window.addEventListener(
+            COURSE_STATUS_CHANGE_EVENT,
+            fetchSidebarData as EventListener,
+        );
 
         return () => {
             window.removeEventListener("focus", fetchSidebarData);
+            window.removeEventListener(
+                COURSE_STATUS_CHANGE_EVENT,
+                fetchSidebarData as EventListener,
+            );
         };
     }, [submoduleSlug]);
 
@@ -128,8 +148,8 @@ export function CourseTopicsSidebar() {
                     const isActive = activeQid ? activeQid === topic.question_id : index === 0;
                     const itemStateClassName = isActive
                         ? "current"
-                        : topic.attempted
-                        ? "attempted"
+                        : topic.completed
+                        ? "completed"
                         : "";
                     return (
                         <button
@@ -146,9 +166,9 @@ export function CourseTopicsSidebar() {
                             <div className="course-sidebar-info">
                                 <span className={`course-sidebar-item-title ${itemStateClassName}`}>
                                     {topic.title}
-                                    {!isActive && topic.attempted && (
+                                    {!isActive && topic.completed && (
                                         <span className="course-sidebar-completed-badge">
-                                            Attempted
+                                            Completed
                                         </span>
                                     )}
                                 </span>
@@ -172,7 +192,7 @@ export function CourseTopicsSidebar() {
                     height: 100vh;
                     position: sticky;
                     top: 0;
-                    overflow-y: auto;
+                    overflow: hidden;
                 }
                 .course-sidebar-header {
                     padding: 20px 20px 12px;
@@ -198,6 +218,10 @@ export function CourseTopicsSidebar() {
                     flex-direction: column;
                     gap: 10px;
                     padding: 4px 10px;
+                    padding-bottom: 124px;
+                    flex: 1;
+                    min-height: 0;
+                    overflow-y: auto;
                 }
                 .course-sidebar-item {
                     display: flex;
@@ -233,13 +257,13 @@ export function CourseTopicsSidebar() {
                     color: #92400e;
                     border-color: #f59e0b;
                 }
-                .course-sidebar-item.attempted {
+                .course-sidebar-item.completed {
                     background: #dcfce7;
                     color: #14532d;
                     border-color: #22c55e;
                     box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
                 }
-                .course-sidebar-item.attempted:hover {
+                .course-sidebar-item.completed:hover {
                     background: #dcfce7;
                     color: #14532d;
                     border-color: #22c55e;
@@ -263,7 +287,7 @@ export function CourseTopicsSidebar() {
                     color: #fffbeb;
                     border-color: #f59e0b;
                 }
-                .course-sidebar-number.attempted {
+                .course-sidebar-number.completed {
                     background: #16a34a;
                     color: #f0fdf4;
                     border-color: #16a34a;
@@ -285,7 +309,7 @@ export function CourseTopicsSidebar() {
                     color: #b45309;
                     font-weight: 700;
                 }
-                .course-sidebar-item-title.attempted {
+                .course-sidebar-item-title.completed {
                     color: #15803d;
                     font-weight: 700;
                 }
@@ -298,7 +322,7 @@ export function CourseTopicsSidebar() {
                     font-weight: 600;
                     opacity: 1;
                 }
-                .course-sidebar-item-type.attempted {
+                .course-sidebar-item-type.completed {
                     color: #16a34a;
                     font-weight: 600;
                     opacity: 1;
@@ -325,13 +349,13 @@ export function CourseTopicsSidebar() {
                     color: #fef3c7;
                     border-color: rgba(251, 191, 36, 0.88);
                 }
-                :global(.dark) .course-sidebar-item.attempted {
+                :global(.dark) .course-sidebar-item.completed {
                     background: rgba(34, 197, 94, 0.24);
                     color: #dcfce7;
                     border-color: rgba(74, 222, 128, 0.9);
                     box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2);
                 }
-                :global(.dark) .course-sidebar-item.attempted:hover {
+                :global(.dark) .course-sidebar-item.completed:hover {
                     background: rgba(34, 197, 94, 0.24);
                     color: #dcfce7;
                     border-color: rgba(74, 222, 128, 0.9);
@@ -341,7 +365,7 @@ export function CourseTopicsSidebar() {
                     color: #451a03;
                     border-color: #f59e0b;
                 }
-                :global(.dark) .course-sidebar-number.attempted {
+                :global(.dark) .course-sidebar-number.completed {
                     background: #22c55e;
                     color: #052e16;
                     border-color: #22c55e;
@@ -349,13 +373,13 @@ export function CourseTopicsSidebar() {
                 :global(.dark) .course-sidebar-item-title.current {
                     color: #fde68a;
                 }
-                :global(.dark) .course-sidebar-item-title.attempted {
+                :global(.dark) .course-sidebar-item-title.completed {
                     color: #86efac;
                 }
                 :global(.dark) .course-sidebar-item-type.current {
                     color: #fcd34d;
                 }
-                :global(.dark) .course-sidebar-item-type.attempted {
+                :global(.dark) .course-sidebar-item-type.completed {
                     color: #bbf7d0;
                 }
             `}</style>
