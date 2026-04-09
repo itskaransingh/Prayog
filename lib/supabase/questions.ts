@@ -11,6 +11,8 @@ export interface Question {
     submodule_id: string;
     title: string;
     paragraph: string;
+    content_html: string;
+    course_objectives: string[];
     has_table: boolean;
     table_data: QuestionTableData | null;
     has_image: boolean;
@@ -29,6 +31,8 @@ export type QuestionInsert = Pick<
     | "submodule_id"
     | "title"
     | "paragraph"
+    | "content_html"
+    | "course_objectives"
     | "has_table"
     | "table_data"
     | "has_image"

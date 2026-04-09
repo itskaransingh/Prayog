@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
     buildEvidenceTable,
     generateFields,
+    getFallbackRegistrationFieldDefinitions,
     reverseParseFields,
     type ClassificationPayload,
     type FinancialStatementPayload,
@@ -263,6 +264,62 @@ describe("answer-field-generator", () => {
                 {
                     fieldPath: "personalDetails.dob",
                     expectedValue: "2000-01-01",
+                },
+            ],
+        });
+    });
+
+    it("uses approved registration metadata for labels and filters stale saved fields", () => {
+        const definitions = getFallbackRegistrationFieldDefinitions("epan_registration");
+        const payload: RegistrationPayload = {
+            type: "registration",
+            fields: [
+                {
+                    fieldPath: "aadhaarNumber",
+                    expectedValue: "123412341234",
+                },
+            ],
+        };
+
+        const fields = generateFields("step-6", payload, {
+            registrationFieldDefinitions: definitions,
+        });
+
+        assert.deepEqual(fields[0], {
+            step_id: "step-6",
+            field_name: "aadhaarNumber",
+            field_label: "Aadhaar Number",
+            expected_value: "123412341234",
+            options: null,
+            order_index: 1,
+        });
+
+        const roundTrip = reverseParseFields(
+            [
+                ...asRecords(fields),
+                {
+                    id: "field-stale",
+                    step_id: "step-6",
+                    field_name: "pan",
+                    field_label: "PAN",
+                    expected_value: "ABCDE1234F",
+                    options: null,
+                    order_index: 99,
+                },
+            ],
+            "epan_registration",
+            null,
+            {
+                registrationFieldDefinitions: definitions,
+            },
+        );
+
+        assert.deepEqual(roundTrip, {
+            type: "registration",
+            fields: [
+                {
+                    fieldPath: "aadhaarNumber",
+                    expectedValue: "123412341234",
                 },
             ],
         });

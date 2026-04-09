@@ -9,6 +9,7 @@ import {
     isTaskQuestionType,
 } from "@/lib/questions/types";
 import { sanitizeRichTextHtml } from "@/lib/questions/rich-text";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Play } from "lucide-react";
@@ -21,6 +22,7 @@ import {
     dispatchCourseTopicChange,
     type CourseTopicChangeDetail,
 } from "@/lib/lms/task-navigation";
+import { getSimulationLaunchConfig } from "@/lib/simulation/launch-config";
 
 interface CaseStudyContentProps {
     title: string;
@@ -28,6 +30,16 @@ interface CaseStudyContentProps {
     questions: Question[];
     submoduleSlug: string;
     moduleSlug?: string;
+    simulatorType?:
+        | "itr_registration"
+        | "epan_registration"
+        | "classification"
+        | "journal_entry"
+        | "ledger"
+        | "trial_balance"
+        | "financial_statement"
+        | "none"
+        | null;
 }
 
 interface QuestionStatusRecord {
@@ -99,22 +111,33 @@ function GDriveLink({ url, title }: { url: string; title?: string | null }) {
     );
 }
 
-function ResourceDescription({ html }: { html: string }) {
+function RichQuestionContent({ html, variant }: { html: string; variant?: "task" | "resource" }) {
     return (
         <div
-            className="rich-text-content"
+            className={
+                variant === "task"
+                    ? "rich-text-content rich-text-content--task"
+                    : "rich-text-content"
+            }
             dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(html) }}
         />
     );
 }
 
-function TaskParagraph({ html }: { html: string }) {
-    return (
-        <div
-            className="rich-text-content rich-text-content--task"
-            dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(html) }}
-        />
-    );
+function getQuestionContentHtml(question: Question) {
+    if (question.content_html?.trim()) {
+        return question.content_html;
+    }
+
+    if (question.paragraph?.trim()) {
+        return question.paragraph;
+    }
+
+    if (question.resource_description?.trim()) {
+        return question.resource_description;
+    }
+
+    return "";
 }
 
 function QuestionTable({ tableData }: { tableData: QuestionTableData }) {
@@ -165,6 +188,7 @@ export function CaseStudyContent({
     questions,
     submoduleSlug,
     moduleSlug,
+    simulatorType,
 }: CaseStudyContentProps) {
     const searchParams = useSearchParams();
     const qid = searchParams.get("qid");
@@ -303,6 +327,12 @@ export function CaseStudyContent({
     const hasCompletedActiveQuestion = Boolean(activeQuestionStatus?.completed);
     const isActiveTask = Boolean(activeQuestion && isTaskQuestionType(activeQuestion.type));
     const isActiveResource = Boolean(activeQuestion && !isTaskQuestionType(activeQuestion.type));
+    const activeQuestionContentHtml = activeQuestion ? getQuestionContentHtml(activeQuestion) : "";
+    const activeCourseObjectives = activeQuestion?.course_objectives ?? [];
+    const simulationLaunchConfig = React.useMemo(
+        () => getSimulationLaunchConfig({ moduleSlug, simulatorType }),
+        [moduleSlug, simulatorType],
+    );
     const totalTaskCount = React.useMemo(
         () => questions.filter((question) => isTaskQuestionType(question.type)).length,
         [questions],
@@ -350,11 +380,31 @@ export function CaseStudyContent({
                 <LmsBreadcrumbs items={breadcrumbs} />
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
                 {activeQuestion && (
-                    <p className="text-muted-foreground mt-1 text-sm">
-                        {isTaskQuestionType(activeQuestion.type)
-                            ? `Task ${activeQuestionStatus?.taskNumber ?? 1} of ${totalTaskCount}`
-                            : `${getQuestionTypeLabel(activeQuestion.type)} Resource`}
-                    </p>
+                    <div className="mt-1 flex flex-col gap-3">
+                        <p className="text-muted-foreground text-sm">
+                            {isTaskQuestionType(activeQuestion.type)
+                                ? `Task ${activeQuestionStatus?.taskNumber ?? 1} of ${totalTaskCount}`
+                                : `${getQuestionTypeLabel(activeQuestion.type)} Resource`}
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <h2 className="text-xl font-semibold text-foreground">
+                                {activeQuestion.title}
+                            </h2>
+                            {activeCourseObjectives.length > 0 && (
+                                <div className="flex flex-wrap gap-2">
+                                    {activeCourseObjectives.map((objective) => (
+                                        <Badge
+                                            key={objective}
+                                            variant="secondary"
+                                            className="bg-blue-100 text-blue-800 hover:bg-blue-100"
+                                        >
+                                            {objective}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 )}
             </div>
 
@@ -362,25 +412,18 @@ export function CaseStudyContent({
 
             {hasQuestions && activeQuestion ? (
                 <div key={activeQuestion.id} id={`question-${activeQuestion.id}`} className="flex flex-col gap-6">
-                    {isTaskQuestionType(activeQuestion.type) && activeQuestion.paragraph && (
+                    {activeQuestionContentHtml && (
                         <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-900/10">
                             <CardContent className="pt-6">
-                                <TaskParagraph html={activeQuestion.paragraph} />
+                                <RichQuestionContent
+                                    html={activeQuestionContentHtml}
+                                    variant={isTaskQuestionType(activeQuestion.type) ? "task" : "resource"}
+                                />
                             </CardContent>
                         </Card>
                     )}
 
-                    {!isTaskQuestionType(activeQuestion.type) &&
-                        activeQuestion.resource_description && (
-                            <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-900/10">
-                                <CardContent className="pt-6">
-                                    <ResourceDescription html={activeQuestion.resource_description} />
-                                </CardContent>
-                            </Card>
-                        )}
-
-                    {isTaskQuestionType(activeQuestion.type) &&
-                        activeQuestion.has_table &&
+                    {activeQuestion.has_table &&
                         activeQuestion.table_data && (
                         <Card className="border-border bg-card">
                             <CardContent className="pt-6">
@@ -388,8 +431,7 @@ export function CaseStudyContent({
                             </CardContent>
                         </Card>
                     )}
-                    {isTaskQuestionType(activeQuestion.type) &&
-                        activeQuestion.has_image &&
+                    {activeQuestion.has_image &&
                         activeQuestion.image_url && (
                         <Card className="border-border bg-card">
                             <CardContent className="pt-6">
@@ -483,36 +525,20 @@ export function CaseStudyContent({
                                     <Button
                                         size="lg"
                                         className="gap-2 px-10 font-bold shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground"
-                                        disabled={!hasQuestions}
+                                        disabled={!hasQuestions || !simulationLaunchConfig}
                                         onClick={() => {
-                                            if (typeof window === "undefined") return;
-
-                                            const isEPANSubmodule = submoduleSlug === "e-pan-registration";
-                                            const isFinancialSubmodule = moduleSlug === "financial-accounting" || (submoduleSlug && submoduleSlug.startsWith("financial"));
-
-                                            try {
-                                                window.localStorage.setItem(
-                                                    isEPANSubmodule
-                                                        ? "epan-registration-started"
-                                                        : "itr-registration-started",
-                                                    "true",
-                                                );
-                                            } catch {
-                                                // ignore storage errors
+                                            if (typeof window === "undefined" || !simulationLaunchConfig) {
+                                                return;
                                             }
 
-                                            let gatewayPath = "/simulation/gateway";
+                                            const { storageKey, gatewayPath } = simulationLaunchConfig;
 
-                                            if (submoduleSlug === "journal-entry") {
-                                                gatewayPath = "/simulation/render1a";
-                                            } else if (submoduleSlug === "ledger-creation") {
-                                                gatewayPath = "/simulation/render1b";
-                                            } else if (submoduleSlug === "preparation-of-trial-balance") {
-                                                gatewayPath = "/simulation/render2a";
-                                            } else if (submoduleSlug === "financial-statement") {
-                                                gatewayPath = "/simulation/render2b";
-                                            } else if (isFinancialSubmodule) {
-                                                gatewayPath = "/simulation/render";
+                                            try {
+                                                if (storageKey) {
+                                                    window.localStorage.setItem(storageKey, "true");
+                                                }
+                                            } catch {
+                                                // ignore storage errors
                                             }
 
                                             window.open(
@@ -522,7 +548,11 @@ export function CaseStudyContent({
                                             );
                                         }}
                                     >
-                                        {hasAttemptedActiveQuestion ? "Re-do Task" : "Start Task"}{" "}
+                                        {simulationLaunchConfig
+                                            ? hasAttemptedActiveQuestion
+                                                ? "Re-do Task"
+                                                : "Start Task"
+                                            : "Simulation Unavailable"}{" "}
                                         <ArrowRight className="size-4" />
                                     </Button>
                                 )}

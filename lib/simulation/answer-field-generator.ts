@@ -77,6 +77,20 @@ export interface RegistrationPayload {
     }[];
 }
 
+export type RegistrationSimulatorType = "itr_registration" | "epan_registration";
+
+export interface SimulationFieldDefinition {
+    id?: string;
+    simulatorType: RegistrationSimulatorType;
+    fieldName: string;
+    fieldLabel: string;
+    fieldGroup: string | null;
+    inputType: string;
+    sortOrder: number;
+    isActive: boolean;
+    helpText: string | null;
+}
+
 export type SyncAnswersPayload =
     | ClassificationPayload
     | GridPayload
@@ -115,6 +129,61 @@ const FINANCIAL_STATEMENT_SECTION_ORDER: FinancialStatementSectionKey[] = [
     "bs_ca",
 ];
 
+const FALLBACK_REGISTRATION_FIELD_DEFINITIONS: Record<
+    RegistrationSimulatorType,
+    SimulationFieldDefinition[]
+> = {
+    itr_registration: [
+        ["registerAs", "Register As", "Registration"],
+        ["pan", "PAN", "Registration"],
+        ["personalDetails.firstName", "First Name", "Personal Details"],
+        ["personalDetails.middleName", "Middle Name", "Personal Details"],
+        ["personalDetails.lastName", "Last Name", "Personal Details"],
+        ["personalDetails.dob", "Date of Birth", "Personal Details"],
+        ["personalDetails.gender", "Gender", "Personal Details"],
+        ["personalDetails.residentialStatus", "Residential Status", "Personal Details"],
+        ["addressDetails.flatDoorNo", "Flat / Door No", "Address Details"],
+        ["addressDetails.road", "Road", "Address Details"],
+        ["addressDetails.area", "Area", "Address Details"],
+        ["addressDetails.postOffice", "Post Office", "Address Details"],
+        ["addressDetails.city", "City", "Address Details"],
+        ["addressDetails.state", "State", "Address Details"],
+        ["addressDetails.pincode", "Pincode", "Address Details"],
+        ["contactDetails.mobile", "Mobile", "Contact Details"],
+        ["contactDetails.email", "Email", "Contact Details"],
+        ["contactDetails.alternateContact", "Alternate Contact", "Contact Details"],
+        ["contactDetails.mobileBelongsTo", "Mobile Belongs To", "Contact Details"],
+        ["contactDetails.emailBelongsTo", "Email Belongs To", "Contact Details"],
+    ].map(([fieldName, fieldLabel, fieldGroup], index) => ({
+        simulatorType: "itr_registration",
+        fieldName,
+        fieldLabel,
+        fieldGroup,
+        inputType: "text",
+        sortOrder: index + 1,
+        isActive: true,
+        helpText: null,
+    })),
+    epan_registration: [
+        ["fullName", "Full Name", "Personal Details"],
+        ["dob", "Date of Birth", "Personal Details"],
+        ["gender", "Gender", "Personal Details"],
+        ["mobile", "Mobile", "Contact Details"],
+        ["email", "Email", "Contact Details"],
+        ["address", "Address", "Address Details"],
+        ["aadhaarNumber", "Aadhaar Number", "Verification"],
+    ].map(([fieldName, fieldLabel, fieldGroup], index) => ({
+        simulatorType: "epan_registration",
+        fieldName,
+        fieldLabel,
+        fieldGroup,
+        inputType: "text",
+        sortOrder: index + 1,
+        isActive: true,
+        helpText: null,
+    })),
+};
+
 function trimValue(value: string | null | undefined): string {
     return (value ?? "").trim();
 }
@@ -139,6 +208,99 @@ export function fieldPathToLabel(fieldPath: string): string {
     const lastSegment = fieldPath.split(".").at(-1) ?? fieldPath;
     const withSpaces = lastSegment.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
     return withSpaces.replace(/^./, (character) => character.toUpperCase());
+}
+
+export function isRegistrationSimulatorType(
+    simulatorType: string | null | undefined,
+): simulatorType is RegistrationSimulatorType {
+    return (
+        simulatorType === "itr_registration" || simulatorType === "epan_registration"
+    );
+}
+
+export function getFallbackRegistrationFieldDefinitions(
+    simulatorType: RegistrationSimulatorType,
+): SimulationFieldDefinition[] {
+    return FALLBACK_REGISTRATION_FIELD_DEFINITIONS[simulatorType].map(
+        (definition) => ({
+            ...definition,
+        }),
+    );
+}
+
+export function resolveRegistrationFieldDefinitions(
+    simulatorType: RegistrationSimulatorType,
+    definitions?: SimulationFieldDefinition[] | null,
+): SimulationFieldDefinition[] {
+    const normalizedDefinitions = (definitions ?? [])
+        .filter(
+            (definition) =>
+                definition.simulatorType === simulatorType && definition.isActive,
+        )
+        .sort((left, right) => {
+            if (left.sortOrder !== right.sortOrder) {
+                return left.sortOrder - right.sortOrder;
+            }
+
+            return left.fieldName.localeCompare(right.fieldName);
+        });
+
+    if (normalizedDefinitions.length > 0) {
+        return normalizedDefinitions;
+    }
+
+    return getFallbackRegistrationFieldDefinitions(simulatorType);
+}
+
+export function normalizeSimulationFieldDefinitions(
+    records: Array<{
+        id?: string | null;
+        simulator_type?: string | null;
+        field_name?: string | null;
+        field_label?: string | null;
+        field_group?: string | null;
+        input_type?: string | null;
+        sort_order?: number | null;
+        is_active?: boolean | null;
+        help_text?: string | null;
+    }>,
+): SimulationFieldDefinition[] {
+    const definitions = new Map<string, SimulationFieldDefinition>();
+
+    for (const record of records) {
+        if (!isRegistrationSimulatorType(record.simulator_type)) {
+            continue;
+        }
+
+        const fieldName = trimValue(record.field_name);
+        if (!fieldName) {
+            continue;
+        }
+
+        definitions.set(`${record.simulator_type}:${fieldName}`, {
+            id: trimValue(record.id ?? undefined) || undefined,
+            simulatorType: record.simulator_type,
+            fieldName,
+            fieldLabel: trimValue(record.field_label) || fieldPathToLabel(fieldName),
+            fieldGroup: trimValue(record.field_group) || null,
+            inputType: trimValue(record.input_type) || "text",
+            sortOrder:
+                typeof record.sort_order === "number" &&
+                Number.isFinite(record.sort_order)
+                    ? record.sort_order
+                    : Number.MAX_SAFE_INTEGER,
+            isActive: record.is_active !== false,
+            helpText: trimValue(record.help_text) || null,
+        });
+    }
+
+    return [...definitions.values()].sort((left, right) => {
+        if (left.sortOrder !== right.sortOrder) {
+            return left.sortOrder - right.sortOrder;
+        }
+
+        return left.fieldName.localeCompare(right.fieldName);
+    });
 }
 
 export function sectionKeyToLabel(sectionKey: FinancialStatementSectionKey): string {
@@ -169,6 +331,9 @@ export function sectionKeyToLabel(sectionKey: FinancialStatementSectionKey): str
 export function generateFields(
     stepId: string,
     payload: SyncAnswersPayload,
+    options?: {
+        registrationFieldDefinitions?: SimulationFieldDefinition[] | null;
+    },
 ): SimulationFieldInsert[] {
     switch (payload.type) {
         case "classification":
@@ -312,14 +477,24 @@ export function generateFields(
         case "registration":
             return payload.fields
                 .filter((field) => trimValue(field.expectedValue).length > 0)
-                .map((field, index) => ({
+                .map((field, index) => {
+                    const matchedDefinition =
+                        options?.registrationFieldDefinitions?.find(
+                            (definition) =>
+                                definition.fieldName === trimValue(field.fieldPath),
+                        ) ?? null;
+
+                    return {
                     step_id: stepId,
                     field_name: trimValue(field.fieldPath),
-                    field_label: fieldPathToLabel(field.fieldPath),
+                    field_label:
+                        matchedDefinition?.fieldLabel ??
+                        fieldPathToLabel(field.fieldPath),
                     expected_value: trimValue(field.expectedValue),
                     options: null,
                     order_index: index + 1,
-                }));
+                    };
+                });
     }
 }
 
@@ -368,6 +543,9 @@ export function reverseParseFields(
     fields: SimulationFieldRecord[],
     simulatorType: SimulatorType,
     tableData?: QuestionTableData | null,
+    options?: {
+        registrationFieldDefinitions?: SimulationFieldDefinition[] | null;
+    },
 ): SyncAnswersPayload | null {
     switch (simulatorType) {
         case "classification":
@@ -381,7 +559,13 @@ export function reverseParseFields(
             return reverseParseFinancialStatement(fields);
         case "itr_registration":
         case "epan_registration":
-            return reverseParseRegistration(fields);
+            return reverseParseRegistration(
+                fields,
+                resolveRegistrationFieldDefinitions(
+                    simulatorType,
+                    options?.registrationFieldDefinitions,
+                ),
+            );
         case "none":
         default:
             return null;
@@ -644,14 +828,22 @@ function reverseParseFinancialStatement(
 
 function reverseParseRegistration(
     fields: SimulationFieldRecord[],
+    definitions: SimulationFieldDefinition[],
 ): RegistrationPayload | null {
+    const allowedDefinitions = new Map(
+        definitions.map((definition) => [definition.fieldName, definition]),
+    );
+
     const parsedFields = fields
         .map((field) => ({
             fieldPath: trimValue(field.field_name),
             expectedValue: trimValue(field.expected_value),
             orderIndex: field.order_index ?? Number.MAX_SAFE_INTEGER,
         }))
-        .filter((field) => field.fieldPath.length > 0)
+        .filter(
+            (field) =>
+                field.fieldPath.length > 0 && allowedDefinitions.has(field.fieldPath),
+        )
         .sort((left, right) => left.orderIndex - right.orderIndex)
         .map(({ fieldPath, expectedValue }) => ({
             fieldPath,

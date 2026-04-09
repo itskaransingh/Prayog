@@ -13,20 +13,19 @@ import { EPANValidateDetails } from "@/components/simulation/income-tax/epan-reg
 import { EPANConfirmSubmit } from "@/components/simulation/income-tax/epan-registration/epan-confirm-submit";
 import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
 import { type EvaluationMapping } from "@/lib/evaluation";
-import { createClient } from "@/lib/supabase/client";
 import { type EPANAadhaarDetails } from "@/components/simulation/income-tax/epan-registration/types";
 import { VALIDATION_REGEX } from "@/lib/simulation/income-tax/epan-registration/constants";
 import { buildAttemptAnswers, saveSimulationAttempt, type PersistableEvaluationMapping } from "@/lib/simulation/attempts";
+import type { SimulationEvaluationConfig } from "@/lib/simulation/runtime-evaluation";
 
-type EPANSeedFieldKey = "fullName" | "dob" | "gender" | "mobile" | "email" | "address";
+type EPANSeedFieldKey =
+    | "fullName"
+    | "dob"
+    | "gender"
+    | "mobile"
+    | "email"
+    | "address";
 const EPAN_MAPPING_CACHE_PREFIX = "epan-simulation-mappings:";
-
-interface SimulationFieldRecord {
-    id: string;
-    field_name: string;
-    expected_value: string | null;
-    field_label: string | null;
-}
 
 function getCachedMappings(questionId: string | null): EvaluationMapping[] {
     if (typeof window === "undefined" || !questionId) {
@@ -46,7 +45,13 @@ function getCachedMappings(questionId: string | null): EvaluationMapping[] {
     }
 }
 
-function EPANSimulationContent({ taskId }: { taskId: string | null }) {
+function EPANSimulationContent({
+    taskId,
+    showExpectedAnswersInEvaluation,
+}: {
+    taskId: string | null;
+    showExpectedAnswersInEvaluation: boolean;
+}) {
     const searchParams = useSearchParams();
     const questionId = searchParams.get("questionId");
     const [showEvaluationPopup, setShowEvaluationPopup] = useState(false);
@@ -279,6 +284,7 @@ function EPANSimulationContent({ taskId }: { taskId: string | null }) {
                 open={showEvaluationPopup}
                 results={evaluationResults}
                 onClose={() => setShowEvaluationPopup(false)}
+                showExpectedValues={showExpectedAnswersInEvaluation}
             />
         </div>
     );
@@ -302,64 +308,40 @@ function EPANProviderWrapper() {
 function EPANProviderLoader({ questionId }: { questionId: string | null }) {
     const [mappings, setMappings] = useState<PersistableEvaluationMapping[]>(() => getCachedMappings(questionId) as PersistableEvaluationMapping[]);
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
 
     useEffect(() => {
         async function fetchMappings() {
             if (!questionId) return;
-            
-            const supabase = createClient();
+
             try {
-                // 1. Get the task for this question
-                const { data: tasks } = await supabase
-                    .from("simulation_tasks")
-                    .select("id")
-                    .eq("question_id", questionId)
-                    .limit(1);
+                const response = await fetch(
+                    `/api/simulation/questions/${questionId}/evaluation-config`,
+                    { cache: "no-store" },
+                );
 
-                if (tasks && tasks.length > 0) {
-                    const taskId = tasks[0].id;
-                    setTaskId(taskId);
+                if (!response.ok) {
+                    throw new Error("Failed to fetch evaluation config");
+                }
 
-                    // 2. Get all steps for this task
-                    const { data: steps } = await supabase
-                        .from("simulation_steps")
-                        .select("id")
-                        .eq("task_id", taskId);
+                const config =
+                    (await response.json()) as SimulationEvaluationConfig;
 
-                    if (steps && steps.length > 0) {
-                        const stepIds = steps.map(s => s.id);
-
-                        // 3. Get all fields for these steps
-                        const { data: fields, error: fieldsError } = await supabase
-                            .from("simulation_fields")
-                            .select("id, field_name, expected_value, field_label")
-                            .in("step_id", stepIds);
-
-                        if (fieldsError) throw fieldsError;
-
-                        if (fields) {
-                            const formattedMappings: PersistableEvaluationMapping[] = (fields as SimulationFieldRecord[]).map((f) => ({
-                                fieldId: f.id,
-                                fieldName: f.field_name,
-                                fieldPath: f.field_name,
-                                expectedValue: f.expected_value || "",
-                                label: f.field_label || f.field_name,
-                                weight: 1
-                            }));
-                            setMappings(formattedMappings);
-                            try {
-                                window.localStorage.setItem(
-                                    `${EPAN_MAPPING_CACHE_PREFIX}${questionId}`,
-                                    JSON.stringify(formattedMappings),
-                                );
-                            } catch {
-                                // ignore storage errors
-                            }
-                        }
-                    }
+                setTaskId(config.taskId);
+                setShowExpectedAnswersInEvaluation(
+                    config.showExpectedAnswersInEvaluation,
+                );
+                setMappings(config.mappings);
+                try {
+                    window.localStorage.setItem(
+                        `${EPAN_MAPPING_CACHE_PREFIX}${questionId}`,
+                        JSON.stringify(config.mappings),
+                    );
+                } catch {
+                    // ignore storage errors
                 }
             } catch (err) {
-                console.error("Error fetching evaluation mappings:", err);
+                console.error("Error fetching evaluation config:", err);
             }
         }
 
@@ -368,7 +350,12 @@ function EPANProviderLoader({ questionId }: { questionId: string | null }) {
 
     return (
         <EPANProvider initialMappings={mappings}>
-            <EPANSimulationContent taskId={taskId} />
+            <EPANSimulationContent
+                taskId={taskId}
+                showExpectedAnswersInEvaluation={
+                    showExpectedAnswersInEvaluation
+                }
+            />
         </EPANProvider>
     );
 }

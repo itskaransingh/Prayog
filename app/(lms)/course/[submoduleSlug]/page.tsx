@@ -56,6 +56,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
             questions={questions}
             submoduleSlug={submodule.slug}
             moduleSlug={moduleSlug}
+            simulatorType={submodule.simulator_type}
         />
     );
 }

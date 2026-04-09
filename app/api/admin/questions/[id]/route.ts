@@ -9,6 +9,27 @@ import { isQuestionType } from "@/lib/questions/types";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
+const ALLOWED_COURSE_OBJECTIVES = ["CO1", "CO2", "CO3", "CO4", "CO5", "CO6"] as const;
+
+function parseCourseObjectives(value: unknown): string[] | null {
+    if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+        return null;
+    }
+
+    const normalized = value
+        .map((item) => item.trim().toUpperCase())
+        .filter(Boolean);
+
+    const unique = Array.from(new Set(normalized));
+    return unique.every((item) =>
+        ALLOWED_COURSE_OBJECTIVES.includes(
+            item as (typeof ALLOWED_COURSE_OBJECTIVES)[number],
+        ),
+    )
+        ? unique
+        : null;
+}
+
 export async function PUT(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -26,12 +47,14 @@ export async function PUT(
         const {
             title,
             paragraph,
+            content_html,
             has_table,
             table_data,
             has_image,
             image_url,
             type,
             resource_description,
+            course_objectives,
             video_url,
             link_url,
             link_title,
@@ -56,8 +79,22 @@ export async function PUT(
         }
         if (title !== undefined) updateData.title = title;
         if (paragraph !== undefined) updateData.paragraph = paragraph;
+        if (content_html !== undefined) updateData.content_html = content_html;
         if (resource_description !== undefined) {
             updateData.resource_description = resource_description;
+        }
+        if (course_objectives !== undefined) {
+            const normalizedCourseObjectives = parseCourseObjectives(course_objectives);
+            if (normalizedCourseObjectives === null) {
+                return NextResponse.json(
+                    {
+                        error: "course_objectives must be an array containing only CO1 to CO6",
+                    },
+                    { status: 400 },
+                );
+            }
+
+            updateData.course_objectives = normalizedCourseObjectives;
         }
         if (has_table !== undefined) updateData.has_table = has_table;
         if (table_data !== undefined || has_table === false) {

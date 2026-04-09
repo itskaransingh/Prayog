@@ -5,9 +5,13 @@ import {
     requireAdmin,
 } from "@/app/api/admin/simulation-route-utils";
 import {
+    isRegistrationSimulatorType,
+    normalizeSimulationFieldDefinitions,
     reverseParseFields,
+    resolveRegistrationFieldDefinitions,
     type QuestionTableData,
     type SimulatorType,
+    type SimulationFieldDefinition,
     type SimulationFieldRecord,
 } from "@/lib/simulation/answer-field-generator";
 import type { QuestionType } from "@/lib/questions/types";
@@ -23,6 +27,34 @@ interface SubmoduleRecord {
     id: string;
     is_active: boolean;
     simulator_type: SimulatorType | null;
+}
+
+async function loadRegistrationFieldDefinitions(
+    supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+    simulatorType: SimulatorType,
+): Promise<SimulationFieldDefinition[] | null> {
+    if (!isRegistrationSimulatorType(simulatorType)) {
+        return null;
+    }
+
+    const { data, error } = await supabase
+        .from("simulation_field_definitions")
+        .select(
+            "id, simulator_type, field_name, field_label, field_group, input_type, sort_order, is_active, help_text",
+        )
+        .eq("simulator_type", simulatorType)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .order("field_name", { ascending: true });
+
+    if (error) {
+        throw error;
+    }
+
+    return resolveRegistrationFieldDefinitions(
+        simulatorType,
+        normalizeSimulationFieldDefinitions(data ?? []),
+    );
 }
 
 export async function GET(
@@ -72,6 +104,8 @@ export async function GET(
         }
 
         const simulatorType = submodule.simulator_type ?? "none";
+        const registrationFieldDefinitions =
+            await loadRegistrationFieldDefinitions(supabase, simulatorType);
 
         const { data: task } = await supabase
             .from("simulation_tasks")
@@ -84,6 +118,7 @@ export async function GET(
         if (!task?.id) {
             return NextResponse.json({
                 answers: null,
+                fieldDefinitions: registrationFieldDefinitions,
                 simulatorType,
             });
         }
@@ -99,6 +134,7 @@ export async function GET(
         if (!step?.id) {
             return NextResponse.json({
                 answers: null,
+                fieldDefinitions: registrationFieldDefinitions,
                 simulatorType,
             });
         }
@@ -117,10 +153,14 @@ export async function GET(
             (fields ?? []) as SimulationFieldRecord[],
             simulatorType,
             question.table_data,
+            {
+                registrationFieldDefinitions,
+            },
         );
 
         return NextResponse.json({
             answers,
+            fieldDefinitions: registrationFieldDefinitions,
             simulatorType,
         });
     } catch (error: unknown) {

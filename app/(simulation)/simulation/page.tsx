@@ -63,11 +63,11 @@ const STEP_HEADINGS: Record<number, string> = {
     4: "Set up your password and secure your account",
 };
 
-import { createClient } from "@/lib/supabase/client";
 import type { EvaluationMapping } from "@/lib/evaluation";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { buildAttemptAnswers, saveSimulationAttempt, type PersistableEvaluationMapping } from "@/lib/simulation/attempts";
+import type { SimulationEvaluationConfig } from "@/lib/simulation/runtime-evaluation";
 
 const ITR_MAPPING_CACHE_PREFIX = "itr-simulation-mappings:";
 
@@ -107,59 +107,38 @@ function SimulationPageContent() {
 function SimulationPageQuestion({ questionId }: { questionId: string }) {
     const [mappings, setMappings] = useState<PersistableEvaluationMapping[]>(() => getCachedMappings(questionId) as PersistableEvaluationMapping[]);
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
 
     useEffect(() => {
         async function loadMappings() {
             try {
-                const supabase = createClient();
-                
-                // Get the task for this question
-                const { data: tasks } = await supabase
-                    .from("simulation_tasks")
-                    .select("id")
-                    .eq("question_id", questionId)
-                    .limit(1);
+                const response = await fetch(
+                    `/api/simulation/questions/${questionId}/evaluation-config`,
+                    { cache: "no-store" },
+                );
 
-                if (tasks && tasks.length > 0) {
-                        const taskId = tasks[0].id;
-                        setTaskId(taskId);
+                if (!response.ok) {
+                    throw new Error("Failed to fetch evaluation config");
+                }
 
-                        // 3. Get all steps and fields
-                        const { data: steps } = await supabase
-                            .from("simulation_steps")
-                            .select("id")
-                            .eq("task_id", taskId);
+                const config =
+                    (await response.json()) as SimulationEvaluationConfig;
 
-                        if (steps && steps.length > 0) {
-                            const stepIds = steps.map(s => s.id);
-                            const { data: fields } = await supabase
-                                .from("simulation_fields")
-                                .select("id, field_name, expected_value, field_label")
-                                .in("step_id", stepIds);
-
-                            if (fields) {
-                                const newMappings: PersistableEvaluationMapping[] = fields.map(f => ({
-                                    fieldId: f.id,
-                                    fieldName: f.field_name,
-                                    fieldPath: f.field_name,
-                                    expectedValue: f.expected_value || "",
-                                    label: f.field_label || f.field_name,
-                                    weight: 1
-                                }));
-                                setMappings(newMappings);
-                                try {
-                                    window.localStorage.setItem(
-                                        `${ITR_MAPPING_CACHE_PREFIX}${questionId}`,
-                                        JSON.stringify(newMappings),
-                                    );
-                                } catch {
-                                    // ignore storage errors
-                                }
-                            }
-                        }
-                    }
+                setTaskId(config.taskId);
+                setShowExpectedAnswersInEvaluation(
+                    config.showExpectedAnswersInEvaluation,
+                );
+                setMappings(config.mappings);
+                try {
+                    window.localStorage.setItem(
+                        `${ITR_MAPPING_CACHE_PREFIX}${questionId}`,
+                        JSON.stringify(config.mappings),
+                    );
+                } catch {
+                    // ignore storage errors
+                }
             } catch (err) {
-                console.error("Failed to fetch simulation fields", err);
+                console.error("Failed to fetch evaluation config", err);
             }
         }
         loadMappings();
@@ -167,12 +146,26 @@ function SimulationPageQuestion({ questionId }: { questionId: string }) {
 
     return (
         <RegistrationProvider initialMappings={mappings}>
-            <SimulationContent questionId={questionId} taskId={taskId} />
+            <SimulationContent
+                questionId={questionId}
+                taskId={taskId}
+                showExpectedAnswersInEvaluation={
+                    showExpectedAnswersInEvaluation
+                }
+            />
         </RegistrationProvider>
     );
 }
 
-function SimulationContent({ questionId, taskId }: { questionId: string; taskId: string | null }) {
+function SimulationContent({
+    questionId,
+    taskId,
+    showExpectedAnswersInEvaluation,
+}: {
+    questionId: string;
+    taskId: string | null;
+    showExpectedAnswersInEvaluation: boolean;
+}) {
     const { data, transactionId, isCompleted, completeRegistration, evaluationResults, evaluationMappings, startTime } = useRegistration();
     const [showEvalPopup, setShowEvalPopup] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -299,6 +292,7 @@ function SimulationContent({ questionId, taskId }: { questionId: string; taskId:
                 <EvaluationPopup
                     open={showEvalPopup}
                     onClose={() => setShowEvalPopup(false)}
+                    showExpectedValues={showExpectedAnswersInEvaluation}
                 />
             </>
         );

@@ -44,8 +44,15 @@ export async function POST(request: Request) {
             return errorResponse;
         }
 
-        const body = (await request.json()) as { question_id?: unknown };
+        const body = (await request.json()) as {
+            question_id?: unknown;
+            show_expected_answers_in_evaluation?: unknown;
+        };
         const questionId = asNonEmptyString(body.question_id);
+        const showExpectedAnswersInEvaluation =
+            typeof body.show_expected_answers_in_evaluation === "boolean"
+                ? body.show_expected_answers_in_evaluation
+                : false;
 
         if (!questionId) {
             return badRequest("question_id is required");
@@ -71,7 +78,10 @@ export async function POST(request: Request) {
 
         const { data, error } = await supabase
             .from("simulation_tasks")
-            .insert({ question_id: questionId })
+            .insert({
+                question_id: questionId,
+                show_expected_answers_in_evaluation: showExpectedAnswersInEvaluation,
+            })
             .select("*")
             .single();
 

@@ -10,11 +10,15 @@ import {
 import {
     buildEvidenceTable,
     generateFields,
+    isRegistrationSimulatorType,
+    normalizeSimulationFieldDefinitions,
+    resolveRegistrationFieldDefinitions,
     type ClassificationPayload,
     type FinancialStatementPayload,
     type FinancialStatementSectionKey,
     type GridPayload,
     type RegistrationPayload,
+    type SimulationFieldDefinition,
     type SimulatorType,
     type SyncAnswersPayload,
     type TrialBalancePayload,
@@ -31,6 +35,75 @@ interface SubmoduleRecord {
     id: string;
     is_active: boolean;
     simulator_type: SimulatorType | null;
+}
+
+async function loadRegistrationFieldDefinitions(
+    supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+    simulatorType: SimulatorType | null,
+): Promise<SimulationFieldDefinition[] | null> {
+    if (!isRegistrationSimulatorType(simulatorType)) {
+        return null;
+    }
+
+    const { data, error } = await supabase
+        .from("simulation_field_definitions")
+        .select(
+            "id, simulator_type, field_name, field_label, field_group, input_type, sort_order, is_active, help_text",
+        )
+        .eq("simulator_type", simulatorType)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .order("field_name", { ascending: true });
+
+    if (error) {
+        throw error;
+    }
+
+    return resolveRegistrationFieldDefinitions(
+        simulatorType,
+        normalizeSimulationFieldDefinitions(data ?? []),
+    );
+}
+
+function validateRegistrationPayload(
+    payload: RegistrationPayload,
+    definitions: SimulationFieldDefinition[],
+): string | null {
+    const allowedFieldNames = new Set(
+        definitions.map((definition) => definition.fieldName),
+    );
+    const seenFieldNames = new Set<string>();
+    const duplicateFieldNames = new Set<string>();
+    const unsupportedFieldNames = new Set<string>();
+
+    for (const field of payload.fields) {
+        const fieldPath = field.fieldPath.trim();
+        if (!allowedFieldNames.has(fieldPath)) {
+            unsupportedFieldNames.add(fieldPath);
+        }
+
+        if (seenFieldNames.has(fieldPath)) {
+            duplicateFieldNames.add(fieldPath);
+        }
+
+        seenFieldNames.add(fieldPath);
+    }
+
+    if (unsupportedFieldNames.size > 0) {
+        return `Unsupported registration field names: ${[...unsupportedFieldNames]
+            .sort()
+            .join(", ")}`;
+    }
+
+    if (duplicateFieldNames.size > 0) {
+        return `Duplicate registration field names are not allowed: ${[
+            ...duplicateFieldNames,
+        ]
+            .sort()
+            .join(", ")}`;
+    }
+
+    return null;
 }
 
 function trimString(value: unknown): string | null {
@@ -414,6 +487,28 @@ export async function POST(
             );
         }
 
+        const registrationFieldDefinitions =
+            parsedPayload.type === "registration"
+                ? await loadRegistrationFieldDefinitions(
+                      supabase,
+                      loaded.submodule.simulator_type,
+                  )
+                : null;
+
+        if (
+            parsedPayload.type === "registration" &&
+            registrationFieldDefinitions !== null
+        ) {
+            const validationError = validateRegistrationPayload(
+                parsedPayload,
+                registrationFieldDefinitions,
+            );
+
+            if (validationError) {
+                return badRequest(validationError);
+            }
+        }
+
         const { data: existingTask, error: taskLookupError } = await supabase
             .from("simulation_tasks")
             .select("id")
@@ -487,7 +582,9 @@ export async function POST(
             throw deleteError;
         }
 
-        const fields = generateFields(stepId, parsedPayload);
+        const fields = generateFields(stepId, parsedPayload, {
+            registrationFieldDefinitions,
+        });
         if (fields.length > 0) {
             const { error: insertError } = await supabase
                 .from("simulation_fields")

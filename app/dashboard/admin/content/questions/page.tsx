@@ -63,6 +63,7 @@ interface Question {
     submodule_id: string;
     title: string;
     paragraph: string;
+    content_html: string;
     has_table: boolean;
     table_data: {
         headers?: string[];
@@ -72,6 +73,7 @@ interface Question {
     image_url: string | null;
     type: QuestionType;
     resource_description: string | null;
+    course_objectives: string[];
     video_url: string | null;
     link_url: string | null;
     link_title: string | null;
@@ -79,29 +81,39 @@ interface Question {
 
 interface QuestionFormState {
     title: string;
-    paragraph: string;
+    contentHtml: string;
     hasImage: boolean;
     imageUrl: string;
     type: QuestionType;
-    resourceDescription: string;
+    courseObjectives: string[];
     videoUrl: string;
     linkUrl: string;
     linkTitle: string;
+    showExpectedAnswersInEvaluation: boolean;
+}
+
+interface SimulationTaskRecord {
+    id: string;
+    question_id: string;
+    show_expected_answers_in_evaluation: boolean;
 }
 
 function getEmptyQuestionForm(): QuestionFormState {
     return {
         title: "",
-        paragraph: "",
+        contentHtml: "",
         hasImage: false,
         imageUrl: "",
         type: "question",
-        resourceDescription: "",
+        courseObjectives: [],
         videoUrl: "",
         linkUrl: "",
         linkTitle: "",
+        showExpectedAnswersInEvaluation: false,
     };
 }
+
+const COURSE_OBJECTIVE_OPTIONS = ["CO1", "CO2", "CO3", "CO4", "CO5", "CO6"] as const;
 
 function getFormMode(type: QuestionType): "question" | "resource" {
     return type === "question" ? "question" : "resource";
@@ -135,7 +147,6 @@ function normalizeFormForType(
         return {
             ...previous,
             type: "question",
-            resourceDescription: "",
             videoUrl: "",
             linkUrl: "",
             linkTitle: "",
@@ -146,7 +157,6 @@ function normalizeFormForType(
         return {
             ...previous,
             type: "video",
-            paragraph: "",
             hasImage: false,
             imageUrl: "",
             linkUrl: "",
@@ -157,7 +167,6 @@ function normalizeFormForType(
     return {
         ...previous,
         type: "document",
-        paragraph: "",
         hasImage: false,
         imageUrl: "",
         videoUrl: "",
@@ -172,6 +181,7 @@ export default function AdminQuestionsPage() {
     const [selectedSubmoduleId, setSelectedSubmoduleId] = useState("");
     const [simulatorType, setSimulatorType] = useState<SimulatorType | null>(null);
     const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+    const [, setEditingSimulationTaskId] = useState<string | null>(null);
     const [form, setForm] = useState<QuestionFormState>(getEmptyQuestionForm);
     const [qaPayload, setQaPayload] = useState<SyncAnswersPayload | null>(null);
     const [isLoadingModules, setIsLoadingModules] = useState(true);
@@ -273,6 +283,7 @@ export default function AdminQuestionsPage() {
 
     const resetForm = useCallback(() => {
         setEditingQuestionId(null);
+        setEditingSimulationTaskId(null);
         setForm(getEmptyQuestionForm());
         setQaPayload(null);
         setIsLoadingAnswers(false);
@@ -283,16 +294,22 @@ export default function AdminQuestionsPage() {
             setEditingQuestionId(question.id);
             setForm({
                 title: question.title,
-                paragraph: question.paragraph || "",
+                contentHtml:
+                    question.content_html ||
+                    question.paragraph ||
+                    question.resource_description ||
+                    "",
                 hasImage: question.has_image,
                 imageUrl: question.image_url || "",
                 type: question.type ?? "question",
-                resourceDescription: question.resource_description || "",
+                courseObjectives: question.course_objectives || [],
                 videoUrl: question.video_url || "",
                 linkUrl: question.link_url || "",
                 linkTitle: question.link_title || "",
+                showExpectedAnswersInEvaluation: false,
             });
             setQaPayload(null);
+            setEditingSimulationTaskId(null);
 
             if (!options?.preserveStatus) {
                 setSuccessMessage(null);
@@ -307,15 +324,38 @@ export default function AdminQuestionsPage() {
             setIsLoadingAnswers(true);
 
             try {
-                const res = await fetch(`/api/admin/questions/${question.id}/answers`);
-                const data = await res.json();
+                const [answersRes, simulationTaskRes] = await Promise.all([
+                    fetch(`/api/admin/questions/${question.id}/answers`),
+                    fetch(`/api/admin/simulation-tasks?questionId=${question.id}`),
+                ]);
+                const [answersData, simulationTaskData] = await Promise.all([
+                    answersRes.json(),
+                    simulationTaskRes.json(),
+                ]);
 
-                if (!res.ok) {
-                    throw new Error(data.error || "Failed to load question answers");
+                if (!answersRes.ok) {
+                    throw new Error(answersData.error || "Failed to load question answers");
                 }
 
-                setQaPayload(data.answers ?? null);
-                setSimulatorType(data.simulatorType ?? simulatorType ?? "none");
+                if (!simulationTaskRes.ok) {
+                    throw new Error(
+                        simulationTaskData.error || "Failed to load simulation task settings",
+                    );
+                }
+
+                const simulationTask =
+                    (simulationTaskData.tasks?.[0] as SimulationTaskRecord | undefined) ??
+                    null;
+
+                setEditingSimulationTaskId(simulationTask?.id ?? null);
+                setForm((prev) => ({
+                    ...prev,
+                    showExpectedAnswersInEvaluation:
+                        simulationTask?.show_expected_answers_in_evaluation ?? false,
+                }));
+
+                setQaPayload(answersData.answers ?? null);
+                setSimulatorType(answersData.simulatorType ?? simulatorType ?? "none");
             } catch (err: unknown) {
                 setError(
                     err instanceof Error
@@ -352,19 +392,23 @@ export default function AdminQuestionsPage() {
         let savedQuestion: Question | null = null;
 
         try {
+            const trimmedContentHtml = form.contentHtml.trim();
+            const legacyParagraph =
+                form.type === "question" ? trimmedContentHtml : "";
+            const legacyResourceDescription =
+                form.type === "question" ? null : trimmedContentHtml || null;
             const questionPayload = {
                 title: form.title.trim(),
-                paragraph: form.type === "question" ? form.paragraph.trim() : "",
+                paragraph: legacyParagraph,
+                content_html: trimmedContentHtml,
                 has_image: form.type === "question" ? form.hasImage : false,
                 image_url:
                     form.type === "question" && form.hasImage
                         ? form.imageUrl.trim()
                         : null,
                 type: form.type,
-                resource_description:
-                    form.type === "question"
-                        ? null
-                        : form.resourceDescription.trim() || null,
+                resource_description: legacyResourceDescription,
+                course_objectives: form.courseObjectives,
                 video_url: form.type === "video" ? form.videoUrl.trim() : null,
                 link_url: form.type === "document" ? form.linkUrl.trim() : null,
                 link_title:
@@ -414,6 +458,69 @@ export default function AdminQuestionsPage() {
                     throw new Error(
                         answersData.error || "Failed to sync question answers",
                     );
+                }
+            }
+
+            if (form.type === "question") {
+                const existingTaskRes = await fetch(
+                    `/api/admin/simulation-tasks?questionId=${savedQuestion.id}`,
+                );
+                const existingTaskData = await existingTaskRes.json();
+
+                if (!existingTaskRes.ok) {
+                    throw new Error(
+                        existingTaskData.error ||
+                            "Failed to load simulation task settings",
+                    );
+                }
+
+                const existingTask =
+                    (existingTaskData.tasks?.[0] as SimulationTaskRecord | undefined) ??
+                    null;
+
+                if (existingTask?.id) {
+                    const taskRes = await fetch(
+                        `/api/admin/simulation-tasks/${existingTask.id}`,
+                        {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                show_expected_answers_in_evaluation:
+                                    form.showExpectedAnswersInEvaluation,
+                            }),
+                        },
+                    );
+                    const taskData = await taskRes.json();
+
+                    if (!taskRes.ok) {
+                        throw new Error(
+                            taskData.error ||
+                                "Failed to update evaluation answer visibility",
+                        );
+                    }
+
+                    setEditingSimulationTaskId(taskData.task?.id ?? existingTask.id);
+                } else if (form.showExpectedAnswersInEvaluation) {
+                    const taskRes = await fetch("/api/admin/simulation-tasks", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            question_id: savedQuestion.id,
+                            show_expected_answers_in_evaluation: true,
+                        }),
+                    });
+                    const taskData = await taskRes.json();
+
+                    if (!taskRes.ok && taskRes.status !== 409) {
+                        throw new Error(
+                            taskData.error ||
+                                "Failed to save evaluation answer visibility",
+                        );
+                    }
+
+                    setEditingSimulationTaskId(taskData.task?.id ?? null);
+                } else {
+                    setEditingSimulationTaskId(null);
                 }
             }
 
@@ -860,41 +967,104 @@ export default function AdminQuestionsPage() {
                                         <label className="text-sm font-medium text-slate-700">
                                             Item Type
                                         </label>
-                                        <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
-                                            {getQuestionTypeLabel(form.type)}
-                                        </div>
+                                        <select
+                                            value={form.type}
+                                            onChange={(event) =>
+                                                setForm((prev) =>
+                                                    normalizeFormForType(
+                                                        prev,
+                                                        event.target.value as QuestionType,
+                                                    ),
+                                                )
+                                            }
+                                            className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-emerald-500"
+                                        >
+                                            <option value="question">Task</option>
+                                            <option value="video">Video</option>
+                                            <option value="document">Document</option>
+                                        </select>
                                     </div>
                                 </div>
 
-                                {form.type === "question" ? (
-                                    <div className="space-y-1.5">
-                                        <RichTextEditor
-                                            label="Paragraph / Context"
-                                            value={form.paragraph}
-                                            onChange={(value) =>
-                                                setForm((prev) => ({
-                                                    ...prev,
-                                                    paragraph: value,
-                                                }))
-                                            }
-                                            placeholder="Describe the scenario the learner needs to solve."
-                                            disabled={isSaving}
-                                        />
-                                    </div>
-                                ) : (
+                                <div className="space-y-1.5">
                                     <RichTextEditor
-                                        label="Resource Description"
-                                        value={form.resourceDescription}
+                                        label={
+                                            form.type === "question"
+                                                ? "Case Study and Additional Context"
+                                                : "Learner-Facing Content"
+                                        }
+                                        value={form.contentHtml}
                                         onChange={(value) =>
                                             setForm((prev) => ({
                                                 ...prev,
-                                                resourceDescription: value,
+                                                contentHtml: value,
                                             }))
                                         }
-                                        placeholder="Add a formatted description for this learner resource."
+                                        placeholder={
+                                            form.type === "question"
+                                                ? "Describe the scenario, instructions, and any additional context the learner needs."
+                                                : "Add the learner-facing description that should appear with this resource."
+                                        }
                                         disabled={isSaving}
                                     />
-                                )}
+                                    <p className="text-xs text-slate-500">
+                                        This is now the canonical authored body. Legacy
+                                        paragraph/resource fields are populated automatically
+                                        for compatibility during rollout.
+                                    </p>
+                                </div>
+
+                                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                    <div>
+                                        <h3 className="text-sm font-semibold text-slate-900">
+                                            Course Objectives
+                                        </h3>
+                                        <p className="text-sm text-slate-500">
+                                            Tag the question or resource with the relevant
+                                            course objectives.
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {COURSE_OBJECTIVE_OPTIONS.map((objective) => {
+                                            const isSelected =
+                                                form.courseObjectives.includes(objective);
+
+                                            return (
+                                                <label
+                                                    key={objective}
+                                                    className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-sm transition ${
+                                                        isSelected
+                                                            ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                                                            : "border-slate-200 bg-white text-slate-600"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={(event) =>
+                                                            setForm((prev) => ({
+                                                                ...prev,
+                                                                courseObjectives:
+                                                                    event.target.checked
+                                                                        ? [
+                                                                              ...prev.courseObjectives,
+                                                                              objective,
+                                                                          ]
+                                                                        : prev.courseObjectives.filter(
+                                                                              (value) =>
+                                                                                  value !==
+                                                                                  objective,
+                                                                          ),
+                                                            }))
+                                                        }
+                                                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                    />
+                                                    {objective}
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
                             </div>
 
                             {form.type === "question" ? (
@@ -926,6 +1096,38 @@ export default function AdminQuestionsPage() {
                                                 disabled={isSaving}
                                             />
                                         )}
+                                    </div>
+
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-slate-900">
+                                                    Evaluation Popup
+                                                </h3>
+                                                <p className="text-sm text-slate-500">
+                                                    Decide whether learners should see the
+                                                    authored expected answers after completing
+                                                    the simulator.
+                                                </p>
+                                            </div>
+                                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={
+                                                        form.showExpectedAnswersInEvaluation
+                                                    }
+                                                    onChange={(event) =>
+                                                        setForm((prev) => ({
+                                                            ...prev,
+                                                            showExpectedAnswersInEvaluation:
+                                                                event.target.checked,
+                                                        }))
+                                                    }
+                                                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                />
+                                                Show expected answers
+                                            </label>
+                                        </div>
                                     </div>
 
                                     <Separator />

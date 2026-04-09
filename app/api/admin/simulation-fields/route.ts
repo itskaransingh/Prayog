@@ -10,6 +10,12 @@ import {
     requireAdmin,
     revalidateQuestionsTag,
 } from "../simulation-route-utils";
+import {
+    isRegistrationSimulatorType,
+    normalizeSimulationFieldDefinitions,
+    resolveRegistrationFieldDefinitions,
+    type SimulatorType,
+} from "@/lib/simulation/answer-field-generator";
 
 export async function GET(request: NextRequest) {
     try {
@@ -19,21 +25,61 @@ export async function GET(request: NextRequest) {
         }
 
         const stepId = request.nextUrl.searchParams.get("stepId");
-        if (!stepId) {
-            return badRequest("stepId query param is required");
+        const simulatorType = request.nextUrl.searchParams.get(
+            "simulatorType",
+        ) as SimulatorType | null;
+
+        if (stepId) {
+            const { data, error } = await supabase
+                .from("simulation_fields")
+                .select("*")
+                .eq("step_id", stepId)
+                .order("order_index", { ascending: true });
+
+            if (error) {
+                throw error;
+            }
+
+            return NextResponse.json({ fields: data ?? [] });
+        }
+
+        if (!simulatorType) {
+            return badRequest("stepId or simulatorType query param is required");
+        }
+
+        if (!isRegistrationSimulatorType(simulatorType)) {
+            return NextResponse.json({
+                definitions: [],
+                simulatorType,
+                usedFallback: false,
+            });
         }
 
         const { data, error } = await supabase
-            .from("simulation_fields")
-            .select("*")
-            .eq("step_id", stepId)
-            .order("order_index", { ascending: true });
+            .from("simulation_field_definitions")
+            .select(
+                "id, simulator_type, field_name, field_label, field_group, input_type, sort_order, is_active, help_text",
+            )
+            .eq("simulator_type", simulatorType)
+            .eq("is_active", true)
+            .order("sort_order", { ascending: true })
+            .order("field_name", { ascending: true });
 
         if (error) {
             throw error;
         }
 
-        return NextResponse.json({ fields: data ?? [] });
+        const normalizedDefinitions = normalizeSimulationFieldDefinitions(data ?? []);
+        const definitions = resolveRegistrationFieldDefinitions(
+            simulatorType,
+            normalizedDefinitions,
+        );
+
+        return NextResponse.json({
+            definitions,
+            simulatorType,
+            usedFallback: normalizedDefinitions.length === 0,
+        });
     } catch (error: unknown) {
         return internalServerError("Error fetching simulation fields:", error);
     }

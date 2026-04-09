@@ -20,8 +20,14 @@ export async function PUT(
             return errorResponse;
         }
 
-        const body = (await request.json()) as { question_id?: unknown };
-        const updateData: { question_id?: string } = {};
+        const body = (await request.json()) as {
+            question_id?: unknown;
+            show_expected_answers_in_evaluation?: unknown;
+        };
+        const updateData: {
+            question_id?: string;
+            show_expected_answers_in_evaluation?: boolean;
+        } = {};
 
         if (body.question_id !== undefined) {
             const questionId = asNonEmptyString(body.question_id);
@@ -49,6 +55,17 @@ export async function PUT(
             }
 
             updateData.question_id = questionId;
+        }
+
+        if (body.show_expected_answers_in_evaluation !== undefined) {
+            if (typeof body.show_expected_answers_in_evaluation !== "boolean") {
+                return badRequest(
+                    "show_expected_answers_in_evaluation must be a boolean",
+                );
+            }
+
+            updateData.show_expected_answers_in_evaluation =
+                body.show_expected_answers_in_evaluation;
         }
 
         if (Object.keys(updateData).length === 0) {

@@ -295,6 +295,7 @@ export async function GET(request: Request) {
                 submodule_name: string;
                 users: Map<string, {
                     user_id: string;
+                    full_name: string;
                     email: string;
                     questions: Map<string, {
                         question_id: string;

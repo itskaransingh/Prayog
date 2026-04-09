@@ -2,82 +2,44 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { RegistrationPayload } from "@/lib/simulation/answer-field-generator";
+import {
+    resolveRegistrationFieldDefinitions,
+    type RegistrationPayload,
+    type SimulationFieldDefinition,
+} from "@/lib/simulation/answer-field-generator";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 
 import type { QAEditorProps } from "./types";
 
-const ITR_FIELD_PATHS = [
-    "registerAs",
-    "pan",
-    "personalDetails.firstName",
-    "personalDetails.middleName",
-    "personalDetails.lastName",
-    "personalDetails.dob",
-    "personalDetails.gender",
-    "personalDetails.residentialStatus",
-    "addressDetails.flatDoorNo",
-    "addressDetails.road",
-    "addressDetails.area",
-    "addressDetails.postOffice",
-    "addressDetails.city",
-    "addressDetails.state",
-    "addressDetails.pincode",
-    "contactDetails.mobile",
-    "contactDetails.email",
-    "contactDetails.alternateContact",
-    "contactDetails.mobileBelongsTo",
-    "contactDetails.emailBelongsTo",
-] as const;
-
-const EPAN_FIELD_PATHS = [
-    "fullName",
-    "dob",
-    "gender",
-    "mobile",
-    "email",
-    "address",
-    "aadhaarNumber",
-] as const;
-
 interface RegistrationRowState {
     fieldPath: string;
+    fieldLabel: string;
+    fieldGroup: string | null;
+    helpText: string | null;
     expectedValue: string;
     included: boolean;
 }
 
-function fieldPathToLabel(fieldPath: string) {
-    const lastSegment = fieldPath.split(".").at(-1) ?? fieldPath;
-    return lastSegment
-        .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-        .replace(/^./, (character) => character.toUpperCase());
-}
-
-function getFieldPaths(simulatorType: QAEditorProps["simulatorType"]) {
-    if (simulatorType === "itr_registration") {
-        return [...ITR_FIELD_PATHS];
-    }
-
-    return [...EPAN_FIELD_PATHS];
-}
-
 function createRows(
-    simulatorType: QAEditorProps["simulatorType"],
+    definitions: SimulationFieldDefinition[],
     payload: RegistrationPayload | null,
 ): RegistrationRowState[] {
     const fieldMap = new Map(
         payload?.fields.map((field) => [field.fieldPath, field.expectedValue]) ?? [],
     );
 
-    return getFieldPaths(simulatorType).map((fieldPath) => {
-        const expectedValue = fieldMap.get(fieldPath) ?? "";
+    return definitions.map((definition) => {
+        const expectedValue = fieldMap.get(definition.fieldName) ?? "";
 
         return {
-            fieldPath,
+            fieldPath: definition.fieldName,
+            fieldLabel: definition.fieldLabel,
+            fieldGroup: definition.fieldGroup,
+            helpText: definition.helpText,
             expectedValue,
-            included: fieldMap.has(fieldPath),
+            included: fieldMap.has(definition.fieldName),
         };
     });
 }
@@ -118,6 +80,19 @@ function getRowsSignature(rows: RegistrationRowState[]): string {
     );
 }
 
+function getDefinitionsSignature(definitions: SimulationFieldDefinition[]): string {
+    return JSON.stringify(
+        definitions.map((definition) => ({
+            fieldName: definition.fieldName,
+            fieldLabel: definition.fieldLabel,
+            fieldGroup: definition.fieldGroup,
+            helpText: definition.helpText,
+            sortOrder: definition.sortOrder,
+            isActive: definition.isActive,
+        })),
+    );
+}
+
 export function RegistrationEditor({
     simulatorType,
     initialPayload,
@@ -126,13 +101,110 @@ export function RegistrationEditor({
 }: QAEditorProps) {
     const startingPayload =
         initialPayload?.type === "registration" ? initialPayload : null;
+    const [fieldDefinitions, setFieldDefinitions] = useState<SimulationFieldDefinition[]>(
+        () =>
+            simulatorType === "itr_registration" || simulatorType === "epan_registration"
+                ? resolveRegistrationFieldDefinitions(simulatorType)
+                : [],
+    );
+    const [isLoadingDefinitions, setIsLoadingDefinitions] = useState(false);
+    const [definitionsError, setDefinitionsError] = useState<string | null>(null);
     const [rows, setRows] = useState<RegistrationRowState[]>(
-        createRows(simulatorType, startingPayload),
+        createRows(fieldDefinitions, startingPayload),
+    );
+    const lastAppliedDefinitionsSignatureRef = useRef(
+        getDefinitionsSignature(fieldDefinitions),
     );
     const lastIncomingSignatureRef = useRef(
         getPayloadSignature(startingPayload, simulatorType),
     );
     const lastEmittedSignatureRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (
+            simulatorType !== "itr_registration" &&
+            simulatorType !== "epan_registration"
+        ) {
+            setFieldDefinitions([]);
+            return;
+        }
+
+        const registrationSimulatorType = simulatorType;
+
+        let cancelled = false;
+
+        async function fetchDefinitions() {
+            setIsLoadingDefinitions(true);
+            setDefinitionsError(null);
+
+            try {
+                const response = await fetch(
+                    `/api/admin/simulation-fields?simulatorType=${simulatorType}`,
+                );
+                const data = (await response.json()) as {
+                    definitions?: SimulationFieldDefinition[];
+                    error?: string;
+                };
+
+                if (!response.ok) {
+                    throw new Error(
+                        data.error || "Failed to load registration field definitions",
+                    );
+                }
+
+                if (!cancelled) {
+                    setFieldDefinitions(
+                        resolveRegistrationFieldDefinitions(
+                            registrationSimulatorType,
+                            data.definitions ?? [],
+                        ),
+                    );
+                }
+            } catch (error: unknown) {
+                if (!cancelled) {
+                    setDefinitionsError(
+                        error instanceof Error
+                            ? error.message
+                            : "Failed to load registration field definitions",
+                    );
+                    setFieldDefinitions(
+                        resolveRegistrationFieldDefinitions(registrationSimulatorType),
+                    );
+                }
+            } finally {
+                if (!cancelled) {
+                    setIsLoadingDefinitions(false);
+                }
+            }
+        }
+
+        void fetchDefinitions();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [simulatorType]);
+
+    useEffect(() => {
+        const nextIncomingSignature = getPayloadSignature(
+            startingPayload,
+            simulatorType,
+        );
+        const nextDefinitionsSignature = getDefinitionsSignature(fieldDefinitions);
+        const incomingChanged =
+            lastIncomingSignatureRef.current !== nextIncomingSignature;
+        const definitionsChanged =
+            lastAppliedDefinitionsSignatureRef.current !== nextDefinitionsSignature;
+
+        if (!incomingChanged && !definitionsChanged) {
+            return;
+        }
+
+        lastIncomingSignatureRef.current = nextIncomingSignature;
+        lastAppliedDefinitionsSignatureRef.current = nextDefinitionsSignature;
+        lastEmittedSignatureRef.current = null;
+        setRows(createRows(fieldDefinitions, startingPayload));
+    }, [fieldDefinitions, simulatorType, startingPayload]);
 
     useEffect(() => {
         const nextPayload = toPayload(rows);
@@ -172,6 +244,12 @@ export function RegistrationEditor({
                         Choose which fields should be evaluated and provide their expected
                         values.
                     </p>
+                    {definitionsError ? (
+                        <p className="text-xs text-amber-600">
+                            Metadata lookup failed, so the editor is using fallback field
+                            definitions for now.
+                        </p>
+                    ) : null}
                 </div>
                 <Badge variant="secondary">{includedCount} included</Badge>
             </div>
@@ -185,21 +263,37 @@ export function RegistrationEditor({
                     <div>Include</div>
                 </div>
 
+                {isLoadingDefinitions && rows.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+                        Loading approved registration fields...
+                    </div>
+                ) : null}
+
                 {rows.map((row, index) => (
                     <div
                         key={row.fieldPath}
                         className="grid grid-cols-1 gap-3 rounded-2xl border border-border/60 bg-background/60 p-3 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)_72px] md:items-center"
                     >
                         <div className="space-y-1">
-                            <p className="text-sm font-medium">{fieldPathToLabel(row.fieldPath)}</p>
+                            <p className="text-sm font-medium">{row.fieldLabel}</p>
+                            {row.fieldGroup ? (
+                                <p className="text-xs text-muted-foreground">
+                                    {row.fieldGroup}
+                                </p>
+                            ) : null}
                             <p className="text-xs text-muted-foreground">{row.fieldPath}</p>
+                            {row.helpText ? (
+                                <p className="text-xs text-muted-foreground">
+                                    {row.helpText}
+                                </p>
+                            ) : null}
                         </div>
                         <Input
                             value={row.expectedValue}
                             onChange={(event) =>
                                 updateRow(index, { expectedValue: event.target.value })
                             }
-                            placeholder={`Expected ${fieldPathToLabel(row.fieldPath)}`}
+                            placeholder={`Expected ${row.fieldLabel}`}
                             disabled={disabled || !row.included}
                         />
                         <label className="flex items-center gap-2 text-sm font-medium md:justify-center">
