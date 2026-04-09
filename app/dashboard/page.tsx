@@ -34,6 +34,7 @@ interface SimulationAttempt {
     attempt_id: string;
     question_attempt_id: string;
     user_id: string;
+    full_name: string;
     email: string;
     module_id: string;
     module_name: string;
@@ -61,6 +62,7 @@ interface GroupedQuestion {
 
 interface GroupedUser {
     user_id: string;
+    full_name: string;
     email: string;
     questions: GroupedQuestion[];
 }
@@ -76,6 +78,7 @@ interface GroupedSubmodule {
 interface AdminUserRecord {
     id: string;
     email: string;
+    full_name: string | null;
     role: string;
     created_at: string;
 }
@@ -357,6 +360,7 @@ export default function AdminDashboard() {
                                             <table className="w-full text-sm text-left">
                                                 <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                                                     <tr>
+                                                        <th className="px-6 py-3 font-medium">Full Name</th>
                                                         <th className="px-6 py-3 font-medium">Email</th>
                                                         <th className="px-6 py-3 font-medium">Role</th>
                                                         <th className="px-6 py-3 font-medium">Created At</th>
@@ -365,6 +369,9 @@ export default function AdminDashboard() {
                                                 <tbody className="divide-y divide-slate-100">
                                                     {users.map((user) => (
                                                         <tr key={user.id} className="hover:bg-slate-50/50">
+                                                            <td className="px-6 py-3 font-medium text-slate-900">
+                                                                {user.full_name?.trim() || user.email.split("@")[0]}
+                                                            </td>
                                                             <td className="px-6 py-3 font-medium text-slate-900">{user.email}</td>
                                                             <td className="px-6 py-3">
                                                                 <span className={`px-2.5 py-1 inline-flex text-[10px] leading-4 font-semibold rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
@@ -491,6 +498,9 @@ export default function AdminDashboard() {
                                                             <div className="flex flex-wrap items-center justify-between gap-3">
                                                                 <div>
                                                                     <p className="text-base font-semibold text-slate-900">
+                                                                        {groupedUser.full_name}
+                                                                    </p>
+                                                                    <p className="text-sm text-slate-500">
                                                                         {groupedUser.email}
                                                                     </p>
                                                                     <p className="text-sm text-slate-500">

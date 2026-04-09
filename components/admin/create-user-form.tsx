@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, UserPlus, CheckCircle2, AlertCircle } from "lucide-react";
 
 export function CreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
+    const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [role, setRole] = useState("user");
@@ -26,7 +27,7 @@ export function CreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ email, password, role }),
+                body: JSON.stringify({ fullName, email, password, role }),
             });
 
             const data = await response.json();
@@ -36,14 +37,18 @@ export function CreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
             }
 
             setMessage({ type: "success", text: "User created successfully!" });
+            setFullName("");
             setEmail("");
             setPassword("");
             setRole("user");
             if (onSuccess) {
                 onSuccess();
             }
-        } catch (error: any) {
-            setMessage({ type: "error", text: error.message });
+        } catch (error: unknown) {
+            setMessage({
+                type: "error",
+                text: error instanceof Error ? error.message : "Failed to create user",
+            });
         } finally {
             setIsLoading(false);
         }
@@ -62,6 +67,18 @@ export function CreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="full-name">Full Name</Label>
+                        <Input
+                            id="full-name"
+                            type="text"
+                            placeholder="Student Name"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            required
+                            disabled={isLoading}
+                        />
+                    </div>
                     <div className="space-y-2">
                         <Label htmlFor="email">Email Address</Label>
                         <Input

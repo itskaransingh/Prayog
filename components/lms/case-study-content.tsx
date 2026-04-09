@@ -318,12 +318,8 @@ export function CaseStudyContent({
             )}
 
             <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 p-4 backdrop-blur-md shadow-2xl">
-                <div className="flex container mx-auto items-center justify-center gap-4">
-                    <div className="flex items-center justify-center gap-4">
-                        <div className="hidden lg:block text-right mr-4">
-                            <p className="text-sm font-bold text-foreground">Ready to begin?</p>
-                            <p className="text-xs text-muted-foreground">Approx. 15-20 mins</p>
-                        </div>
+                <div className="flex container mx-auto items-center justify-between gap-4 px-4 md:px-6">
+                    <div className="flex items-center gap-4 ml-4 md:ml-8">
                         {hasQuestions && (
                             <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-2 shadow-sm">
                                 <Button
@@ -348,6 +344,8 @@ export function CaseStudyContent({
                                 </Button>
                             </div>
                         )}
+                    </div>
+                    <div className="flex items-center gap-4">
                         {activeQuestion && !(activeQuestion.video_url || activeQuestion.link_url) && (
                             <Button
                                 size="lg"

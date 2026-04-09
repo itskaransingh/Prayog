@@ -39,6 +39,14 @@ type JoinedAttemptRow = {
     } | null;
 };
 
+function deriveFullName(email: string | null | undefined) {
+    if (!email) {
+        return "Unknown User";
+    }
+
+    return email.split("@")[0]?.trim() || email;
+}
+
 function getFirst<T>(value: T | T[] | null | undefined): T | null {
     if (Array.isArray(value)) {
         return value[0] ?? null;
@@ -157,15 +165,19 @@ export async function GET(request: Request) {
             ),
         );
 
-        const profileMap: Record<string, string> = {};
+        const profileMap: Record<string, { email: string; full_name: string }> = {};
         if (userIds.length > 0) {
             const { data: profiles } = await supabaseAdmin
                 .from("profiles")
-                .select("id, email")
+                .select("id, email, full_name")
                 .in("id", userIds);
 
             (profiles ?? []).forEach((item) => {
-                profileMap[item.id] = item.email || "Unknown";
+                const email = item.email || "Unknown";
+                profileMap[item.id] = {
+                    email,
+                    full_name: item.full_name?.trim() || deriveFullName(item.email),
+                };
             });
         }
 
@@ -182,10 +194,12 @@ export async function GET(request: Request) {
                 }
 
                 return {
+                    full_name:
+                        profileMap[simulationAttempt.user_id]?.full_name || "Unknown User",
                     question_attempt_id: attempt.id,
                     attempt_id: simulationAttempt.id,
                     user_id: simulationAttempt.user_id,
-                    email: profileMap[simulationAttempt.user_id] || "Unknown",
+                    email: profileMap[simulationAttempt.user_id]?.email || "Unknown",
                     module_id: moduleRecord?.id || "",
                     module_name: moduleRecord?.title || "Unknown",
                     submodule_id: submodule.id,
@@ -239,6 +253,7 @@ export async function GET(request: Request) {
                         string,
                         {
                             user_id: string;
+                            full_name: string;
                             email: string;
                             questions: Map<
                                 string,
@@ -255,6 +270,7 @@ export async function GET(request: Request) {
 
                 const existingUser = existingSubmodule.users.get(attempt.user_id) ?? {
                     user_id: attempt.user_id,
+                    full_name: attempt.full_name,
                     email: attempt.email,
                     questions: new Map(),
                 };
@@ -298,6 +314,7 @@ export async function GET(request: Request) {
                 .sort((left, right) => left.email.localeCompare(right.email))
                 .map((groupedUser) => ({
                     user_id: groupedUser.user_id,
+                    full_name: groupedUser.full_name,
                     email: groupedUser.email,
                     questions: Array.from(groupedUser.questions.values())
                         .map((question) => ({

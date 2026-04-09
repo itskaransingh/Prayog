@@ -3,6 +3,10 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+function deriveFullName(email: string) {
+    return email.split("@")[0]?.trim() || email.trim();
+}
+
 export async function POST(request: Request) {
     try {
         const cookieStore = await cookies();
@@ -47,11 +51,13 @@ export async function POST(request: Request) {
         }
 
         // 3. Parse request body
-        const { email, password, role } = await request.json();
+        const { email, password, role, fullName } = await request.json();
 
         if (!email || !password || !role) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
+
+        const normalizedFullName = (typeof fullName === "string" ? fullName.trim() : "") || deriveFullName(email);
 
         // 4. Create user using Admin Client
         const supabaseAdmin = createAdminClient();
@@ -75,6 +81,7 @@ export async function POST(request: Request) {
             .insert({
                 id: newUser.user.id,
                 email: newUser.user.email,
+                full_name: normalizedFullName,
                 role: role,
             });
 
@@ -85,7 +92,7 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json({ message: "User created successfully", user: newUser.user });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("User creation error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }

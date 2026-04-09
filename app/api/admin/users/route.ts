@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export async function GET(request: Request) {
+export async function GET() {
     try {
         const cookieStore = await cookies();
         const supabase = createServerClient(
@@ -48,7 +48,7 @@ export async function GET(request: Request) {
         const supabaseAdmin = createAdminClient();
         const { data: users, error: fetchError } = await supabaseAdmin
             .from("profiles")
-            .select("id, email, role, created_at")
+            .select("id, email, full_name, role, created_at")
             .order("created_at", { ascending: false });
 
         if (fetchError) {
@@ -56,7 +56,7 @@ export async function GET(request: Request) {
         }
 
         return NextResponse.json({ users });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Users fetch error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
