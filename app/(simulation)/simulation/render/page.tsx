@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { LogOut, ChevronDown } from "lucide-react";
 
+import { PrayogLogo } from "@/components/branding/prayog-logo";
+import { DraggableCalculator } from "@/components/simulation/shared/draggable-calculator";
 import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
-import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { evaluateRegistration, type EvaluationResult } from "@/lib/evaluation";
 import {
@@ -53,10 +54,6 @@ function extractContentCells(row: string[]): string[] {
 function getQuestionBadge(questionId: string | null): string {
     if (!questionId) return "Question";
     return `Question No: ${questionId.slice(0, 8).toUpperCase()}`;
-}
-
-function normalizeLabel(value: string): string {
-    return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ");
 }
 
 function FinancialAccountingSimulationPageInner() {
@@ -120,7 +117,7 @@ function FinancialAccountingSimulationPageInner() {
             const endTime = Date.now();
 
             // FIX: Renamed 'fieldId' to 'fieldPath' to prevent the .split() error in evaluation.ts
-            const mappings = renderedRows
+            const mappings: PersistableEvaluationMapping[] = renderedRows
                 .filter(r => r.field)
                 .map(r => ({
                     fieldPath: r.field!.id,
@@ -129,7 +126,7 @@ function FinancialAccountingSimulationPageInner() {
                     weight: 1,
                 }));
 
-            const results = evaluateRegistration(selectedAnswers, startedAt, endTime, mappings as any);
+            const results = evaluateRegistration(selectedAnswers, startedAt, endTime, mappings);
             setEvaluationResults(results);
             setShowEvaluation(true);
 
@@ -168,8 +165,6 @@ function FinancialAccountingSimulationPageInner() {
                 .rci-header { position: sticky; top: 0; z-index: 50; width: 100%; background: #ffffff; border-bottom: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
                 .rci-header-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
                 .rci-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-                .rci-logo-icon { width: 32px; height: 32px; background: #1e40af; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 14px; }
-                .rci-logo-name { font-size: 16px; font-weight: 700; color: #1e293b; }
                 .rci-header-badge { border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px 14px; font-size: 13px; font-weight: 600; color: #334155; background: #fff; }
                 .rci-header-right { display: flex; align-items: center; gap: 16px; }
                 .rci-question-badge { border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px 14px; font-size: 13px; font-weight: 600; color: #334155; background: #fff; }
@@ -209,8 +204,7 @@ function FinancialAccountingSimulationPageInner() {
                     <div className="rci-header-inner">
                         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                             <Link href="/" className="rci-logo">
-                                <div className="rci-logo-icon">P</div>
-                                <span className="rci-logo-name">Prayog</span>
+                                <PrayogLogo className="h-14 w-[228px]" priority />
                             </Link>
                             <div className="rci-header-badge">{questionTitle}</div>
                         </div>
@@ -281,6 +275,7 @@ function FinancialAccountingSimulationPageInner() {
                     results={evaluationResults}
                     showExpectedValues={false}
                 />
+                <DraggableCalculator />
             </div>
         </>
     );

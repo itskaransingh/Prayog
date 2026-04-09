@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveSimulationAttempt } from "@/lib/simulation/attempts";
+import { PrayogLogo } from "@/components/branding/prayog-logo";
+import { DraggableCalculator } from "@/components/simulation/shared/draggable-calculator";
 import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
 import {
   buildFSAttemptAnswers,
@@ -276,6 +278,7 @@ function FinancialStatementContent() {
         results={evaluation}
         variant="fs"
       />
+      <DraggableCalculator />
     </>
   );
 }
@@ -303,7 +306,7 @@ function FSHeader({ questionNo }: { questionNo: string }) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <NergyVidyaLogo />
+          <PrayogLogo className="h-14 w-[228px]" priority />
           <span
             style={{
               border: "1px solid #c7d2de",
@@ -331,25 +334,6 @@ function FSHeader({ questionNo }: { questionNo: string }) {
         </div>
       </div>
     </header>
-  );
-}
-
-// ─── Nergy Vidya Logo ──────────────────────────────────────────────────────────
-function NergyVidyaLogo() {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
-      <svg width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="34" height="34" rx="6" fill="#1a3a5c" />
-        <rect x="5" y="19" width="4" height="10" rx="1" fill="white" opacity="0.9" />
-        <rect x="11" y="14" width="4" height="15" rx="1" fill="white" opacity="0.9" />
-        <rect x="17" y="9" width="4" height="20" rx="1" fill="white" opacity="0.9" />
-        <rect x="23" y="5" width="4" height="24" rx="1" fill="white" opacity="0.9" />
-      </svg>
-      <div style={{ lineHeight: 1.2 }}>
-        <div style={{ fontWeight: "700", color: "#1a3a5c", fontSize: "13px" }}>Prayog</div>
-        <div style={{ fontWeight: "400", color: "#5a7a9c", fontSize: "11px" }}></div>
-      </div>
-    </div>
   );
 }
 

@@ -1,11 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { LmsBreadcrumbs } from "@/components/lms/lms-breadcrumbs";
 import { BookOpen, ClipboardList } from "lucide-react";
 import Link from "next/link";
 
 export default function OfferingsPage() {
     return (
         <div className="flex flex-1  container mx-auto flex-col gap-6 p-6">
+            <LmsBreadcrumbs items={[{ label: "Prayog Offerings" }]} />
+
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">

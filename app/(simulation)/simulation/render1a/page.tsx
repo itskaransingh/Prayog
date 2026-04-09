@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveSimulationAttempt } from "@/lib/simulation/attempts";
+import { PrayogLogo } from "@/components/branding/prayog-logo";
+import { DraggableCalculator } from "@/components/simulation/shared/draggable-calculator";
 import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
 import {
     buildGridEvaluationResult,
@@ -199,8 +201,7 @@ function JournalEntryContent() {
             <header style={{ background: "#fff", borderBottom: "1px solid #e2e6ea", padding: "12px 24px" }}>
                 <div style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <div style={{ background: "#1a3a5c", color: "#fff", padding: "4px 10px", borderRadius: "6px", fontWeight: "bold" }}>P</div>
-                        <span style={{ fontWeight: "bold", color: "#1a3a5c" }}>Prayog</span>
+                        <PrayogLogo className="h-14 w-[228px]" priority />
                     </div>
                     <div style={{ display: "flex", gap: "10px" }}>
                         <span style={{ border: "1px solid #1a3a5c", padding: "4px 12px", borderRadius: "20px", fontSize: "12px" }}>ID: {questionId}</span>
@@ -298,6 +299,7 @@ function JournalEntryContent() {
             </main>
 
             <EvaluationPopup open={showEval} onClose={() => setShowEval(false)} results={evaluation} variant="grid" />
+            <DraggableCalculator />
         </div>
     );
 }

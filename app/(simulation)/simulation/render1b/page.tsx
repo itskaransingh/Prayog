@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveSimulationAttempt } from "@/lib/simulation/attempts";
+import { PrayogLogo } from "@/components/branding/prayog-logo";
+import { DraggableCalculator } from "@/components/simulation/shared/draggable-calculator";
 import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
 import {
   buildGridEvaluationResult,
@@ -335,6 +337,7 @@ function LedgerCreationContent() {
           results={evaluation}
           variant="grid"
         />
+        <DraggableCalculator />
       </>
     );
   }
@@ -362,6 +365,7 @@ function LedgerCreationContent() {
         results={evaluation}
         variant="grid"
       />
+      <DraggableCalculator />
     </>
   );
 }
@@ -391,41 +395,7 @@ function LedgerHeader({
       >
         {/* Left: Logo + Ledger badge */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {/* Logo mark */}
-          <div
-            style={{
-              width: "36px",
-              height: "36px",
-              background: "#1a3a5c",
-              borderRadius: "8px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexDirection: "column",
-              padding: "3px",
-              boxSizing: "border-box",
-            }}
-          >
-            {/* Simple book icon via CSS */}
-            <div
-              style={{
-                width: "18px",
-                height: "14px",
-                border: "2px solid #fff",
-                borderRadius: "1px 3px 3px 1px",
-                borderLeft: "3px solid #fff",
-                position: "relative",
-              }}
-            />
-          </div>
-          <div style={{ lineHeight: 1.1 }}>
-            <div style={{ fontWeight: "700", color: "#1a3a5c", fontSize: "14px" }}>
-              Prayog
-            </div>
-            <div style={{ fontWeight: "700", color: "#1a3a5c", fontSize: "14px" }}>
-
-            </div>
-          </div>
+          <PrayogLogo className="h-14 w-[228px]" priority />
           {/* Ledger badge */}
           <span
             style={{

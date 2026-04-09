@@ -3,7 +3,6 @@ import {
     getCachedModuleById,
     getCachedQuestionsBySubmodule,
     getCachedSubmoduleBySlug,
-    getCachedSubmodules,
 } from "@/lib/supabase/lms-cache";
 import type { Submodule } from "@/lib/supabase/modules";
 import { notFound } from "next/navigation";
@@ -18,36 +17,20 @@ export default async function CoursePage({ params }: CoursePageProps) {
     const { submoduleSlug } = await params;
     let submodule: Submodule;
     let questions;
-    let prevSubmodule: { title: string; slug: string } | null = null;
-    let nextSubmodule: { title: string; slug: string } | null = null;
     let moduleSlug = "";
+    let moduleTitle = "";
 
     try {
         submodule = await getCachedSubmoduleBySlug(submoduleSlug);
 
-        const [questionList, allSubmodules, parentModule] = await Promise.all([
+        const [questionList, parentModule] = await Promise.all([
             getCachedQuestionsBySubmodule(submodule.id),
-            getCachedSubmodules(submodule.module_id),
             getCachedModuleById(submodule.module_id),
         ]);
 
         questions = questionList;
-
-        // Fetch all submodules to find next/prev
-        const currentIndex = allSubmodules.findIndex(s => s.id === submodule.id);
-        
-        if (currentIndex > 0) {
-            const prev = allSubmodules[currentIndex - 1];
-            prevSubmodule = { title: prev.title, slug: prev.slug };
-        }
-        
-        if (currentIndex < allSubmodules.length - 1) {
-            const next = allSubmodules[currentIndex + 1];
-            nextSubmodule = { title: next.title, slug: next.slug };
-        }
-
-        // Get module slug for URL generation if needed
         moduleSlug = parentModule.slug;
+        moduleTitle = parentModule.title;
 
     } catch (error) {
         const code = typeof error === "object" && error !== null && "code" in error
@@ -64,11 +47,14 @@ export default async function CoursePage({ params }: CoursePageProps) {
     return (
         <CaseStudyContent
             title={`Case Study: ${submodule.title}`}
-            breadcrumb={`Registration > ${submodule.title}`}
+            breadcrumbs={[
+                { label: "Prayog Offerings", href: "/offerings" },
+                { label: "Learning Contents", href: "/learning-contents" },
+                { label: moduleTitle, href: `/learning-contents/${moduleSlug}` },
+                { label: submodule.title },
+            ]}
             questions={questions}
             submoduleSlug={submodule.slug}
-            prevSubmodule={prevSubmodule}
-            nextSubmodule={nextSubmodule}
             moduleSlug={moduleSlug}
         />
     );

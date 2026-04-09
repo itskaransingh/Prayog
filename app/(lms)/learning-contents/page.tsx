@@ -3,12 +3,20 @@ import { Progress } from "@/components/ui/progress";
 import { getModulePresentation } from "@/lib/learning-contents";
 import { getCachedModules } from "@/lib/supabase/lms-cache";
 import Link from "next/link";
+import { LmsBreadcrumbs } from "@/components/lms/lms-breadcrumbs";
 
 export default async function LearningContentsPage() {
     const modules = await getCachedModules();
 
     return (
         <div className="flex flex-1 flex-col gap-6 p-6 w-full container mx-auto">
+            <LmsBreadcrumbs
+                items={[
+                    { label: "Prayog Offerings", href: "/offerings" },
+                    { label: "Learning Contents" },
+                ]}
+            />
+
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">

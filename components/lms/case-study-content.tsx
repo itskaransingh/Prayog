@@ -8,20 +8,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { getSubmoduleHref } from "@/lib/learning-contents";
+import { LmsBreadcrumbs } from "@/components/lms/lms-breadcrumbs";
 import {
     COURSE_TOPIC_CHANGE_EVENT,
+    dispatchCourseTopicChange,
     type CourseTopicChangeDetail,
 } from "@/lib/lms/task-navigation";
 
 interface CaseStudyContentProps {
     title: string;
-    breadcrumb: string;
+    breadcrumbs: { label: string; href?: string }[];
     questions: Question[];
     submoduleSlug: string;
-    prevSubmodule?: { title: string; slug: string } | null;
-    nextSubmodule?: { title: string; slug: string } | null;
     moduleSlug?: string;
 }
 
@@ -132,11 +130,9 @@ function QuestionTable({ tableData }: { tableData: QuestionTableData }) {
 
 export function CaseStudyContent({
     title,
-    breadcrumb,
+    breadcrumbs,
     questions,
     submoduleSlug,
-    prevSubmodule,
-    nextSubmodule,
     moduleSlug,
 }: CaseStudyContentProps) {
     const searchParams = useSearchParams();
@@ -172,16 +168,41 @@ export function CaseStudyContent({
         : null;
 
     const activeQuestion = selectedQuestion ?? (questions.length > 0 ? questions[0] : null);
+    const activeQuestionIndex = activeQuestion
+        ? questions.findIndex((question) => question.id === activeQuestion.id)
+        : -1;
 
     const hasQuestions = questions.length > 0;
+
+    const goToQuestion = React.useCallback((questionId: string) => {
+        if (typeof window === "undefined") return;
+
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set("qid", questionId);
+
+        const query = currentUrl.searchParams.toString();
+        const nextUrl = query ? `${currentUrl.pathname}?${query}` : currentUrl.pathname;
+
+        window.history.pushState({}, "", nextUrl);
+        setActiveQid(questionId);
+        dispatchCourseTopicChange(questionId);
+    }, []);
+
+    const previousQuestion = activeQuestionIndex > 0 ? questions[activeQuestionIndex - 1] : null;
+    const nextQuestion = activeQuestionIndex >= 0 && activeQuestionIndex < questions.length - 1
+        ? questions[activeQuestionIndex + 1]
+        : null;
 
     return (
         <div className="flex container mx-auto flex-1 flex-col gap-6 p-6 pb-32">
             <div>
+                <LmsBreadcrumbs items={breadcrumbs} />
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
-                <p className="text-muted-foreground mt-1 text-sm">
-                    {breadcrumb}
-                </p>
+                {activeQuestion && (
+                    <p className="text-muted-foreground mt-1 text-sm">
+                        Task {activeQuestionIndex + 1} of {questions.length}
+                    </p>
+                )}
             </div>
 
             <Separator className="bg-border" />
@@ -247,23 +268,36 @@ export function CaseStudyContent({
             )}
 
             <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 p-4 backdrop-blur-md shadow-2xl">
-                <div className="flex container mx-auto items-center justify-between gap-4">
-                    <div className="flex flex-1 items-center justify-start">
-                        {prevSubmodule && moduleSlug && (
-                            <Link href={getSubmoduleHref(moduleSlug, prevSubmodule.slug)} className="max-w-[150px] sm:max-w-[200px]">
-                                <Button variant="outline" size="sm" className="w-full flex gap-2 justify-start border-muted-foreground/20 hover:border-primary/50 text-foreground">
-                                    <ChevronLeft className="size-4 shrink-0" />
-                                    <span className="truncate">{prevSubmodule.title}</span>
-                                </Button>
-                            </Link>
-                        )}
-                    </div>
-
-                    <div className="flex flex-[2] items-center justify-center gap-4">
+                <div className="flex container mx-auto items-center justify-center gap-4">
+                    <div className="flex items-center justify-center gap-4">
                         <div className="hidden lg:block text-right mr-4">
                             <p className="text-sm font-bold text-foreground">Ready to begin?</p>
                             <p className="text-xs text-muted-foreground">Approx. 15-20 mins</p>
                         </div>
+                        {hasQuestions && (
+                            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-2 py-2 shadow-sm">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-2"
+                                    disabled={!previousQuestion}
+                                    onClick={() => previousQuestion && goToQuestion(previousQuestion.id)}
+                                >
+                                    <ChevronLeft className="size-4" />
+                                    Previous
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-2"
+                                    disabled={!nextQuestion}
+                                    onClick={() => nextQuestion && goToQuestion(nextQuestion.id)}
+                                >
+                                    Next
+                                    <ChevronRight className="size-4" />
+                                </Button>
+                            </div>
+                        )}
                         {activeQuestion && !(activeQuestion.video_url || activeQuestion.link_url) && (
                             <Button
                                 size="lg"
@@ -312,17 +346,6 @@ export function CaseStudyContent({
                             >
                                 Start Task <ArrowRight className="size-4" />
                             </Button>
-                        )}
-                    </div>
-
-                    <div className="flex flex-1 items-center justify-end">
-                        {nextSubmodule && moduleSlug && (
-                            <Link href={getSubmoduleHref(moduleSlug, nextSubmodule.slug)} className="max-w-[150px] sm:max-w-[200px]">
-                                <Button variant="outline" size="sm" className="w-full flex gap-2 justify-end border-muted-foreground/20 hover:border-primary/50 text-foreground">
-                                    <span className="truncate">{nextSubmodule.title}</span>
-                                    <ChevronRight className="size-4 shrink-0" />
-                                </Button>
-                            </Link>
                         )}
                     </div>
                 </div>
