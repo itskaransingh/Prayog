@@ -4,6 +4,11 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 
 import type { QuestionTableData, Question } from "@/lib/supabase/questions";
+import {
+    getQuestionTypeLabel,
+    isTaskQuestionType,
+} from "@/lib/questions/types";
+import { sanitizeRichTextHtml } from "@/lib/questions/rich-text";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Play } from "lucide-react";
@@ -83,6 +88,15 @@ function GDriveLink({ url, title }: { url: string; title?: string | null }) {
                 </Button>
             </CardContent>
         </Card>
+    );
+}
+
+function ResourceDescription({ html }: { html: string }) {
+    return (
+        <div
+            className="prose prose-slate max-w-none text-slate-700 prose-p:my-2 prose-ul:my-2 prose-ol:my-2"
+            dangerouslySetInnerHTML={{ __html: sanitizeRichTextHtml(html) }}
+        />
     );
 }
 
@@ -259,22 +273,37 @@ export function CaseStudyContent({
 
             {hasQuestions && activeQuestion ? (
                 <div key={activeQuestion.id} id={`question-${activeQuestion.id}`} className="flex flex-col gap-6">
-                    <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-900/10">
-                        <CardContent className="pt-6">
-                            <p className="text-lg leading-relaxed text-blue-900 dark:text-blue-200">
-                                {activeQuestion.paragraph}
-                            </p>
-                        </CardContent>
-                    </Card>
+                    {isTaskQuestionType(activeQuestion.type) && activeQuestion.paragraph && (
+                        <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-900/10">
+                            <CardContent className="pt-6">
+                                <p className="text-lg leading-relaxed text-blue-900 dark:text-blue-200">
+                                    {activeQuestion.paragraph}
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    {activeQuestion.has_table && activeQuestion.table_data && (
+                    {!isTaskQuestionType(activeQuestion.type) &&
+                        activeQuestion.resource_description && (
+                            <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-900/10">
+                                <CardContent className="pt-6">
+                                    <ResourceDescription html={activeQuestion.resource_description} />
+                                </CardContent>
+                            </Card>
+                        )}
+
+                    {isTaskQuestionType(activeQuestion.type) &&
+                        activeQuestion.has_table &&
+                        activeQuestion.table_data && (
                         <Card className="border-border bg-card">
                             <CardContent className="pt-6">
                                 <QuestionTable tableData={activeQuestion.table_data} />
                             </CardContent>
                         </Card>
                     )}
-                    {activeQuestion.has_image && activeQuestion.image_url && (
+                    {isTaskQuestionType(activeQuestion.type) &&
+                        activeQuestion.has_image &&
+                        activeQuestion.image_url && (
                         <Card className="border-border bg-card">
                             <CardContent className="pt-6">
                                 <div className="overflow-hidden rounded-lg border border-border bg-background">
@@ -289,21 +318,21 @@ export function CaseStudyContent({
                         </Card>
                     )}
 
-                    {activeQuestion.video_url && (
+                    {activeQuestion.type === "video" && activeQuestion.video_url && (
                         <div className="flex flex-col gap-3">
                             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground ml-1">
                                 <Play className="size-4" />
-                                <span>Video Content</span>
+                                <span>{getQuestionTypeLabel(activeQuestion.type)}</span>
                             </div>
                             <YoutubeEmbed url={activeQuestion.video_url} />
                         </div>
                     )}
 
-                    {activeQuestion.link_url && (
+                    {activeQuestion.type === "document" && activeQuestion.link_url && (
                         <div className="flex flex-col gap-3">
                             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground ml-1">
                                 <ExternalLink className="size-4" />
-                                <span>Attached Resources</span>
+                                <span>{getQuestionTypeLabel(activeQuestion.type)}</span>
                             </div>
                             <GDriveLink url={activeQuestion.link_url} title={activeQuestion.link_title} />
                         </div>
@@ -346,7 +375,7 @@ export function CaseStudyContent({
                         )}
                     </div>
                     <div className="flex items-center gap-4">
-                        {activeQuestion && !(activeQuestion.video_url || activeQuestion.link_url) && (
+                        {activeQuestion && isTaskQuestionType(activeQuestion.type) && (
                             <Button
                                 size="lg"
                                 className="gap-2 px-10 font-bold shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 text-primary-foreground"

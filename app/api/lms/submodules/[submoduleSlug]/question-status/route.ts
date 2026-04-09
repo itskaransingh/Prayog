@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getQuestionTypeLabel, type QuestionType } from "@/lib/questions/types";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(
@@ -37,7 +38,7 @@ export async function GET(
 
         const { data: questions, error: questionsError } = await supabaseAdmin
             .from("questions")
-            .select("id, title, video_url, link_url")
+            .select("id, title, type")
             .eq("submodule_id", submodule.id)
             .order("created_at", { ascending: true });
 
@@ -76,8 +77,10 @@ export async function GET(
                 id: question.id,
                 order: index + 1,
                 title: question.title || `Question ${index + 1}`,
-                type: question.video_url ? "Video" : question.link_url ? "Document" : "Task",
-                attempted: attemptedQuestionIds.has(question.id),
+                type: getQuestionTypeLabel((question.type ?? "question") as QuestionType),
+                attempted:
+                    (question.type ?? "question") === "question" &&
+                    attemptedQuestionIds.has(question.id),
             })),
         });
     } catch (error) {

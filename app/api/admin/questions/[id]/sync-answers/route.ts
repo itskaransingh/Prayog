@@ -19,10 +19,12 @@ import {
     type SyncAnswersPayload,
     type TrialBalancePayload,
 } from "@/lib/simulation/answer-field-generator";
+import type { QuestionType } from "@/lib/questions/types";
 
 interface QuestionRecord {
     id: string;
     submodule_id: string;
+    type: QuestionType;
 }
 
 interface SubmoduleRecord {
@@ -347,7 +349,7 @@ async function loadQuestionAndSubmodule(
 > {
     const { data: question, error: questionError } = await supabase
         .from("questions")
-        .select("id, submodule_id")
+        .select("id, submodule_id, type")
         .eq("id", questionId)
         .maybeSingle<QuestionRecord>();
 
@@ -357,6 +359,10 @@ async function loadQuestionAndSubmodule(
 
     if (!question) {
         return { errorResponse: notFound("Question not found") };
+    }
+
+    if (question.type !== "question") {
+        return { errorResponse: badRequest("Only question tasks can sync answers") };
     }
 
     const { data: submodule, error: submoduleError } = await supabase

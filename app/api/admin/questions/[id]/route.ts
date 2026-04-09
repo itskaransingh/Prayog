@@ -5,6 +5,7 @@ import {
     LMS_SUBMODULES_TAG,
 } from "../../../../../lib/supabase/lms-cache-tags";
 import { createClient } from "@/lib/supabase/server";
+import { isQuestionType } from "@/lib/questions/types";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
@@ -29,11 +30,35 @@ export async function PUT(
             table_data,
             has_image,
             image_url,
+            type,
+            resource_description,
+            video_url,
+            link_url,
+            link_title,
         } = body;
 
         const updateData: Record<string, unknown> = {};
+        const normalizedType = type === undefined
+            ? undefined
+            : isQuestionType(type)
+            ? type
+            : null;
+
+        if (type !== undefined && normalizedType === null) {
+            return NextResponse.json(
+                { error: "type must be one of: question, video, document" },
+                { status: 400 }
+            );
+        }
+
+        if (normalizedType !== undefined) {
+            updateData.type = normalizedType;
+        }
         if (title !== undefined) updateData.title = title;
         if (paragraph !== undefined) updateData.paragraph = paragraph;
+        if (resource_description !== undefined) {
+            updateData.resource_description = resource_description;
+        }
         if (has_table !== undefined) updateData.has_table = has_table;
         if (table_data !== undefined || has_table === false) {
             updateData.table_data = has_table === false ? null : table_data;
@@ -41,6 +66,32 @@ export async function PUT(
         if (has_image !== undefined) updateData.has_image = has_image;
         if (image_url !== undefined || has_image === false) {
             updateData.image_url = has_image === false ? null : image_url;
+        }
+        if (video_url !== undefined) updateData.video_url = video_url;
+        if (link_url !== undefined) updateData.link_url = link_url;
+        if (link_title !== undefined) updateData.link_title = link_title;
+
+        if (normalizedType === "question") {
+            updateData.video_url = null;
+            updateData.link_url = null;
+            updateData.link_title = null;
+        }
+
+        if (normalizedType === "video") {
+            updateData.has_table = false;
+            updateData.table_data = null;
+            updateData.has_image = false;
+            updateData.image_url = null;
+            updateData.link_url = null;
+            updateData.link_title = null;
+        }
+
+        if (normalizedType === "document") {
+            updateData.has_table = false;
+            updateData.table_data = null;
+            updateData.has_image = false;
+            updateData.image_url = null;
+            updateData.video_url = null;
         }
 
         if (Object.keys(updateData).length === 0) {

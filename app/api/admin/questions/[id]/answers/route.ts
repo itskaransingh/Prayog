@@ -10,11 +10,13 @@ import {
     type SimulatorType,
     type SimulationFieldRecord,
 } from "@/lib/simulation/answer-field-generator";
+import type { QuestionType } from "@/lib/questions/types";
 
 interface QuestionRecord {
     id: string;
     submodule_id: string;
     table_data: QuestionTableData | null;
+    type: QuestionType;
 }
 
 interface SubmoduleRecord {
@@ -36,7 +38,7 @@ export async function GET(
 
         const { data: question, error: questionError } = await supabase
             .from("questions")
-            .select("id, submodule_id, table_data")
+            .select("id, submodule_id, table_data, type")
             .eq("id", id)
             .maybeSingle<QuestionRecord>();
 
@@ -46,6 +48,13 @@ export async function GET(
 
         if (!question) {
             return NextResponse.json({ error: "Question not found" }, { status: 404 });
+        }
+
+        if (question.type !== "question") {
+            return NextResponse.json(
+                { error: "Answers are only available for question tasks" },
+                { status: 400 },
+            );
         }
 
         const { data: submodule, error: submoduleError } = await supabase

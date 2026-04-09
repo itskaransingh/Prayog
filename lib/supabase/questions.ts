@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import type { QuestionType } from "@/lib/questions/types";
 
 export interface QuestionTableData {
     headers: string[];
@@ -14,6 +15,8 @@ export interface Question {
     table_data: QuestionTableData | null;
     has_image: boolean;
     image_url: string | null;
+    type: QuestionType;
+    resource_description: string | null;
     video_url: string | null;
     link_url: string | null;
     link_title: string | null;
@@ -30,6 +33,8 @@ export type QuestionInsert = Pick<
     | "table_data"
     | "has_image"
     | "image_url"
+    | "type"
+    | "resource_description"
     | "video_url"
     | "link_url"
     | "link_title"
@@ -93,4 +98,3 @@ export async function deleteQuestion(id: string) {
     const { error } = await supabase.from("questions").delete().eq("id", id);
     if (error) throw error;
 }
-

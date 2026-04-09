@@ -5,6 +5,7 @@ import {
     LMS_SUBMODULES_TAG,
 } from "../../../../lib/supabase/lms-cache-tags";
 import { createClient } from "@/lib/supabase/server";
+import { isQuestionType } from "@/lib/questions/types";
 import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -63,6 +64,11 @@ export async function POST(request: Request) {
             table_data,
             has_image,
             image_url,
+            type,
+            resource_description,
+            video_url,
+            link_url,
+            link_title,
         } = body;
 
         if (!submodule_id || !title) {
@@ -72,16 +78,32 @@ export async function POST(request: Request) {
             );
         }
 
+        if (type !== undefined && !isQuestionType(type)) {
+            return NextResponse.json(
+                { error: "type must be one of: question, video, document" },
+                { status: 400 }
+            );
+        }
+
+        const normalizedType = isQuestionType(type) ? type : "question";
+        const normalizedHasTable = normalizedType === "question" ? Boolean(has_table) : false;
+        const normalizedHasImage = normalizedType === "question" ? Boolean(has_image) : false;
+
         const { data, error } = await supabase
             .from("questions")
             .insert({
                 submodule_id,
                 title,
                 paragraph: paragraph ?? "",
-                has_table: Boolean(has_table),
-                table_data: has_table ? table_data : null,
-                has_image: Boolean(has_image),
-                image_url: has_image ? image_url : null,
+                has_table: normalizedHasTable,
+                table_data: normalizedHasTable ? table_data : null,
+                has_image: normalizedHasImage,
+                image_url: normalizedHasImage ? image_url : null,
+                type: normalizedType,
+                resource_description: resource_description ?? null,
+                video_url: normalizedType === "video" ? video_url ?? null : null,
+                link_url: normalizedType === "document" ? link_url ?? null : null,
+                link_title: normalizedType === "document" ? link_title ?? null : null,
             })
             .select("*")
             .single();

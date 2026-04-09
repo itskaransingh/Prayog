@@ -1,19 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
     AlertCircle,
     ArrowLeft,
+    FileText,
     ImageIcon,
     LayoutList,
+    Link2,
     Loader2,
     Plus,
     Save,
     Trash2,
+    Video,
     X,
 } from "lucide-react";
 
+import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { QAEditor } from "@/components/admin/qa-editor";
 import type {
     SimulatorType,
@@ -35,6 +39,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import {
+    getQuestionTypeLabel,
+    isTaskQuestionType,
+    type QuestionType,
+} from "@/lib/questions/types";
 
 interface Module {
     id: string;
@@ -62,6 +71,11 @@ interface Question {
     } | null;
     has_image: boolean;
     image_url: string | null;
+    type: QuestionType;
+    resource_description: string | null;
+    video_url: string | null;
+    link_url: string | null;
+    link_title: string | null;
 }
 
 interface QuestionFormState {
@@ -69,6 +83,11 @@ interface QuestionFormState {
     paragraph: string;
     hasImage: boolean;
     imageUrl: string;
+    type: QuestionType;
+    resourceDescription: string;
+    videoUrl: string;
+    linkUrl: string;
+    linkTitle: string;
 }
 
 function getEmptyQuestionForm(): QuestionFormState {
@@ -77,6 +96,56 @@ function getEmptyQuestionForm(): QuestionFormState {
         paragraph: "",
         hasImage: false,
         imageUrl: "",
+        type: "question",
+        resourceDescription: "",
+        videoUrl: "",
+        linkUrl: "",
+        linkTitle: "",
+    };
+}
+
+function getFormMode(type: QuestionType): "question" | "resource" {
+    return type === "question" ? "question" : "resource";
+}
+
+function getItemLabel(type: QuestionType): string {
+    return type === "question" ? "Task" : getQuestionTypeLabel(type);
+}
+
+function normalizeFormForType(
+    previous: QuestionFormState,
+    nextType: QuestionType,
+): QuestionFormState {
+    if (nextType === "question") {
+        return {
+            ...previous,
+            type: "question",
+            resourceDescription: "",
+            videoUrl: "",
+            linkUrl: "",
+            linkTitle: "",
+        };
+    }
+
+    if (nextType === "video") {
+        return {
+            ...previous,
+            type: "video",
+            paragraph: "",
+            hasImage: false,
+            imageUrl: "",
+            linkUrl: "",
+            linkTitle: "",
+        };
+    }
+
+    return {
+        ...previous,
+        type: "document",
+        paragraph: "",
+        hasImage: false,
+        imageUrl: "",
+        videoUrl: "",
     };
 }
 
@@ -97,6 +166,8 @@ export default function AdminQuestionsPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+    const formMode = useMemo(() => getFormMode(form.type), [form.type]);
 
     const fetchModules = useCallback(async () => {
         setIsLoadingModules(true);
@@ -148,12 +219,12 @@ export default function AdminQuestionsPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || "Failed to fetch questions");
+                throw new Error(data.error || "Failed to fetch tasks");
             }
 
             setQuestions(data.questions || []);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Failed to fetch questions");
+            setError(err instanceof Error ? err.message : "Failed to fetch tasks");
             setQuestions([]);
         } finally {
             setIsLoadingQuestions(false);
@@ -200,12 +271,24 @@ export default function AdminQuestionsPage() {
                 paragraph: question.paragraph || "",
                 hasImage: question.has_image,
                 imageUrl: question.image_url || "",
+                type: question.type ?? "question",
+                resourceDescription: question.resource_description || "",
+                videoUrl: question.video_url || "",
+                linkUrl: question.link_url || "",
+                linkTitle: question.link_title || "",
             });
             setQaPayload(null);
+
             if (!options?.preserveStatus) {
                 setSuccessMessage(null);
                 setError(null);
             }
+
+            if (!isTaskQuestionType(question.type)) {
+                setIsLoadingAnswers(false);
+                return;
+            }
+
             setIsLoadingAnswers(true);
 
             try {
@@ -233,7 +316,17 @@ export default function AdminQuestionsPage() {
 
     const saveQuestion = async () => {
         if (!selectedSubmoduleId || !form.title.trim()) {
-            setError("Select a submodule and provide a question title.");
+            setError("Select a submodule and provide a title.");
+            return;
+        }
+
+        if (form.type === "video" && !form.videoUrl.trim()) {
+            setError("Provide a YouTube URL for the video resource.");
+            return;
+        }
+
+        if (form.type === "document" && !form.linkUrl.trim()) {
+            setError("Provide a document URL for the document resource.");
             return;
         }
 
@@ -246,9 +339,21 @@ export default function AdminQuestionsPage() {
         try {
             const questionPayload = {
                 title: form.title.trim(),
-                paragraph: form.paragraph.trim(),
-                has_image: form.hasImage,
-                image_url: form.hasImage ? form.imageUrl.trim() : null,
+                paragraph: form.type === "question" ? form.paragraph.trim() : "",
+                has_image: form.type === "question" ? form.hasImage : false,
+                image_url:
+                    form.type === "question" && form.hasImage
+                        ? form.imageUrl.trim()
+                        : null,
+                type: form.type,
+                resource_description:
+                    form.type === "question"
+                        ? null
+                        : form.resourceDescription.trim() || null,
+                video_url: form.type === "video" ? form.videoUrl.trim() : null,
+                link_url: form.type === "document" ? form.linkUrl.trim() : null,
+                link_title:
+                    form.type === "document" ? form.linkTitle.trim() || null : null,
             };
 
             const questionRes = await fetch(
@@ -271,15 +376,15 @@ export default function AdminQuestionsPage() {
             const questionData = await questionRes.json();
 
             if (!questionRes.ok) {
-                throw new Error(questionData.error || "Failed to save question");
+                throw new Error(questionData.error || "Failed to save task");
             }
 
             savedQuestion = questionData.question ?? null;
             if (!savedQuestion?.id) {
-                throw new Error("Question was not returned by the API");
+                throw new Error("Task was not returned by the API");
             }
 
-            if (qaPayload !== null) {
+            if (form.type === "question" && qaPayload !== null) {
                 const answersRes = await fetch(
                     `/api/admin/questions/${savedQuestion.id}/sync-answers`,
                     {
@@ -297,7 +402,11 @@ export default function AdminQuestionsPage() {
                 }
             }
 
-            setSuccessMessage("Question and answers saved.");
+            setSuccessMessage(
+                form.type === "question"
+                    ? "Task and answers saved."
+                    : `${getQuestionTypeLabel(form.type)} saved.`,
+            );
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Save failed");
         } finally {
@@ -321,7 +430,7 @@ export default function AdminQuestionsPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                throw new Error(data.error || "Failed to delete question");
+                throw new Error(data.error || "Failed to delete task");
             }
 
             if (selectedSubmoduleId) {
@@ -332,7 +441,7 @@ export default function AdminQuestionsPage() {
                 resetForm();
             }
 
-            setSuccessMessage("Question deleted.");
+            setSuccessMessage("Item deleted.");
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Delete failed");
         }
@@ -357,10 +466,10 @@ export default function AdminQuestionsPage() {
                             </div>
                             <div>
                                 <h1 className="text-lg font-bold text-slate-900">
-                                    Case Study Questions
+                                    Tasks
                                 </h1>
                                 <p className="text-xs text-slate-500">
-                                    Configure prompts, unified Q&amp;A, and supporting images
+                                    Manage task prompts, videos, and document resources
                                 </p>
                             </div>
                         </div>
@@ -379,7 +488,7 @@ export default function AdminQuestionsPage() {
                             className="gap-2"
                         >
                             <Plus className="h-4 w-4" />
-                            New Question
+                            New Item
                         </Button>
                     </div>
                 </div>
@@ -392,7 +501,7 @@ export default function AdminQuestionsPage() {
                             Select Context
                         </h2>
                         <p className="mt-1 text-sm text-slate-500">
-                            Choose the submodule that owns these case-study questions.
+                            Choose the submodule that owns these tasks and resources.
                         </p>
 
                         <div className="mt-4 space-y-4">
@@ -462,10 +571,10 @@ export default function AdminQuestionsPage() {
                             <div className="flex items-center justify-between gap-2">
                                 <div>
                                     <h2 className="text-sm font-semibold text-slate-900">
-                                        Questions
+                                        Tasks & Resources
                                     </h2>
                                     <p className="text-sm text-slate-500">
-                                        Existing prompts for the selected submodule.
+                                        Existing items for the selected submodule.
                                     </p>
                                 </div>
                                 <Badge variant="secondary">{questions.length}</Badge>
@@ -480,11 +589,11 @@ export default function AdminQuestionsPage() {
                                 </div>
                             ) : !selectedSubmoduleId ? (
                                 <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-                                    Pick a submodule to load questions.
+                                    Pick a submodule to load items.
                                 </div>
                             ) : questions.length === 0 ? (
                                 <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-                                    No questions yet for this submodule.
+                                    No items yet for this submodule.
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -500,17 +609,29 @@ export default function AdminQuestionsPage() {
                                             }`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
-                                                <div>
+                                                <div className="min-w-0">
                                                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                                        Question {index + 1}
+                                                        {getItemLabel(question.type)} {index + 1}
                                                     </p>
                                                     <p className="mt-1 font-medium text-slate-900">
                                                         {question.title}
                                                     </p>
                                                 </div>
-                                                <div className="flex items-center gap-1">
-                                                    {question.has_image && (
-                                                        <ImageIcon className="h-4 w-4 text-slate-400" />
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="outline">
+                                                        {getQuestionTypeLabel(
+                                                            question.type ?? "question",
+                                                        )}
+                                                    </Badge>
+                                                    {question.type === "question" &&
+                                                        question.has_image && (
+                                                            <ImageIcon className="h-4 w-4 text-slate-400" />
+                                                        )}
+                                                    {question.type === "video" && (
+                                                        <Video className="h-4 w-4 text-slate-400" />
+                                                    )}
+                                                    {question.type === "document" && (
+                                                        <FileText className="h-4 w-4 text-slate-400" />
                                                     )}
                                                 </div>
                                             </div>
@@ -546,14 +667,16 @@ export default function AdminQuestionsPage() {
                             <div>
                                 <div className="flex items-center gap-3">
                                     <h2 className="text-base font-semibold text-slate-900">
-                                        {editingQuestionId ? "Edit Question" : "New Question"}
+                                        {editingQuestionId
+                                            ? `Edit ${getItemLabel(form.type)}`
+                                            : "Create Item"}
                                     </h2>
                                     <Badge variant="outline">
                                         {simulatorType ?? "none"}
                                     </Badge>
                                 </div>
                                 <p className="text-sm text-slate-500">
-                                    Author the prompt and expected answers in one place.
+                                    Build either a simulator task or a supporting learning resource.
                                 </p>
                             </div>
                             <div className="flex items-center gap-3">
@@ -571,10 +694,10 @@ export default function AdminQuestionsPage() {
                                         <AlertDialogContent>
                                             <AlertDialogHeader>
                                                 <AlertDialogTitle>
-                                                    Delete this question?
+                                                    Delete this item?
                                                 </AlertDialogTitle>
                                                 <AlertDialogDescription>
-                                                    This removes the question.
+                                                    This removes the selected task or resource.
                                                 </AlertDialogDescription>
                                             </AlertDialogHeader>
                                             <AlertDialogFooter>
@@ -606,17 +729,153 @@ export default function AdminQuestionsPage() {
                                     ) : (
                                         <Save className="h-4 w-4" />
                                     )}
-                                    Save Q&amp;A
+                                    Save
                                 </Button>
                             </div>
                         </div>
 
                         <div className="space-y-8 px-6 py-6">
                             <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-slate-700">
+                                        Add Mode
+                                    </label>
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        <label className={`rounded-2xl border p-4 transition ${
+                                            formMode === "question"
+                                                ? "border-emerald-300 bg-emerald-50"
+                                                : "border-slate-200 bg-white"
+                                        }`}>
+                                            <div className="flex items-start gap-3">
+                                                <input
+                                                    type="radio"
+                                                    name="itemMode"
+                                                    checked={formMode === "question"}
+                                                    onChange={() =>
+                                                        setForm((prev) =>
+                                                            normalizeFormForType(
+                                                                prev,
+                                                                "question",
+                                                            ),
+                                                        )
+                                                    }
+                                                    className="mt-1 h-4 w-4 border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                />
+                                                <div>
+                                                    <p className="font-medium text-slate-900">
+                                                        Add question and answer
+                                                    </p>
+                                                    <p className="text-sm text-slate-500">
+                                                        Create a simulator task with prompt, image, and answer mapping.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </label>
+
+                                        <label className={`rounded-2xl border p-4 transition ${
+                                            formMode === "resource"
+                                                ? "border-emerald-300 bg-emerald-50"
+                                                : "border-slate-200 bg-white"
+                                        }`}>
+                                            <div className="flex items-start gap-3">
+                                                <input
+                                                    type="radio"
+                                                    name="itemMode"
+                                                    checked={formMode === "resource"}
+                                                    onChange={() =>
+                                                        setForm((prev) =>
+                                                            normalizeFormForType(prev, "video"),
+                                                        )
+                                                    }
+                                                    className="mt-1 h-4 w-4 border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                />
+                                                <div>
+                                                    <p className="font-medium text-slate-900">
+                                                        Add resource
+                                                    </p>
+                                                    <p className="text-sm text-slate-500">
+                                                        Add a YouTube explainer or a document resource for the learner.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {formMode === "resource" && (
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-slate-700">
+                                            Resource Type
+                                        </label>
+                                        <div className="grid gap-3 md:grid-cols-2">
+                                            <label className={`rounded-2xl border p-4 transition ${
+                                                form.type === "video"
+                                                    ? "border-emerald-300 bg-emerald-50"
+                                                    : "border-slate-200 bg-white"
+                                            }`}>
+                                                <div className="flex items-start gap-3">
+                                                    <input
+                                                        type="radio"
+                                                        name="resourceType"
+                                                        checked={form.type === "video"}
+                                                        onChange={() =>
+                                                            setForm((prev) =>
+                                                                normalizeFormForType(prev, "video"),
+                                                            )
+                                                        }
+                                                        className="mt-1 h-4 w-4 border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                    />
+                                                    <div>
+                                                        <p className="font-medium text-slate-900">
+                                                            YouTube video
+                                                        </p>
+                                                        <p className="text-sm text-slate-500">
+                                                            Embed the video directly inside case study content.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            <label className={`rounded-2xl border p-4 transition ${
+                                                form.type === "document"
+                                                    ? "border-emerald-300 bg-emerald-50"
+                                                    : "border-slate-200 bg-white"
+                                            }`}>
+                                                <div className="flex items-start gap-3">
+                                                    <input
+                                                        type="radio"
+                                                        name="resourceType"
+                                                        checked={form.type === "document"}
+                                                        onChange={() =>
+                                                            setForm((prev) =>
+                                                                normalizeFormForType(
+                                                                    prev,
+                                                                    "document",
+                                                                ),
+                                                            )
+                                                        }
+                                                        className="mt-1 h-4 w-4 border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                    />
+                                                    <div>
+                                                        <p className="font-medium text-slate-900">
+                                                            Document
+                                                        </p>
+                                                        <p className="text-sm text-slate-500">
+                                                            Keep the LMS document card UI, backed by a document link.
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
                                     <div className="space-y-1.5">
                                         <label className="text-sm font-medium text-slate-700">
-                                            Question Title
+                                            {form.type === "question"
+                                                ? "Task Title"
+                                                : "Resource Title"}
                                         </label>
                                         <Input
                                             value={form.title}
@@ -626,127 +885,225 @@ export default function AdminQuestionsPage() {
                                                     title: event.target.value,
                                                 }))
                                             }
-                                            placeholder="e.g. ITR Registration for Resident Individual"
+                                            placeholder={
+                                                form.type === "question"
+                                                    ? "e.g. ITR Registration for Resident Individual"
+                                                    : "e.g. E-PAN User Guide"
+                                            }
                                         />
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-sm font-medium text-slate-700">
-                                            Question Type
+                                            Item Type
                                         </label>
                                         <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
-                                            Case Study Prompt
+                                            {getQuestionTypeLabel(form.type)}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-slate-700">
-                                        Paragraph / Context
-                                    </label>
-                                    <Textarea
-                                        value={form.paragraph}
-                                        onChange={(event) =>
-                                            setForm((prev) => ({
-                                                ...prev,
-                                                paragraph: event.target.value,
-                                            }))
-                                        }
-                                        placeholder="Describe the scenario the learner needs to solve."
-                                        rows={6}
-                                    />
-                                </div>
-                            </div>
-
-                            <Separator />
-
-                            <div className="space-y-4">
-                                <div>
-                                    <h3 className="text-sm font-semibold text-slate-900">
-                                        Unified Q&amp;A
-                                    </h3>
-                                    <p className="text-sm text-slate-500">
-                                        The answer grid adapts to the selected submodule&apos;s
-                                        simulator type.
-                                    </p>
-                                </div>
-
-                                {isLoadingAnswers ? (
-                                    <div className="flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Loading answers...
+                                {form.type === "question" ? (
+                                    <div className="space-y-1.5">
+                                        <label className="text-sm font-medium text-slate-700">
+                                            Paragraph / Context
+                                        </label>
+                                        <Textarea
+                                            value={form.paragraph}
+                                            onChange={(event) =>
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    paragraph: event.target.value,
+                                                }))
+                                            }
+                                            placeholder="Describe the scenario the learner needs to solve."
+                                            rows={6}
+                                        />
                                     </div>
                                 ) : (
-                                    <QAEditor
-                                        simulatorType={simulatorType ?? "none"}
-                                        initialPayload={qaPayload}
-                                        onChange={setQaPayload}
+                                    <RichTextEditor
+                                        label="Resource Description"
+                                        value={form.resourceDescription}
+                                        onChange={(value) =>
+                                            setForm((prev) => ({
+                                                ...prev,
+                                                resourceDescription: value,
+                                            }))
+                                        }
+                                        placeholder="Add a formatted description for this learner resource."
                                         disabled={isSaving}
                                     />
                                 )}
                             </div>
 
-                            <Separator />
+                            {form.type === "question" ? (
+                                <>
+                                    <Separator />
 
-                            <div className="space-y-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                                            <ImageIcon className="h-4 w-4 text-slate-500" />
-                                            Supporting Image
-                                        </h3>
-                                        <p className="text-sm text-slate-500">
-                                            Attach an image URL when a screenshot or document visual is required.
-                                        </p>
-                                    </div>
-                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.hasImage}
-                                            onChange={(event) =>
-                                                setForm((prev) => ({
-                                                    ...prev,
-                                                    hasImage: event.target.checked,
-                                                }))
-                                            }
-                                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                        />
-                                        Include image
-                                    </label>
-                                </div>
-
-                                {form.hasImage && (
-                                    <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <div className="space-y-1.5">
-                                            <label className="text-sm font-medium text-slate-700">
-                                                Image URL
-                                            </label>
-                                            <Input
-                                                value={form.imageUrl}
-                                                onChange={(event) =>
-                                                    setForm((prev) => ({
-                                                        ...prev,
-                                                        imageUrl: event.target.value,
-                                                    }))
-                                                }
-                                                placeholder="https://..."
-                                            />
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-900">
+                                                Add Question and Answer
+                                            </h3>
+                                            <p className="text-sm text-slate-500">
+                                                The answer grid adapts to the selected submodule&apos;s
+                                                simulator type.
+                                            </p>
                                         </div>
-                                        {form.imageUrl.trim() && (
-                                            <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                                    Preview
+
+                                        {isLoadingAnswers ? (
+                                            <div className="flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
+                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                Loading answers...
+                                            </div>
+                                        ) : (
+                                            <QAEditor
+                                                simulatorType={simulatorType ?? "none"}
+                                                initialPayload={qaPayload}
+                                                onChange={setQaPayload}
+                                                disabled={isSaving}
+                                            />
+                                        )}
+                                    </div>
+
+                                    <Separator />
+
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                                                    <ImageIcon className="h-4 w-4 text-slate-500" />
+                                                    Supporting Image
+                                                </h3>
+                                                <p className="text-sm text-slate-500">
+                                                    Attach an image URL when a screenshot or document visual is required.
                                                 </p>
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img
-                                                    src={form.imageUrl}
-                                                    alt="Question asset preview"
-                                                    className="max-h-72 rounded-lg border border-slate-200 object-contain"
+                                            </div>
+                                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={form.hasImage}
+                                                    onChange={(event) =>
+                                                        setForm((prev) => ({
+                                                            ...prev,
+                                                            hasImage:
+                                                                event.target.checked,
+                                                        }))
+                                                    }
+                                                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                                                 />
+                                                Include image
+                                            </label>
+                                        </div>
+
+                                        {form.hasImage && (
+                                            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-sm font-medium text-slate-700">
+                                                        Image URL
+                                                    </label>
+                                                    <Input
+                                                        value={form.imageUrl}
+                                                        onChange={(event) =>
+                                                            setForm((prev) => ({
+                                                                ...prev,
+                                                                imageUrl:
+                                                                    event.target.value,
+                                                            }))
+                                                        }
+                                                        placeholder="https://..."
+                                                    />
+                                                </div>
+                                                {form.imageUrl.trim() && (
+                                                    <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                            Preview
+                                                        </p>
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img
+                                                            src={form.imageUrl}
+                                                            alt="Question asset preview"
+                                                            className="max-h-72 rounded-lg border border-slate-200 object-contain"
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
-                                )}
-                            </div>
+                                </>
+                            ) : (
+                                <>
+                                    <Separator />
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-slate-900">
+                                                Resource Link
+                                            </h3>
+                                            <p className="text-sm text-slate-500">
+                                                {form.type === "video"
+                                                    ? "Use a YouTube link so the learner can watch it directly on the page."
+                                                    : "Use a document URL for now. File upload is not wired in this phase."}
+                                            </p>
+                                        </div>
+
+                                        {form.type === "video" ? (
+                                            <div className="space-y-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                                    <Video className="h-4 w-4 text-slate-500" />
+                                                    YouTube URL
+                                                </label>
+                                                <Input
+                                                    value={form.videoUrl}
+                                                    onChange={(event) =>
+                                                        setForm((prev) => ({
+                                                            ...prev,
+                                                            videoUrl:
+                                                                event.target.value,
+                                                        }))
+                                                    }
+                                                    placeholder="https://www.youtube.com/watch?v=..."
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                                        <Link2 className="h-4 w-4 text-slate-500" />
+                                                        Document URL
+                                                    </label>
+                                                    <Input
+                                                        value={form.linkUrl}
+                                                        onChange={(event) =>
+                                                            setForm((prev) => ({
+                                                                ...prev,
+                                                                linkUrl:
+                                                                    event.target.value,
+                                                            }))
+                                                        }
+                                                        placeholder="https://..."
+                                                    />
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-sm font-medium text-slate-700">
+                                                        Document Display Title
+                                                    </label>
+                                                    <Input
+                                                        value={form.linkTitle}
+                                                        onChange={(event) =>
+                                                            setForm((prev) => ({
+                                                                ...prev,
+                                                                linkTitle:
+                                                                    event.target.value,
+                                                            }))
+                                                        }
+                                                        placeholder="e.g. E-PAN User Guide.pdf"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 </section>

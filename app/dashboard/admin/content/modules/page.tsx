@@ -430,7 +430,7 @@ export default function AdminModulesPage() {
                     </div>
                     <div className="flex items-center gap-3">
                         <Link href="/dashboard/admin/content/questions">
-                            <Button variant="outline">Manage Questions</Button>
+                            <Button variant="outline">Manage Tasks</Button>
                         </Link>
                         <Button onClick={openCreateModule} className="gap-2">
                             <Plus className="h-4 w-4" />
