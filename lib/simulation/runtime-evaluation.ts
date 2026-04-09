@@ -1,5 +1,6 @@
 import {
     resolveRegistrationFieldDefinitions,
+    normalizeRegistrationFieldPath,
     type RegistrationSimulatorType,
     type SimulationFieldDefinition,
     type SimulationFieldRecord,
@@ -30,7 +31,10 @@ export function buildRegistrationEvaluationMappings(
     const fieldsByName = new Map<string, SimulationFieldRecord>();
 
     for (const field of fields) {
-        const fieldName = trimValue(field.field_name);
+        const fieldName = normalizeRegistrationFieldPath(
+            simulatorType,
+            trimValue(field.field_name),
+        );
         if (!fieldName || fieldsByName.has(fieldName)) {
             continue;
         }

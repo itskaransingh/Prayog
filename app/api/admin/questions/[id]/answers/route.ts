@@ -82,7 +82,7 @@ export async function GET(
             return NextResponse.json({ error: "Question not found" }, { status: 404 });
         }
 
-        if (question.type !== "question") {
+        if (question.type !== null && question.type !== "question") {
             return NextResponse.json(
                 { error: "Answers are only available for question tasks" },
                 { status: 400 },

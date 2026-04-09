@@ -17,9 +17,11 @@ export interface SimulationLaunchConfig {
 
 export function getSimulationLaunchConfig({
     moduleSlug,
+    submoduleSlug,
     simulatorType,
 }: {
     moduleSlug?: string;
+    submoduleSlug?: string;
     simulatorType?: LaunchableSimulatorType;
 }): SimulationLaunchConfig | null {
     switch (simulatorType) {
@@ -62,6 +64,25 @@ export function getSimulationLaunchConfig({
         case null:
         case undefined:
         default:
+            if (submoduleSlug === "financial-statement") {
+                return {
+                    storageKey: null,
+                    gatewayPath: "/simulation/render2b",
+                };
+            }
+            if (submoduleSlug === "preparation-of-trial-balance") {
+                return {
+                    storageKey: null,
+                    gatewayPath: "/simulation/render2a",
+                };
+            }
+            if (submoduleSlug === "journal-entry") {
+                return {
+                    storageKey: null,
+                    gatewayPath: "/simulation/render1a",
+                };
+            }
+
             if (moduleSlug === "financial-accounting") {
                 return {
                     storageKey: null,

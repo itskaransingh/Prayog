@@ -22,7 +22,7 @@ describe("runtime-evaluation", () => {
             },
             {
                 simulatorType: "itr_registration",
-                fieldName: "personalDetails.firstName",
+                fieldName: "firstName",
                 fieldLabel: "First Name",
                 fieldGroup: "Personal Details",
                 inputType: "text",
@@ -47,7 +47,7 @@ describe("runtime-evaluation", () => {
             },
             {
                 id: "field-first-name",
-                field_name: "personalDetails.firstName",
+                field_name: "firstName",
                 field_label: null,
                 expected_value: "Asha",
             },

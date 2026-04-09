@@ -5,6 +5,7 @@ import {
     buildEvidenceTable,
     generateFields,
     getFallbackRegistrationFieldDefinitions,
+    normalizeSimulationFieldDefinitions,
     reverseParseFields,
     type ClassificationPayload,
     type FinancialStatementPayload,
@@ -92,17 +93,25 @@ describe("answer-field-generator", () => {
 
         const fields = generateFields("step-2", payload);
 
-        assert.equal(fields.length, 8);
+        assert.equal(fields.length, 15);
         assert.deepEqual(fields[0], {
+            step_id: "step-2",
+            field_name: "row1_description",
+            field_label: "Row 1 Description",
+            expected_value: "Started business with cash",
+            options: null,
+            order_index: 1,
+        });
+        assert.deepEqual(fields[1], {
             step_id: "step-2",
             field_name: "row1_debit_account",
             field_label: "Row 1 Debit Account",
             expected_value: "Cash",
             options: ["Cash", "Sales", "Capital"],
-            order_index: 1,
+            order_index: 2,
         });
-        assert.equal(fields[1].expected_value, "50000");
-        assert.equal(fields[7].order_index, 8);
+        assert.equal(fields[2].expected_value, "50000");
+        assert.equal(fields[14].order_index, 15);
 
         const roundTrip = reverseParseFields(
             asRecords(fields),
@@ -323,5 +332,37 @@ describe("answer-field-generator", () => {
                 },
             ],
         });
+    });
+
+    it("normalizes legacy flat itr field names to canonical dotted paths", () => {
+        const normalized = normalizeSimulationFieldDefinitions([
+            {
+                id: "def-first-name",
+                simulator_type: "itr_registration",
+                field_name: "firstName",
+                field_label: "First Name",
+                field_group: "Personal Details",
+                input_type: "text",
+                sort_order: 1,
+                is_active: true,
+                help_text: null,
+            },
+            {
+                id: "def-pan",
+                simulator_type: "itr_registration",
+                field_name: "pan",
+                field_label: "PAN",
+                field_group: "Registration",
+                input_type: "text",
+                sort_order: 2,
+                is_active: true,
+                help_text: null,
+            },
+        ]);
+
+        assert.deepEqual(normalized.map((definition) => definition.fieldName), [
+            "personalDetails.firstName",
+            "pan",
+        ]);
     });
 });

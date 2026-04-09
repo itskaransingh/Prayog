@@ -157,6 +157,8 @@ export async function GET(request: Request) {
             );
         }
 
+        const totalJoinedAttempts = joinedAttempts?.length ?? 0;
+
         const userIds = Array.from(
             new Set(
                 (joinedAttempts ?? [])
@@ -349,6 +351,8 @@ export async function GET(request: Request) {
                 submoduleId: selectedSubmoduleId,
             },
             _count: flatAttempts.length,
+            _totalCount: totalJoinedAttempts,
+            _isEmpty: totalJoinedAttempts === 0,
         });
     } catch (error) {
         console.error("Simulation attempts fetch error:", error);

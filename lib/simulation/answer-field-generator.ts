@@ -110,7 +110,29 @@ export type FinancialStatementSectionKey =
     | "bs_onca"
     | "bs_ca";
 
+const LEGACY_ITR_REGISTRATION_FIELD_PATHS: Record<string, string> = {
+    firstName: "personalDetails.firstName",
+    middleName: "personalDetails.middleName",
+    lastName: "personalDetails.lastName",
+    dob: "personalDetails.dob",
+    gender: "personalDetails.gender",
+    residentialStatus: "personalDetails.residentialStatus",
+    flatDoorNo: "addressDetails.flatDoorNo",
+    road: "addressDetails.road",
+    area: "addressDetails.area",
+    postOffice: "addressDetails.postOffice",
+    city: "addressDetails.city",
+    state: "addressDetails.state",
+    pincode: "addressDetails.pincode",
+    mobile: "contactDetails.mobile",
+    email: "contactDetails.email",
+    alternateContact: "contactDetails.alternateContact",
+    mobileBelongsTo: "contactDetails.mobileBelongsTo",
+    emailBelongsTo: "contactDetails.emailBelongsTo",
+};
+
 const CLASSIFICATION_FIELD_PATTERN = /^row(\d+)_classification$/i;
+const GRID_DESCRIPTION_FIELD_PATTERN = /^row(\d+)_description$/i;
 const GRID_FIELD_PATTERN = /^row(\d+)_(debit|credit)_(account|amount)$/i;
 const TRIAL_BALANCE_FIELD_PATTERN = /^row(\d+)_(debit|credit)_(account|amount)$/i;
 const FS_FIELD_PATTERN =
@@ -196,6 +218,19 @@ function normalizeOptions(options: string[] | null | undefined): string[] {
     return (options ?? []).map((option) => option.trim()).filter(Boolean);
 }
 
+export function normalizeRegistrationFieldPath(
+    simulatorType: RegistrationSimulatorType,
+    fieldPath: string,
+): string {
+    const trimmedPath = trimValue(fieldPath);
+
+    if (simulatorType !== "itr_registration") {
+        return trimmedPath;
+    }
+
+    return LEGACY_ITR_REGISTRATION_FIELD_PATHS[trimmedPath] ?? trimmedPath;
+}
+
 function hasAnyValue(values: Array<string | null | undefined>): boolean {
     return values.some((value) => trimValue(value).length > 0);
 }
@@ -237,6 +272,13 @@ export function resolveRegistrationFieldDefinitions(
             (definition) =>
                 definition.simulatorType === simulatorType && definition.isActive,
         )
+        .map((definition) => ({
+            ...definition,
+            fieldName: normalizeRegistrationFieldPath(
+                simulatorType,
+                definition.fieldName,
+            ),
+        }))
         .sort((left, right) => {
             if (left.sortOrder !== right.sortOrder) {
                 return left.sortOrder - right.sortOrder;
@@ -272,14 +314,18 @@ export function normalizeSimulationFieldDefinitions(
             continue;
         }
 
-        const fieldName = trimValue(record.field_name);
+        const simulatorType = record.simulator_type;
+        const fieldName = normalizeRegistrationFieldPath(
+            simulatorType,
+            trimValue(record.field_name),
+        );
         if (!fieldName) {
             continue;
         }
 
-        definitions.set(`${record.simulator_type}:${fieldName}`, {
+        definitions.set(`${simulatorType}:${fieldName}`, {
             id: trimValue(record.id ?? undefined) || undefined,
-            simulatorType: record.simulator_type,
+            simulatorType,
             fieldName,
             fieldLabel: trimValue(record.field_label) || fieldPathToLabel(fieldName),
             fieldGroup: trimValue(record.field_group) || null,
@@ -355,6 +401,7 @@ export function generateFields(
             return payload.rows.flatMap((row, index) => {
                 if (
                     !hasAnyValue([
+                        row.transactionDesc,
                         row.drAccount,
                         row.drAmount,
                         row.crAccount,
@@ -365,17 +412,25 @@ export function generateFields(
                 }
 
                 const rowNumber = index + 1;
-                const orderBase = index * 4;
+                const orderBase = index * 5;
                 const accountOptions = normalizeOptions(payload.accountOptions);
 
                 return [
+                    {
+                        step_id: stepId,
+                        field_name: `row${rowNumber}_description`,
+                        field_label: `Row ${rowNumber} Description`,
+                        expected_value: trimValue(row.transactionDesc),
+                        options: null,
+                        order_index: orderBase + 1,
+                    },
                     {
                         step_id: stepId,
                         field_name: `row${rowNumber}_debit_account`,
                         field_label: `Row ${rowNumber} Debit Account`,
                         expected_value: trimValue(row.drAccount),
                         options: accountOptions,
-                        order_index: orderBase + 1,
+                        order_index: orderBase + 2,
                     },
                     {
                         step_id: stepId,
@@ -383,7 +438,7 @@ export function generateFields(
                         field_label: `Row ${rowNumber} Debit Amount`,
                         expected_value: normalizeAmount(row.drAmount),
                         options: null,
-                        order_index: orderBase + 2,
+                        order_index: orderBase + 3,
                     },
                     {
                         step_id: stepId,
@@ -391,7 +446,7 @@ export function generateFields(
                         field_label: `Row ${rowNumber} Credit Account`,
                         expected_value: trimValue(row.crAccount),
                         options: accountOptions,
-                        order_index: orderBase + 3,
+                        order_index: orderBase + 4,
                     },
                     {
                         step_id: stepId,
@@ -399,7 +454,7 @@ export function generateFields(
                         field_label: `Row ${rowNumber} Credit Amount`,
                         expected_value: normalizeAmount(row.crAmount),
                         options: null,
-                        order_index: orderBase + 4,
+                        order_index: orderBase + 5,
                     },
                 ];
             });
@@ -478,21 +533,25 @@ export function generateFields(
             return payload.fields
                 .filter((field) => trimValue(field.expectedValue).length > 0)
                 .map((field, index) => {
+                    const normalizedFieldPath = normalizeRegistrationFieldPath(
+                        "itr_registration",
+                        field.fieldPath,
+                    );
                     const matchedDefinition =
                         options?.registrationFieldDefinitions?.find(
                             (definition) =>
-                                definition.fieldName === trimValue(field.fieldPath),
+                                definition.fieldName === normalizedFieldPath,
                         ) ?? null;
 
                     return {
-                    step_id: stepId,
-                    field_name: trimValue(field.fieldPath),
-                    field_label:
-                        matchedDefinition?.fieldLabel ??
-                        fieldPathToLabel(field.fieldPath),
-                    expected_value: trimValue(field.expectedValue),
-                    options: null,
-                    order_index: index + 1,
+                        step_id: stepId,
+                        field_name: normalizedFieldPath,
+                        field_label:
+                            matchedDefinition?.fieldLabel ??
+                            fieldPathToLabel(normalizedFieldPath),
+                        expected_value: trimValue(field.expectedValue),
+                        options: null,
+                        order_index: index + 1,
                     };
                 });
     }
@@ -625,6 +684,26 @@ function reverseParseGrid(
     >();
 
     for (const field of fields) {
+        const descriptionMatch = (field.field_name ?? "").match(
+            GRID_DESCRIPTION_FIELD_PATTERN,
+        );
+        if (descriptionMatch) {
+            const rowNumber = Number(descriptionMatch[1]);
+            const current = rows.get(rowNumber) ?? {
+                transactionDesc: "",
+                drAccount: "",
+                drAmount: "",
+                crAccount: "",
+                crAmount: "",
+            };
+
+            current.transactionDesc =
+                trimValue(field.expected_value) ||
+                trimValue(tableData?.rows?.[rowNumber - 1]?.[1]);
+            rows.set(rowNumber, current);
+            continue;
+        }
+
         const match = (field.field_name ?? "").match(GRID_FIELD_PATTERN);
         if (!match) {
             continue;
@@ -655,14 +734,11 @@ function reverseParseGrid(
         rows.set(rowNumber, current);
     }
 
-    if (rows.size === 0 && !(tableData?.rows?.length)) {
+    if (rows.size === 0) {
         return null;
     }
 
-    const maxRowNumber = Math.max(
-        rows.size > 0 ? Math.max(...rows.keys()) : 0,
-        tableData?.rows?.length ?? 0,
-    );
+    const maxRowNumber = Math.max(...rows.keys());
 
     const parsedRows = Array.from({ length: maxRowNumber }, (_, index) => {
         const rowNumber = index + 1;
@@ -831,12 +907,28 @@ function reverseParseRegistration(
     definitions: SimulationFieldDefinition[],
 ): RegistrationPayload | null {
     const allowedDefinitions = new Map(
-        definitions.map((definition) => [definition.fieldName, definition]),
+        definitions.map((definition) => {
+            const normalizedFieldName = normalizeRegistrationFieldPath(
+                "itr_registration",
+                definition.fieldName,
+            );
+
+            return [
+                normalizedFieldName,
+                {
+                    ...definition,
+                    fieldName: normalizedFieldName,
+                },
+            ] as const;
+        }),
     );
 
     const parsedFields = fields
         .map((field) => ({
-            fieldPath: trimValue(field.field_name),
+            fieldPath: normalizeRegistrationFieldPath(
+                "itr_registration",
+                trimValue(field.field_name),
+            ),
             expectedValue: trimValue(field.expected_value),
             orderIndex: field.order_index ?? Number.MAX_SAFE_INTEGER,
         }))

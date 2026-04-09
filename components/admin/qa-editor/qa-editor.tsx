@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import type { ReactNode } from "react";
 import { AlertCircle } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
@@ -16,7 +18,7 @@ function Notice({
     description,
 }: {
     title: string;
-    description: string;
+    description: ReactNode;
 }) {
     return (
         <div className="rounded-2xl border border-dashed border-border/70 bg-muted/30 p-5">
@@ -24,7 +26,7 @@ function Notice({
                 <AlertCircle className="mt-0.5 h-4 w-4 text-muted-foreground" />
                 <div className="space-y-1">
                     <p className="text-sm font-medium">{title}</p>
-                    <p className="text-sm text-muted-foreground">{description}</p>
+                    <div className="text-sm text-muted-foreground">{description}</div>
                 </div>
             </div>
             <Separator className="mt-4" />
@@ -36,7 +38,18 @@ function NoneNotice() {
     return (
         <Notice
             title="Simulator Type Required"
-            description="This submodule has no simulator type configured. Set simulator_type on the submodule first."
+            description={
+                <>
+                    This submodule has no simulator type configured. Set{" "}
+                    <Link
+                        href="/dashboard/admin/content/modules"
+                        className="font-medium text-foreground underline underline-offset-2"
+                    >
+                        simulator_type on the submodule first
+                    </Link>
+                    .
+                </>
+            }
         />
     );
 }

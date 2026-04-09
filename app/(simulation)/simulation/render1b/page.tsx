@@ -27,6 +27,14 @@ type SimulationFieldWithOptions = SimulationFieldRecord & {
   options?: string[] | null;
 };
 
+function getLedgerHeading(questionTitle: string): string {
+  const trimmedTitle = questionTitle.trim();
+  if (!trimmedTitle || /ledger\s*creation/i.test(trimmedTitle)) {
+    return "Cash Account";
+  }
+  return /account$/i.test(trimmedTitle) ? trimmedTitle : `${trimmedTitle} Account`;
+}
+
 // ---------- Wrapper ----------
 export default function LedgerCreationPage() {
   return (
@@ -408,7 +416,7 @@ function LedgerHeader({
               marginLeft: "4px",
             }}
           >
-            Ledger
+            Cash Account
           </span>
         </div>
 
@@ -637,6 +645,8 @@ function EditorPage({
   deleteCrEntry: (idx: number) => void;
   onPreview: () => void;
 }) {
+  const ledgerHeading = getLedgerHeading(questionTitle);
+
   return (
     <div style={{ minHeight: "100vh", background: "#f4f5f7", fontFamily: "Inter, sans-serif" }}>
       <LedgerHeader questionNo={questionNo} />
@@ -651,7 +661,7 @@ function EditorPage({
             marginBottom: "24px",
           }}
         >
-          {questionTitle}
+          {ledgerHeading}
         </h2>
 
         {/* Ledger Card */}
@@ -670,6 +680,8 @@ function EditorPage({
                 flex: 1,
                 borderRight: "1px solid #e5e7eb",
                 minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
               }}
             >
               {/* Dr Header */}
@@ -705,7 +717,7 @@ function EditorPage({
               </div>
 
               {/* Dr Rows */}
-              <div style={{ padding: "10px 16px" }}>
+              <div style={{ padding: "10px 16px", flex: 1 }}>
                 {drEntries.map((entry, idx) => (
                   <div
                     key={entry.id}
@@ -747,8 +759,6 @@ function EditorPage({
                   </div>
                 ))}
 
-                {/* Spacer for balance */}
-                <div style={{ height: "8px" }} />
               </div>
 
               {/* Dr Total */}
@@ -784,7 +794,7 @@ function EditorPage({
             </div>
 
             {/* =========== CREDIT SIDE =========== */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
               {/* Cr Header */}
               <div
                 style={{
@@ -818,7 +828,7 @@ function EditorPage({
               </div>
 
               {/* Cr Rows */}
-              <div style={{ padding: "10px 16px" }}>
+              <div style={{ padding: "10px 16px", flex: 1 }}>
                 {crEntries.map((entry, idx) => (
                   <div
                     key={entry.id}
@@ -860,8 +870,6 @@ function EditorPage({
                   </div>
                 ))}
 
-                {/* Spacer */}
-                <div style={{ height: "8px" }} />
               </div>
 
               {/* Cr Total */}
@@ -977,6 +985,11 @@ function PreviewPage({
   onBack: () => void;
   onValidate: () => void;
 }) {
+  const ledgerHeading = getLedgerHeading(questionTitle);
+  const debitRows = drEntries.filter((entry) => entry.account || entry.amount);
+  const creditRows = crEntries.filter((entry) => entry.account || entry.amount);
+  const previewRowCount = Math.max(debitRows.length, creditRows.length, 1);
+
   return (
     <div style={{ minHeight: "100vh", background: "#f4f5f7", fontFamily: "Inter, sans-serif" }}>
       <LedgerHeader questionNo={questionNo} />
@@ -991,7 +1004,7 @@ function PreviewPage({
             marginBottom: "24px",
           }}
         >
-          {questionTitle}
+          {ledgerHeading}
         </h2>
 
         {/* Preview Ledger Card */}
@@ -1005,7 +1018,15 @@ function PreviewPage({
         >
           <div style={{ display: "flex" }}>
             {/* ====== Debit Preview ====== */}
-            <div style={{ flex: 1, borderRight: "1px solid #e5e7eb", minWidth: 0 }}>
+            <div
+              style={{
+                flex: 1,
+                borderRight: "1px solid #e5e7eb",
+                minWidth: 0,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
               {/* Header */}
               <div
                 style={{
@@ -1024,36 +1045,47 @@ function PreviewPage({
               </div>
 
               {/* Rows */}
-              {drEntries
-                .filter((e) => e.account)
-                .map((entry, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: "flex",
-                      padding: "10px 20px",
-                      borderBottom: "1px solid #f3f4f6",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ flex: 1, fontSize: "14px", color: "#1e40af" }}>
-                      To {entry.account}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#374151" }}>
-                      ₹ {entry.amount ? parseFloat(entry.amount).toLocaleString("en-IN") : 0}
-                    </div>
-                  </div>
-                ))}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                {Array.from({ length: previewRowCount }, (_, idx) => {
+                  const entry = debitRows[idx];
+                  if (!entry) {
+                    return (
+                      <div
+                        key={`dr-empty-${idx}`}
+                        style={{
+                          display: "flex",
+                          padding: "10px 20px",
+                          borderBottom: "1px solid #f3f4f6",
+                          alignItems: "center",
+                          minHeight: "44px",
+                        }}
+                      >
+                        <div style={{ flex: 1 }} />
+                        <div />
+                      </div>
+                    );
+                  }
 
-              {/* Empty spacer if no entries */}
-              {drEntries.filter((e) => e.account).length === 0 && (
-                <div style={{ padding: "16px 20px", color: "#9ca3af", fontSize: "13px" }}>
-                  No debit entries
-                </div>
-              )}
-
-              {/* Padding row */}
-              <div style={{ height: "12px" }} />
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        padding: "10px 20px",
+                        borderBottom: "1px solid #f3f4f6",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ flex: 1, fontSize: "14px", color: "#1e40af" }}>
+                        To {entry.account}
+                      </div>
+                      <div style={{ fontSize: "14px", color: "#374151" }}>
+                        ₹ {entry.amount ? parseFloat(entry.amount).toLocaleString("en-IN") : 0}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
               {/* Total */}
               <div
@@ -1074,7 +1106,7 @@ function PreviewPage({
             </div>
 
             {/* ====== Credit Preview ====== */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
               {/* Header */}
               <div
                 style={{
@@ -1093,36 +1125,47 @@ function PreviewPage({
               </div>
 
               {/* Rows */}
-              {crEntries
-                .filter((e) => e.account)
-                .map((entry, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      display: "flex",
-                      padding: "10px 20px",
-                      borderBottom: "1px solid #f3f4f6",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ flex: 1, fontSize: "14px", color: "#1e40af" }}>
-                      By {entry.account}
-                    </div>
-                    <div style={{ fontSize: "14px", color: "#374151" }}>
-                      ₹ {entry.amount ? parseFloat(entry.amount).toLocaleString("en-IN") : 0}
-                    </div>
-                  </div>
-                ))}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                {Array.from({ length: previewRowCount }, (_, idx) => {
+                  const entry = creditRows[idx];
+                  if (!entry) {
+                    return (
+                      <div
+                        key={`cr-empty-${idx}`}
+                        style={{
+                          display: "flex",
+                          padding: "10px 20px",
+                          borderBottom: "1px solid #f3f4f6",
+                          alignItems: "center",
+                          minHeight: "44px",
+                        }}
+                      >
+                        <div style={{ flex: 1 }} />
+                        <div />
+                      </div>
+                    );
+                  }
 
-              {/* Empty message */}
-              {crEntries.filter((e) => e.account).length === 0 && (
-                <div style={{ padding: "16px 20px", color: "#9ca3af", fontSize: "13px" }}>
-                  No credit entries
-                </div>
-              )}
-
-              {/* Padding */}
-              <div style={{ height: "12px" }} />
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        padding: "10px 20px",
+                        borderBottom: "1px solid #f3f4f6",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div style={{ flex: 1, fontSize: "14px", color: "#1e40af" }}>
+                        By {entry.account}
+                      </div>
+                      <div style={{ fontSize: "14px", color: "#374151" }}>
+                        ₹ {entry.amount ? parseFloat(entry.amount).toLocaleString("en-IN") : 0}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
               {/* Total */}
               <div

@@ -26,6 +26,22 @@ interface TBRow {
   credit: string;
 }
 
+function createTrialBalanceRows(count: number): TBRow[] {
+  return Array.from({ length: Math.max(count, 1) }, (_, index) => ({
+    id: index + 1,
+    account: "",
+    debit: "",
+    credit: "",
+  }));
+}
+
+function getTrialBalanceHeading(questionTitle: string): string {
+  if (!questionTitle.trim() || /preparation\s+of\s+trial\s+balance/i.test(questionTitle)) {
+    return "Trial Balance";
+  }
+  return questionTitle;
+}
+
 // ─── Wrapper ────────────────────────────────────────────────────────────────
 export default function TrialBalancePage() {
   return (
@@ -44,14 +60,15 @@ function TrialBalanceContent() {
   const [loading, setLoading] = useState(true);
   const [questionTitle, setQuestionTitle] = useState("Trial Balance");
   const [questionNo, setQuestionNo] = useState("TB_000");
+  const [taskLineItemCount, setTaskLineItemCount] = useState(0);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [fields, setFields] = useState<SimulationFieldWithOptions[]>([]);
-  const [rows, setRows] = useState<TBRow[]>([{ id: 1, account: "", debit: "", credit: "" }]);
-  const [nextId, setNextId] = useState(2);
+  const [rows, setRows] = useState<TBRow[]>(createTrialBalanceRows(1));
   const [showPreview, setShowPreview] = useState(false);
   const [evaluation, setEvaluation] = useState<ReturnType<typeof buildGridEvaluationResult> | null>(null);
   const [showEval, setShowEval] = useState(false);
   const [startTime] = useState(Date.now());
+  const displayTitle = getTrialBalanceHeading(questionTitle);
 
   // ─── Data fetch ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -64,6 +81,7 @@ function TrialBalanceContent() {
 
         if (q) {
           setQuestionTitle(q.title || q.paragraph || "Trial Balance");
+          setTaskLineItemCount(Array.isArray(q.table_data?.rows) ? q.table_data.rows.length : 0);
           setQuestionNo(
             q.table_data?.question_no ?? `TB_${q.id.slice(-5).toUpperCase()}`
           );
@@ -96,6 +114,10 @@ function TrialBalanceContent() {
 
   // ─── Derived ─────────────────────────────────────────────────────────────
   const groupedFields = useMemo(() => normalizeGridFields(fields), [fields]);
+  const requiredRowCount = useMemo(
+    () => Math.max(groupedFields.length, taskLineItemCount, 1),
+    [groupedFields.length, taskLineItemCount],
+  );
 
   const options = useMemo(() => {
     const opts = fields
@@ -107,23 +129,31 @@ function TrialBalanceContent() {
   const debitTotal = rows.reduce((s, r) => s + (parseFloat(r.debit) || 0), 0);
   const creditTotal = rows.reduce((s, r) => s + (parseFloat(r.credit) || 0), 0);
 
+  useEffect(() => {
+    setRows((prev) => {
+      const hasAnyInput = prev.some((row) => row.account || row.debit || row.credit);
+      if (hasAnyInput && prev.length === requiredRowCount) {
+        return prev;
+      }
+      if (hasAnyInput) {
+        return prev;
+      }
+      return createTrialBalanceRows(requiredRowCount);
+    });
+  }, [requiredRowCount]);
+
   // ─── Row actions ─────────────────────────────────────────────────────────
   function updateRow(idx: number, key: keyof TBRow, val: string) {
     setRows((prev) => {
-      const updated = prev.map((r, i) => (i === idx ? { ...r, [key]: val } : r));
-      if (key === "account" && val !== "" && idx === prev.length - 1) {
-        const id = nextId;
-        setNextId((n) => n + 1);
-        return [...updated, { id, account: "", debit: "", credit: "" }];
-      }
-      return updated;
+      return prev.map((r, i) => (i === idx ? { ...r, [key]: val } : r));
     });
   }
 
   function deleteRow(idx: number) {
     setRows((prev) => {
-      if (prev.length === 1) return [{ ...prev[0], account: "", debit: "", credit: "" }];
-      return prev.filter((_, i) => i !== idx);
+      return prev.map((row, rowIndex) =>
+        rowIndex === idx ? { ...row, account: "", debit: "", credit: "" } : row
+      );
     });
   }
 
@@ -168,7 +198,7 @@ function TrialBalanceContent() {
     <>
       {showPreview ? (
         <PreviewPage
-          questionTitle={questionTitle}
+          questionTitle={displayTitle}
           questionNo={questionNo}
           rows={rows}
           debitTotal={debitTotal}
@@ -178,7 +208,7 @@ function TrialBalanceContent() {
         />
       ) : (
         <EditorPage
-          questionTitle={questionTitle}
+          questionTitle={displayTitle}
           questionNo={questionNo}
           rows={rows}
           options={options}
@@ -201,7 +231,13 @@ function TrialBalanceContent() {
 }
 
 // ─── Header ──────────────────────────────────────────────────────────────────
-function TBHeader({ questionNo }: { questionNo: string }) {
+function TBHeader({
+  questionNo,
+  titleLabel,
+}: {
+  questionNo: string;
+  titleLabel: string;
+}) {
   return (
     <header
       style={{
@@ -234,7 +270,7 @@ function TBHeader({ questionNo }: { questionNo: string }) {
               fontWeight: "500",
             }}
           >
-            Trial Balance
+            {titleLabel}
           </span>
         </div>
         <div
@@ -278,7 +314,7 @@ function EditorPage({
 }) {
   return (
     <div style={{ minHeight: "100vh", background: "#f4f5f7", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
-      <TBHeader questionNo={questionNo} />
+      <TBHeader questionNo={questionNo} titleLabel={questionTitle} />
       <main style={{ maxWidth: "960px", margin: "0 auto", padding: "36px 20px 80px" }}>
         <h2
           style={{
@@ -452,7 +488,7 @@ function PreviewPage({
 
   return (
     <div style={{ minHeight: "100vh", background: "#f4f5f7", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
-      <TBHeader questionNo={questionNo} />
+      <TBHeader questionNo={questionNo} titleLabel={questionTitle} />
       <main style={{ maxWidth: "960px", margin: "0 auto", padding: "36px 20px 80px" }}>
         <h2
           style={{

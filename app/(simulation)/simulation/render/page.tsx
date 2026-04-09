@@ -56,6 +56,19 @@ function getQuestionBadge(questionId: string | null): string {
     return `Question No: ${questionId.slice(0, 8).toUpperCase()}`;
 }
 
+function getAnswerColumnLabel(questionTitle: string): string {
+    if (/ledger\s*classification|classification/i.test(questionTitle)) {
+        return "Account Type";
+    }
+    if (/ledger\s*posting|posting/i.test(questionTitle)) {
+        return "Accounting Action";
+    }
+    if (/ledger\s*recognition|recognition/i.test(questionTitle)) {
+        return "Account";
+    }
+    return "Nature";
+}
+
 function FinancialAccountingSimulationPageInner() {
     const searchParams = useSearchParams();
     const questionId = searchParams.get("questionId");
@@ -105,6 +118,7 @@ function FinancialAccountingSimulationPageInner() {
         const field = (task?.fields ?? []).find(f => f.order_index === index + 1) || null;
         return { rowIndex: index, field, contentCells: extractContentCells(row), accountName: field?.field_label?.trim() || "Untitled field", options: parseOptions(field?.options) };
     }), [task]);
+    const answerColumnLabel = useMemo(() => getAnswerColumnLabel(questionTitle), [questionTitle]);
 
     async function handleLogout() { await supabase.auth.signOut(); window.location.href = "/login"; }
 
@@ -177,7 +191,6 @@ function FinancialAccountingSimulationPageInner() {
                 .rci-table thead tr { background: #f8fafc; border-bottom: 1.5px solid #e2e8f0; }
                 .rci-th { padding: 14px 24px; text-align: left; font-size: 13px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.04em; }
                 .rci-th-num { width: 72px; }
-                .rci-th-nature { width: 260px; }
                 .rci-table tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
                 .rci-table tbody tr:last-child { border-bottom: none; }
                 .rci-table tbody tr:hover { background: #f8fafc; }
@@ -225,15 +238,26 @@ function FinancialAccountingSimulationPageInner() {
                             <thead>
                                 <tr>
                                     <th className="rci-th rci-th-num">#</th>
-                                    <th className="rci-th">{baseHeaders[0] ?? "Transactions"}</th>
-                                    <th className="rci-th rci-th-nature">Nature</th>
+                                    {baseHeaders.map((header, index) => (
+                                        <th key={`${header}-${index}`} className="rci-th">
+                                            {header}
+                                        </th>
+                                    ))}
+                                    <th className="rci-th">{answerColumnLabel}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {renderedRows.map((row) => (
                                     <tr key={row.field?.id || row.rowIndex}>
                                         <td className="rci-td-num">{row.rowIndex + 1}</td>
-                                        <td className="rci-td-text">{row.contentCells[0]}</td>
+                                        {baseHeaders.map((_, cellIndex) => (
+                                            <td
+                                                key={`${row.field?.id || row.rowIndex}-cell-${cellIndex}`}
+                                                className="rci-td-text"
+                                            >
+                                                {row.contentCells[cellIndex] ?? ""}
+                                            </td>
+                                        ))}
                                         <td className="rci-td">
                                             {row.field && (
                                                 <div className="rci-select-wrap">

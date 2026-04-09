@@ -44,6 +44,7 @@ function toPayload(optionsText: string, rows: GridRowState[]): GridPayload {
         accountOptions: splitCommaList(optionsText),
         rows: rows.filter(
             (row) =>
+                row.transactionDesc.trim() ||
                 row.drAccount.trim() ||
                 row.drAmount.trim() ||
                 row.crAccount.trim() ||

@@ -20,6 +20,17 @@ import { LogOut, Loader2, AlertCircle } from "lucide-react";
 
 type SimulationFieldWithOptions = SimulationFieldRecord & { options?: string[] | null };
 
+function createDefaultJournalLines(): JournalLineInput[] {
+    return [
+        { account: "", dr: "", cr: "" },
+        { account: "", dr: "", cr: "" },
+    ];
+}
+
+function getJournalEntryHeading(questionTitle: string): string {
+    return /journal\s*entry/i.test(questionTitle) ? "Journal Entry" : "Journal Entry";
+}
+
 // Use a wrapper component because useSearchParams() requires a Suspense boundary in Next.js
 export default function JournalEntryPage() {
     return (
@@ -40,10 +51,12 @@ function JournalEntryContent() {
     const [taskId, setTaskId] = useState<string | null>(null);
 
     const [entries, setEntries] = useState<Record<number, JournalLineInput[]>>({});
+    const [narrations, setNarrations] = useState<Record<number, string>>({});
     const [showPreview, setShowPreview] = useState(false);
     const [evaluation, setEvaluation] = useState<ReturnType<typeof buildGridEvaluationResult> | null>(null);
     const [showEval, setShowEval] = useState(false);
     const [startTime] = useState(Date.now());
+    const pageHeading = getJournalEntryHeading("Journal Entry");
 
     useEffect(() => {
         async function load() {
@@ -70,10 +83,13 @@ function JournalEntryContent() {
 
                     // Initialize input rows
                     const init: Record<number, JournalLineInput[]> = {};
+                    const narrationInit: Record<number, string> = {};
                     tableRows.forEach((_: string[], i: number) => {
-                        init[i] = [{ account: "", dr: "", cr: "" }];
+                        init[i] = createDefaultJournalLines();
+                        narrationInit[i] = "";
                     });
                     setEntries(init);
+                    setNarrations(narrationInit);
                 }
 
                 // 2. Fetch Task Data
@@ -140,8 +156,8 @@ function JournalEntryContent() {
     const deleteRow = (row: number, idx: number) => {
         setEntries((prev) => {
             const updatedRow = [...prev[row]];
-            if (updatedRow.length > 1) updatedRow.splice(idx, 1);
-            else updatedRow[0] = { account: "", dr: "", cr: "" };
+            if (updatedRow.length > 2) updatedRow.splice(idx, 1);
+            else updatedRow[idx] = { account: "", dr: "", cr: "" };
             return { ...prev, [row]: updatedRow };
         });
     };
@@ -202,6 +218,9 @@ function JournalEntryContent() {
                 <div style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <PrayogLogo className="h-14 w-[228px]" priority />
+                        <span style={{ border: "1px solid #c7d2de", borderRadius: "6px", padding: "4px 12px", fontSize: "13px", color: "#374151", fontWeight: "500" }}>
+                            {pageHeading}
+                        </span>
                     </div>
                     <div style={{ display: "flex", gap: "10px" }}>
                         <span style={{ border: "1px solid #1a3a5c", padding: "4px 12px", borderRadius: "20px", fontSize: "12px" }}>ID: {questionId}</span>
@@ -211,7 +230,7 @@ function JournalEntryContent() {
             </header>
 
             <main style={{ maxWidth: "1000px", margin: "40px auto", padding: "0 20px" }}>
-                <h2 style={{ textAlign: "center", marginBottom: "30px" }}>Journal Entry</h2>
+                <h2 style={{ textAlign: "center", marginBottom: "30px" }}>{pageHeading}</h2>
 
                 {!showPreview ? (
                     <div style={{ background: "#fff", borderRadius: "12px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)", overflow: "hidden" }}>
@@ -254,7 +273,25 @@ function JournalEntryContent() {
                                                     <button onClick={() => deleteRow(i, idx)} style={{ color: "#ef4444", background: "none", border: "none", cursor: "pointer" }}>✕</button>
                                                 </div>
                                             ))}
-                                            <button onClick={() => addRow(i)} style={{ border: "1px solid #d1d5db", background: "#fff", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", cursor: "pointer" }}>+ Add Line</button>
+                                            <button onClick={() => addRow(i)} style={{ border: "1px solid #d1d5db", background: "#fff", padding: "4px 12px", borderRadius: "20px", fontSize: "12px", cursor: "pointer" }}>+ Add</button>
+                                            <input
+                                                aria-label={`Narration for transaction ${i + 1}`}
+                                                value={narrations[i] ?? ""}
+                                                onChange={(event) =>
+                                                    setNarrations((prev) => ({ ...prev, [i]: event.target.value }))
+                                                }
+                                                placeholder="Narration :"
+                                                style={{
+                                                    width: "100%",
+                                                    height: "38px",
+                                                    marginTop: "12px",
+                                                    borderRadius: "8px",
+                                                    border: "1px solid #d1d5db",
+                                                    padding: "0 12px",
+                                                    fontSize: "13px",
+                                                    color: "#374151",
+                                                }}
+                                            />
                                         </td>
                                     </tr>
                                 ))}
@@ -288,6 +325,19 @@ function JournalEntryContent() {
                                         <td style={{ textAlign: "right", padding: "10px" }}>{entries[i]?.map((e, idx) => <div key={idx}>{e.cr || "—"}</div>)}</td>
                                     </tr>
                                 ))}
+                                {rows.some((_, i) => (narrations[i] ?? "").trim()) && (
+                                    <tr>
+                                        <td colSpan={4} style={{ padding: "0 10px 10px" }}>
+                                            {rows.map((_, i) =>
+                                                (narrations[i] ?? "").trim() ? (
+                                                    <div key={`narration-${i}`} style={{ fontSize: "12px", color: "#6b7280", marginTop: "6px" }}>
+                                                        Narration: {narrations[i]}
+                                                    </div>
+                                                ) : null
+                                            )}
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                         <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between" }}>

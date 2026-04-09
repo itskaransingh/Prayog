@@ -330,8 +330,8 @@ export function CaseStudyContent({
     const activeQuestionContentHtml = activeQuestion ? getQuestionContentHtml(activeQuestion) : "";
     const activeCourseObjectives = activeQuestion?.course_objectives ?? [];
     const simulationLaunchConfig = React.useMemo(
-        () => getSimulationLaunchConfig({ moduleSlug, simulatorType }),
-        [moduleSlug, simulatorType],
+        () => getSimulationLaunchConfig({ moduleSlug, submoduleSlug, simulatorType }),
+        [moduleSlug, simulatorType, submoduleSlug],
     );
     const totalTaskCount = React.useMemo(
         () => questions.filter((question) => isTaskQuestionType(question.type)).length,

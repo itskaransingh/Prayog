@@ -83,6 +83,18 @@ interface AdminUserRecord {
     created_at: string;
 }
 
+function getSubmoduleAttemptCount(group: GroupedSubmodule) {
+    return group.users.reduce(
+        (userTotal, user) =>
+            userTotal +
+            user.questions.reduce(
+                (questionTotal, question) => questionTotal + question.attempt_count,
+                0,
+            ),
+        0,
+    );
+}
+
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("users");
     const [users, setUsers] = useState<AdminUserRecord[]>([]);
@@ -97,6 +109,7 @@ export default function AdminDashboard() {
     const [isLoadingSubmodules, setIsLoadingSubmodules] = useState(false);
     const [isLoadingSimulations, setIsLoadingSimulations] = useState(false);
     const [errorSimulations, setErrorSimulations] = useState<string | null>(null);
+    const [isEmptySimulations, setIsEmptySimulations] = useState(false);
 
     const fetchUsers = useCallback(async () => {
         setIsLoadingUsers(true);
@@ -170,15 +183,18 @@ export default function AdminDashboard() {
             if (res.ok && data.attempts) {
                 setSimulations(data.attempts);
                 setGroupedSimulations(data.groupedBySubmodule || []);
+                setIsEmptySimulations(Boolean(data._isEmpty));
             } else {
                 console.error("Failed to fetch simulations:", data.error);
                 setErrorSimulations(data.error || "Unknown error occurred");
+                setIsEmptySimulations(false);
             }
         } catch (error: unknown) {
             console.error("Error fetching simulations:", error);
             setErrorSimulations(
                 error instanceof Error ? error.message : String(error),
             );
+            setIsEmptySimulations(false);
         } finally {
             setIsLoadingSimulations(false);
         }
@@ -466,10 +482,21 @@ export default function AdminDashboard() {
                                         <p className="text-sm text-red-600 font-medium">Failed to load attempts</p>
                                         <p className="text-xs text-slate-500 mt-2 max-w-md mx-auto">{errorSimulations}</p>
                                     </div>
+                                ) : isEmptySimulations ? (
+                                    <div className="p-12 text-center">
+                                        <History className="h-10 w-10 text-slate-200 mx-auto mb-4" />
+                                        <p className="text-sm text-slate-500 font-medium">No simulation attempts yet</p>
+                                        <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto">
+                                            Learners haven&apos;t submitted any simulations yet, so this table is still empty.
+                                        </p>
+                                    </div>
                                 ) : simulations.length === 0 ? (
                                     <div className="p-12 text-center">
                                         <History className="h-10 w-10 text-slate-200 mx-auto mb-4" />
-                                        <p className="text-sm text-slate-500 font-medium">No simulation attempts found</p>
+                                        <p className="text-sm text-slate-500 font-medium">No attempts match the selected filters</p>
+                                        <p className="text-xs text-slate-400 mt-2 max-w-md mx-auto">
+                                            Try a different module or submodule filter to surface matching attempts.
+                                        </p>
                                     </div>
                                 ) : (
                                     <div className="p-6 space-y-6 bg-slate-50/60">
@@ -488,6 +515,9 @@ export default function AdminDashboard() {
                                                         </h4>
                                                         <span className="text-sm text-slate-500">
                                                             {submoduleGroup.users.length} user{submoduleGroup.users.length === 1 ? "" : "s"}
+                                                        </span>
+                                                        <span className="text-sm text-slate-500">
+                                                            {getSubmoduleAttemptCount(submoduleGroup)} total attempt{getSubmoduleAttemptCount(submoduleGroup) === 1 ? "" : "s"}
                                                         </span>
                                                     </div>
                                                 </div>

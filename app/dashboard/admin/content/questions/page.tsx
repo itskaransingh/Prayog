@@ -39,6 +39,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
     getQuestionTypeLabel,
     isTaskQuestionType,
     type QuestionType,
@@ -184,6 +190,7 @@ export default function AdminQuestionsPage() {
     const [, setEditingSimulationTaskId] = useState<string | null>(null);
     const [form, setForm] = useState<QuestionFormState>(getEmptyQuestionForm);
     const [qaPayload, setQaPayload] = useState<SyncAnswersPayload | null>(null);
+    const [qaNotice, setQaNotice] = useState<string | null>(null);
     const [isLoadingModules, setIsLoadingModules] = useState(true);
     const [isLoadingSubmodules, setIsLoadingSubmodules] = useState(false);
     const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
@@ -193,6 +200,12 @@ export default function AdminQuestionsPage() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     const formMode = useMemo(() => getFormMode(form.type), [form.type]);
+    const selectedSubmodule =
+        submodules.find((submodule) => submodule.id === selectedSubmoduleId) ?? null;
+    const simulatorTypeLabel = simulatorType ?? "none";
+    const simulatorTypeMissing =
+        Boolean(selectedSubmoduleId) &&
+        (simulatorType === null || simulatorType === "none");
 
     const fetchModules = useCallback(async () => {
         setIsLoadingModules(true);
@@ -286,6 +299,7 @@ export default function AdminQuestionsPage() {
         setEditingSimulationTaskId(null);
         setForm(getEmptyQuestionForm());
         setQaPayload(null);
+        setQaNotice(null);
         setIsLoadingAnswers(false);
     }, []);
 
@@ -309,6 +323,7 @@ export default function AdminQuestionsPage() {
                 showExpectedAnswersInEvaluation: false,
             });
             setQaPayload(null);
+            setQaNotice(null);
             setEditingSimulationTaskId(null);
 
             if (!options?.preserveStatus) {
@@ -334,10 +349,20 @@ export default function AdminQuestionsPage() {
                 ]);
 
                 if (!answersRes.ok) {
+                    console.error("Failed to load question answers", {
+                        questionId: question.id,
+                        status: answersRes.status,
+                        payload: answersData,
+                    });
                     throw new Error(answersData.error || "Failed to load question answers");
                 }
 
                 if (!simulationTaskRes.ok) {
+                    console.error("Failed to load simulation task settings", {
+                        questionId: question.id,
+                        status: simulationTaskRes.status,
+                        payload: simulationTaskData,
+                    });
                     throw new Error(
                         simulationTaskData.error || "Failed to load simulation task settings",
                     );
@@ -354,9 +379,18 @@ export default function AdminQuestionsPage() {
                         simulationTask?.show_expected_answers_in_evaluation ?? false,
                 }));
 
+                const nextSimulatorType =
+                    answersData.simulatorType ?? simulatorType ?? "none";
+
                 setQaPayload(answersData.answers ?? null);
-                setSimulatorType(answersData.simulatorType ?? simulatorType ?? "none");
+                setQaNotice(
+                    answersData.answers === null && nextSimulatorType !== "none"
+                        ? "No answers saved yet. Add your expected answers below."
+                        : null,
+                );
+                setSimulatorType(nextSimulatorType);
             } catch (err: unknown) {
+                setQaNotice(null);
                 setError(
                     err instanceof Error
                         ? err.message
@@ -388,6 +422,7 @@ export default function AdminQuestionsPage() {
         setIsSaving(true);
         setError(null);
         setSuccessMessage(null);
+        setQaNotice(null);
 
         let savedQuestion: Question | null = null;
 
@@ -442,6 +477,7 @@ export default function AdminQuestionsPage() {
             if (!savedQuestion?.id) {
                 throw new Error("Task was not returned by the API");
             }
+            const savedQuestionId = savedQuestion.id;
 
             if (form.type === "question" && qaPayload !== null) {
                 const answersRes = await fetch(
@@ -463,7 +499,7 @@ export default function AdminQuestionsPage() {
 
             if (form.type === "question") {
                 const existingTaskRes = await fetch(
-                    `/api/admin/simulation-tasks?questionId=${savedQuestion.id}`,
+                    `/api/admin/simulation-tasks?questionId=${savedQuestionId}`,
                 );
                 const existingTaskData = await existingTaskRes.json();
 
@@ -477,6 +513,25 @@ export default function AdminQuestionsPage() {
                 const existingTask =
                     (existingTaskData.tasks?.[0] as SimulationTaskRecord | undefined) ??
                     null;
+
+                const refreshCurrentTask = async () => {
+                    const taskLookupRes = await fetch(
+                        `/api/admin/simulation-tasks?questionId=${savedQuestionId}`,
+                    );
+                    const taskLookupData = await taskLookupRes.json();
+
+                    if (!taskLookupRes.ok) {
+                        throw new Error(
+                            taskLookupData.error ||
+                                "Failed to load simulation task settings",
+                        );
+                    }
+
+                    return (
+                        (taskLookupData.tasks?.[0] as SimulationTaskRecord | undefined) ??
+                        null
+                    );
+                };
 
                 if (existingTask?.id) {
                     const taskRes = await fetch(
@@ -505,7 +560,7 @@ export default function AdminQuestionsPage() {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            question_id: savedQuestion.id,
+                            question_id: savedQuestionId,
                             show_expected_answers_in_evaluation: true,
                         }),
                     });
@@ -518,7 +573,12 @@ export default function AdminQuestionsPage() {
                         );
                     }
 
-                    setEditingSimulationTaskId(taskData.task?.id ?? null);
+                    if (taskRes.ok) {
+                        setEditingSimulationTaskId(taskData.task?.id ?? null);
+                    } else {
+                        const refreshedTask = await refreshCurrentTask();
+                        setEditingSimulationTaskId(refreshedTask?.id ?? null);
+                    }
                 } else {
                     setEditingSimulationTaskId(null);
                 }
@@ -600,18 +660,44 @@ export default function AdminQuestionsPage() {
                         <Link href="/dashboard/admin/content/modules">
                             <Button variant="outline">Manage Modules</Button>
                         </Link>
-                        <Button
-                            onClick={() => {
-                                resetForm();
-                                setSuccessMessage(null);
-                                setError(null);
-                            }}
-                            disabled={!selectedSubmoduleId}
-                            className="gap-2"
-                        >
-                            <Plus className="h-4 w-4" />
-                            New Item
-                        </Button>
+                        <TooltipProvider>
+                            {simulatorTypeMissing ? (
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <span className="inline-flex">
+                                            <Button
+                                                onClick={() => {
+                                                    resetForm();
+                                                    setSuccessMessage(null);
+                                                    setError(null);
+                                                }}
+                                                disabled
+                                                className="gap-2"
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                                New Item
+                                            </Button>
+                                        </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        Set simulator type first
+                                    </TooltipContent>
+                                </Tooltip>
+                            ) : (
+                                <Button
+                                    onClick={() => {
+                                        resetForm();
+                                        setSuccessMessage(null);
+                                        setError(null);
+                                    }}
+                                    disabled={!selectedSubmoduleId}
+                                    className="gap-2"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    New Item
+                                </Button>
+                            )}
+                        </TooltipProvider>
                     </div>
                 </div>
             </header>
@@ -655,35 +741,74 @@ export default function AdminQuestionsPage() {
                                 <label className="text-sm font-medium text-slate-700">
                                     Submodule
                                 </label>
-                                <select
-                                    value={selectedSubmoduleId}
-                                    onChange={(event) => {
-                                        const nextSubmoduleId = event.target.value;
-                                        const selectedSubmodule =
-                                            submodules.find(
-                                                (submodule) =>
-                                                    submodule.id === nextSubmoduleId,
-                                            ) ?? null;
-                                        setSelectedSubmoduleId(nextSubmoduleId);
-                                        setSimulatorType(
-                                            selectedSubmodule?.simulator_type ?? null,
-                                        );
-                                        resetForm();
-                                    }}
-                                    disabled={!selectedModuleId || isLoadingSubmodules}
-                                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-50"
-                                >
-                                    <option value="">
-                                        {isLoadingSubmodules
-                                            ? "Loading submodules..."
-                                            : "Select a submodule"}
-                                    </option>
-                                    {submodules.map((submodule) => (
-                                        <option key={submodule.id} value={submodule.id}>
-                                            {submodule.title}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                                    {!selectedModuleId ? (
+                                        <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                                            Select a module first.
+                                        </div>
+                                    ) : isLoadingSubmodules ? (
+                                        <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                                            Loading submodules...
+                                        </div>
+                                    ) : submodules.length === 0 ? (
+                                        <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                                            No submodules found for this module.
+                                        </div>
+                                    ) : (
+                                        <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                                            {submodules.map((submodule) => {
+                                                const isSelected =
+                                                    selectedSubmoduleId === submodule.id;
+
+                                                return (
+                                                    <button
+                                                        key={submodule.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedSubmoduleId(
+                                                                submodule.id,
+                                                            );
+                                                            setSimulatorType(
+                                                                submodule.simulator_type ??
+                                                                    null,
+                                                            );
+                                                            resetForm();
+                                                        }}
+                                                        className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition ${
+                                                            isSelected
+                                                                ? "border-emerald-300 bg-emerald-50"
+                                                                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                                                        }`}
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-sm font-medium text-slate-900">
+                                                                {submodule.title}
+                                                            </p>
+                                                            <p className="truncate text-xs text-slate-500">
+                                                                {submodule.slug}
+                                                            </p>
+                                                        </div>
+                                                        <Badge variant="outline" className="shrink-0">
+                                                            {submodule.simulator_type ??
+                                                                "none"}
+                                                        </Badge>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex items-center justify-between gap-2 px-1 pt-1 text-xs text-slate-500">
+                                    <span>
+                                        Selected submodule:
+                                        {selectedSubmodule
+                                            ? ` ${selectedSubmodule.title}`
+                                            : " none"}
+                                    </span>
+                                    <Badge variant="outline" className="h-6">
+                                        Simulator: {simulatorTypeLabel}
+                                    </Badge>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -796,7 +921,7 @@ export default function AdminQuestionsPage() {
                                             : "Create Item"}
                                     </h2>
                                     <Badge variant="outline">
-                                        {simulatorType ?? "none"}
+                                        {simulatorTypeLabel}
                                     </Badge>
                                 </div>
                                 <p className="text-sm text-slate-500">
@@ -1088,13 +1213,26 @@ export default function AdminQuestionsPage() {
                                                 Loading answers...
                                             </div>
                                         ) : (
-                                            <QAEditor
-                                                key={`${editingQuestionId ?? "new"}:${simulatorType ?? "none"}`}
-                                                simulatorType={simulatorType ?? "none"}
-                                                initialPayload={qaPayload}
-                                                onChange={setQaPayload}
-                                                disabled={isSaving}
-                                            />
+                                            <div className="space-y-3">
+                                                {qaNotice ? (
+                                                    <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                                                        <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
+                                                        <span>{qaNotice}</span>
+                                                    </div>
+                                                ) : null}
+                                                {!editingQuestionId && qaPayload !== null ? (
+                                                    <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
+                                                        Unsaved answers
+                                                    </div>
+                                                ) : null}
+                                                <QAEditor
+                                                    key={`${editingQuestionId ?? "new"}:${simulatorType ?? "none"}`}
+                                                    simulatorType={simulatorType ?? "none"}
+                                                    initialPayload={qaPayload}
+                                                    onChange={setQaPayload}
+                                                    disabled={isSaving}
+                                                />
+                                            </div>
                                         )}
                                     </div>
 
