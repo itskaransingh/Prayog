@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 
 import type {
@@ -103,6 +103,10 @@ function toPayload(
     };
 }
 
+function getPayloadSignature(payload: FinancialStatementPayload | null): string {
+    return JSON.stringify(payload ?? null);
+}
+
 export function FinancialStatementEditor({
     initialPayload,
     onChange,
@@ -131,10 +135,39 @@ function FinancialStatementEditorContent({
     onChange: QAEditorProps["onChange"];
     disabled: boolean;
 }) {
-    const sections = createSections(payload);
+    const [sections, setSections] = useState(createSections(payload));
     const [expandedSections, setExpandedSections] = useState<
         Record<FinancialStatementSectionKey, boolean>
-    >(createExpandedState(sections));
+    >(createExpandedState(createSections(payload)));
+    const lastIncomingSignatureRef = useRef(getPayloadSignature(payload));
+    const lastEmittedSignatureRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const nextSections = createSections(payload);
+        const nextSignature = getPayloadSignature(payload);
+
+        if (lastIncomingSignatureRef.current === nextSignature) {
+            return;
+        }
+
+        lastIncomingSignatureRef.current = nextSignature;
+        lastEmittedSignatureRef.current = null;
+        setSections(nextSections);
+        setExpandedSections(createExpandedState(nextSections));
+    }, [payload]);
+
+    useEffect(() => {
+        const nextPayload = toPayload(sections);
+        const nextSignature = getPayloadSignature(nextPayload);
+
+        if (lastEmittedSignatureRef.current === nextSignature) {
+            return;
+        }
+
+        lastEmittedSignatureRef.current = nextSignature;
+        lastIncomingSignatureRef.current = nextSignature;
+        onChange(nextPayload);
+    }, [onChange, sections]);
 
     const sectionCounts = useMemo(
         () =>
@@ -146,7 +179,7 @@ function FinancialStatementEditorContent({
     );
 
     function updateSections(nextSections: ReturnType<typeof createSections>) {
-        onChange(toPayload(nextSections));
+        setSections(nextSections);
     }
 
     function setExpanded(sectionKey: FinancialStatementSectionKey, open: boolean) {

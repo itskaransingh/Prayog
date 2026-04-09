@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { Fragment, useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { saveSimulationAttempt } from "@/lib/simulation/attempts";
@@ -20,6 +20,12 @@ import { LogOut, Loader2, AlertCircle } from "lucide-react";
 
 type SimulationFieldWithOptions = SimulationFieldRecord & { options?: string[] | null };
 
+type PreviewJournalLine = {
+    side: "debit" | "credit";
+    account: string;
+    amount: string;
+};
+
 function createDefaultJournalLines(): JournalLineInput[] {
     return [
         { account: "", dr: "", cr: "" },
@@ -29,6 +35,64 @@ function createDefaultJournalLines(): JournalLineInput[] {
 
 function getJournalEntryHeading(questionTitle: string): string {
     return /journal\s*entry/i.test(questionTitle) ? "Journal Entry" : "Journal Entry";
+}
+
+function trimValue(value: string | null | undefined): string {
+    return (value ?? "").trim();
+}
+
+function formatJournalAmount(value: string): string {
+    const normalized = trimValue(value).replaceAll(",", "");
+    if (!normalized) {
+        return "";
+    }
+
+    const amount = Number(normalized);
+    if (Number.isNaN(amount)) {
+        return value;
+    }
+
+    return `₹${amount.toLocaleString("en-IN")}`;
+}
+
+function buildPreviewJournalLines(lines: JournalLineInput[]): PreviewJournalLine[] {
+    const previewLines = lines
+        .map((line) => {
+            const account = trimValue(line.account);
+            const debitAmount = trimValue(line.dr);
+            const creditAmount = trimValue(line.cr);
+
+            if (debitAmount) {
+                return {
+                    side: "debit" as const,
+                    account,
+                    amount: debitAmount,
+                };
+            }
+
+            if (creditAmount) {
+                return {
+                    side: "credit" as const,
+                    account,
+                    amount: creditAmount,
+                };
+            }
+
+            if (account) {
+                return {
+                    side: "debit" as const,
+                    account,
+                    amount: "",
+                };
+            }
+
+            return null;
+        })
+        .filter((line): line is PreviewJournalLine => line !== null);
+
+    return previewLines.length > 0
+        ? previewLines
+        : [{ side: "debit", account: "", amount: "" }];
 }
 
 // Use a wrapper component because useSearchParams() requires a Suspense boundary in Next.js
@@ -302,42 +366,109 @@ function JournalEntryContent() {
                         </div>
                     </div>
                 ) : (
-                    <div style={{ background: "#fff", borderRadius: "12px", padding: "20px" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <div style={{ background: "#fff", borderRadius: "12px", padding: "20px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                             <thead>
                                 <tr style={{ borderBottom: "2px solid #f3f4f6" }}>
-                                    <th style={{ textAlign: "left", padding: "10px" }}>Date</th>
+                                    <th style={{ textAlign: "center", padding: "10px", width: "56px" }}>#</th>
+                                    <th style={{ textAlign: "left", padding: "10px", width: "120px" }}>Date</th>
                                     <th style={{ textAlign: "left", padding: "10px" }}>Particulars</th>
-                                    <th style={{ textAlign: "right", padding: "10px" }}>Debit</th>
-                                    <th style={{ textAlign: "right", padding: "10px" }}>Credit</th>
+                                    <th style={{ textAlign: "center", padding: "10px", width: "72px" }} />
+                                    <th style={{ textAlign: "right", padding: "10px", width: "120px" }}>Debit</th>
+                                    <th style={{ textAlign: "right", padding: "10px", width: "120px" }}>Credit</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.map((r, i) => (
-                                    <tr key={i} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                                        <td style={{ padding: "10px", fontSize: "13px" }}>{r[1]}</td>
-                                        <td style={{ padding: "10px" }}>
-                                            {entries[i]?.map((e, idx) => (
-                                                <div key={idx} style={{ paddingLeft: e.cr ? "20px" : "0" }}>{e.account || "—"}</div>
+                                {rows.map((r, i) => {
+                                    const previewLines = buildPreviewJournalLines(entries[i] ?? []);
+                                    const narration = trimValue(narrations[i]);
+                                    const rowSpan = previewLines.length + (narration ? 1 : 0);
+
+                                    return (
+                                        <Fragment key={`preview-row-${i}`}>
+                                            {previewLines.map((line, lineIndex) => (
+                                                <tr
+                                                    key={`preview-row-${i}-line-${lineIndex}`}
+                                                    style={{ borderBottom: narration || lineIndex < previewLines.length - 1 ? "1px solid #f3f4f6" : "1px solid #e5e7eb" }}
+                                                >
+                                                    {lineIndex === 0 ? (
+                                                        <td
+                                                            rowSpan={rowSpan}
+                                                            style={{
+                                                                padding: "10px",
+                                                                fontSize: "13px",
+                                                                textAlign: "center",
+                                                                verticalAlign: "top",
+                                                                color: "#4b5563",
+                                                            }}
+                                                        >
+                                                            {i + 1}
+                                                        </td>
+                                                    ) : null}
+                                                    {lineIndex === 0 ? (
+                                                        <td
+                                                            rowSpan={rowSpan}
+                                                            style={{
+                                                                padding: "10px",
+                                                                fontSize: "13px",
+                                                                verticalAlign: "top",
+                                                                color: "#374151",
+                                                            }}
+                                                        >
+                                                            {r[1] || ""}
+                                                        </td>
+                                                    ) : null}
+                                                    <td
+                                                        style={{
+                                                            padding: "10px",
+                                                            fontSize: "13px",
+                                                            paddingLeft: line.side === "credit" ? "28px" : "10px",
+                                                            color: "#111827",
+                                                        }}
+                                                    >
+                                                        {line.account
+                                                            ? line.side === "credit"
+                                                                ? `To ${line.account}`
+                                                                : line.account
+                                                            : ""}
+                                                    </td>
+                                                    <td
+                                                        style={{
+                                                            padding: "10px",
+                                                            fontSize: "13px",
+                                                            textAlign: "center",
+                                                            color: "#374151",
+                                                        }}
+                                                    >
+                                                        {line.side === "debit" && line.account ? "Dr." : ""}
+                                                    </td>
+                                                    <td style={{ textAlign: "right", padding: "10px", fontSize: "13px", color: "#111827" }}>
+                                                        {line.side === "debit" ? formatJournalAmount(line.amount) : ""}
+                                                    </td>
+                                                    <td style={{ textAlign: "right", padding: "10px", fontSize: "13px", color: "#111827" }}>
+                                                        {line.side === "credit" ? formatJournalAmount(line.amount) : ""}
+                                                    </td>
+                                                </tr>
                                             ))}
-                                        </td>
-                                        <td style={{ textAlign: "right", padding: "10px" }}>{entries[i]?.map((e, idx) => <div key={idx}>{e.dr || "—"}</div>)}</td>
-                                        <td style={{ textAlign: "right", padding: "10px" }}>{entries[i]?.map((e, idx) => <div key={idx}>{e.cr || "—"}</div>)}</td>
-                                    </tr>
-                                ))}
-                                {rows.some((_, i) => (narrations[i] ?? "").trim()) && (
-                                    <tr>
-                                        <td colSpan={4} style={{ padding: "0 10px 10px" }}>
-                                            {rows.map((_, i) =>
-                                                (narrations[i] ?? "").trim() ? (
-                                                    <div key={`narration-${i}`} style={{ fontSize: "12px", color: "#6b7280", marginTop: "6px" }}>
-                                                        Narration: {narrations[i]}
-                                                    </div>
-                                                ) : null
-                                            )}
-                                        </td>
-                                    </tr>
-                                )}
+                                            {narration ? (
+                                                <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                                                    <td
+                                                        colSpan={4}
+                                                        style={{
+                                                            padding: "10px",
+                                                            fontSize: "12px",
+                                                            fontStyle: "italic",
+                                                            color: "#6b7280",
+                                                            background: "#fafafa",
+                                                        }}
+                                                    >
+                                                        Narration: {narration}
+                                                    </td>
+                                                </tr>
+                                            ) : null}
+                                        </Fragment>
+                                    );
+                                })}
                             </tbody>
                         </table>
                         <div style={{ marginTop: "20px", display: "flex", justifyContent: "space-between" }}>

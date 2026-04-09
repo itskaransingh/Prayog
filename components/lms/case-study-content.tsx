@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ArrowRight, ChevronLeft, ChevronRight, ExternalLink, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LmsBreadcrumbs } from "@/components/lms/lms-breadcrumbs";
+import { useLmsBreadcrumbs } from "@/components/lms/lms-breadcrumb-context";
 import {
     COURSE_STATUS_CHANGE_EVENT,
     COURSE_TOPIC_CHANGE_EVENT,
@@ -140,7 +140,11 @@ function getQuestionContentHtml(question: Question) {
     return "";
 }
 
-function QuestionTable({ tableData }: { tableData: QuestionTableData }) {
+function QuestionTable({
+    tableData,
+}: {
+    tableData: QuestionTableData;
+}) {
     return (
         <div className="overflow-x-auto">
             <table className="w-full border-collapse border border-border">
@@ -193,6 +197,15 @@ export function CaseStudyContent({
     const searchParams = useSearchParams();
     const qid = searchParams.get("qid");
     const [activeQid, setActiveQid] = React.useState<string | null>(qid);
+    const { setBreadcrumbs } = useLmsBreadcrumbs();
+
+    React.useEffect(() => {
+        setBreadcrumbs(breadcrumbs);
+
+        return () => {
+            setBreadcrumbs([]);
+        };
+    }, [breadcrumbs, setBreadcrumbs]);
 
     React.useEffect(() => {
         setActiveQid(qid);
@@ -375,9 +388,8 @@ export function CaseStudyContent({
     }, [activeQuestion, hasCompletedActiveQuestion]);
 
     return (
-        <div className="flex container mx-auto flex-1 flex-col gap-6 p-6 pb-32">
-            <div>
-                <LmsBreadcrumbs items={breadcrumbs} />
+        <div className="flex flex-1 flex-col pb-32">
+            <div className="container mx-auto flex flex-1 flex-col gap-6 p-6">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
                 {activeQuestion && (
                     <div className="mt-1 flex flex-col gap-3">
@@ -411,7 +423,11 @@ export function CaseStudyContent({
             <Separator className="bg-border" />
 
             {hasQuestions && activeQuestion ? (
-                <div key={activeQuestion.id} id={`question-${activeQuestion.id}`} className="flex flex-col gap-6">
+                <div
+                    key={activeQuestion.id}
+                    id={`question-${activeQuestion.id}`}
+                    className="container mx-auto flex flex-col gap-6 px-6"
+                >
                     {activeQuestionContentHtml && (
                         <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-900/10">
                             <CardContent className="pt-6">
@@ -427,7 +443,9 @@ export function CaseStudyContent({
                         activeQuestion.table_data && (
                         <Card className="border-border bg-card">
                             <CardContent className="pt-6">
-                                <QuestionTable tableData={activeQuestion.table_data} />
+                                <QuestionTable
+                                    tableData={activeQuestion.table_data}
+                                />
                             </CardContent>
                         </Card>
                     )}
@@ -468,7 +486,7 @@ export function CaseStudyContent({
                     )}
                 </div>
             ) : (
-                <Card className="border-dashed border-border bg-muted/20">
+                <Card className="container mx-auto border-dashed border-border bg-muted/20">
                     <CardContent className="pt-6 text-sm text-muted-foreground text-center">
                         No case study content is available for this submodule yet.
                     </CardContent>

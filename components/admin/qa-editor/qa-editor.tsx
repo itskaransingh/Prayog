@@ -8,7 +8,8 @@ import { Separator } from "@/components/ui/separator";
 
 import { ClassificationEditor } from "./classification-editor";
 import { FinancialStatementEditor } from "./financial-statement-editor";
-import { GridEditor } from "./grid-editor";
+import { JournalEntryEditor } from "./journal-entry-editor";
+import { LedgerEditor } from "./ledger-editor";
 import { RegistrationEditor } from "./registration-editor";
 import { TrialBalanceEditor } from "./trial-balance-editor";
 import type { QAEditorProps } from "./types";
@@ -62,8 +63,9 @@ export function QAEditor(props: QAEditorProps) {
         case "epan_registration":
             return <RegistrationEditor {...props} />;
         case "journal_entry":
+            return <JournalEntryEditor {...props} />;
         case "ledger":
-            return <GridEditor {...props} />;
+            return <LedgerEditor {...props} />;
         case "trial_balance":
             return <TrialBalanceEditor {...props} />;
         case "financial_statement":

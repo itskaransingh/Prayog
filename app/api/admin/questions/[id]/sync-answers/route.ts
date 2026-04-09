@@ -18,6 +18,8 @@ import {
     type FinancialStatementPayload,
     type FinancialStatementSectionKey,
     type GridPayload,
+    type JournalEntryPayload,
+    type LedgerPayload,
     type RegistrationPayload,
     type SimulationFieldDefinition,
     type SimulationFieldInsert,
@@ -30,6 +32,7 @@ import type { QuestionType } from "@/lib/questions/types";
 interface QuestionRecord {
     id: string;
     submodule_id: string;
+    title: string;
     type: QuestionType;
 }
 
@@ -146,8 +149,9 @@ function expectedPayloadType(simulatorType: SimulatorType | null): SyncAnswersPa
         case "classification":
             return "classification";
         case "journal_entry":
+            return "journal_entry";
         case "ledger":
-            return "grid";
+            return "ledger";
         case "trial_balance":
             return "trial_balance";
         case "financial_statement":
@@ -263,6 +267,176 @@ function parsePayload(body: unknown): SyncAnswersPayload | { error: string } {
                 type: "grid",
                 accountOptions,
                 rows: parsedRows,
+            };
+        }
+        case "journal_entry": {
+            const accountOptions = asStringArray(raw.accountOptions);
+            if (accountOptions === null) {
+                return { error: "journal_entry accountOptions must be an array of strings" };
+            }
+
+            if (!Array.isArray(raw.rows)) {
+                return { error: "journal_entry rows must be an array" };
+            }
+
+            const rows = raw.rows.map((row) => {
+                if (!row || typeof row !== "object") {
+                    return null;
+                }
+
+                const next = row as Record<string, unknown>;
+                const transactionDesc = trimString(next.transactionDesc);
+                if (transactionDesc === null || !Array.isArray(next.lines)) {
+                    return null;
+                }
+
+                const lines = next.lines.map((line) => {
+                    if (!line || typeof line !== "object") {
+                        return null;
+                    }
+
+                    const lineRecord = line as Record<string, unknown>;
+                    const side = lineRecord.side;
+                    const account = trimString(lineRecord.account);
+                    const amount = trimString(lineRecord.amount);
+
+                    if (
+                        account === null ||
+                        amount === null ||
+                        (side !== "debit" && side !== "credit")
+                    ) {
+                        return null;
+                    }
+
+                    return {
+                        side,
+                        account,
+                        amount,
+                    };
+                });
+
+                if (lines.some((line) => line === null)) {
+                    return null;
+                }
+
+                return {
+                    transactionDesc,
+                    lines: lines as JournalEntryPayload["rows"][number]["lines"],
+                };
+            });
+
+            if (rows.some((row) => row === null)) {
+                return {
+                    error: "journal_entry rows must contain string transactionDesc and valid line items",
+                };
+            }
+
+            return {
+                type: "journal_entry",
+                accountOptions,
+                rows: rows as JournalEntryPayload["rows"],
+            };
+        }
+        case "ledger": {
+            const accountOptions = asStringArray(raw.accountOptions);
+            if (accountOptions === null) {
+                return { error: "ledger accountOptions must be an array of strings" };
+            }
+
+            const parseSideRows = (value: unknown) => {
+                if (!Array.isArray(value)) {
+                    return null;
+                }
+
+                const rows = value.map((row) => {
+                    if (!row || typeof row !== "object") {
+                        return null;
+                    }
+
+                    const next = row as Record<string, unknown>;
+                    const account = trimString(next.account);
+                    const amount = trimString(next.amount);
+                    if (account === null || amount === null) {
+                        return null;
+                    }
+
+                    return { account, amount };
+                });
+
+                if (rows.some((row) => row === null)) {
+                    return null;
+                }
+
+                return rows as LedgerPayload["debitRows"];
+            };
+
+            if (Array.isArray(raw.rows)) {
+                const rows = raw.rows.map((row) => {
+                    if (!row || typeof row !== "object") {
+                        return null;
+                    }
+
+                    const next = row as Record<string, unknown>;
+                    const transactionDesc = trimString(next.transactionDesc);
+                    const debitRows = parseSideRows(next.debitRows);
+                    const creditRows = parseSideRows(next.creditRows);
+
+                    if (
+                        transactionDesc === null ||
+                        debitRows === null ||
+                        creditRows === null
+                    ) {
+                        return null;
+                    }
+
+                    return {
+                        transactionDesc,
+                        debitRows,
+                        creditRows,
+                    };
+                });
+
+                if (rows.some((row) => row === null)) {
+                    return {
+                        error: "ledger rows must contain string transactionDesc and valid debitRows/creditRows values",
+                    };
+                }
+
+                const parsedRows = rows as LedgerPayload["rows"];
+
+                return {
+                    type: "ledger",
+                    accountOptions,
+                    rows: parsedRows,
+                    debitRows: parsedRows.flatMap((row) => row.debitRows),
+                    creditRows: parsedRows.flatMap((row) => row.creditRows),
+                };
+            }
+
+            const debitRows = parseSideRows(raw.debitRows);
+            const creditRows = parseSideRows(raw.creditRows);
+            if (debitRows === null || creditRows === null) {
+                return {
+                    error: "ledger requires rows or debitRows/creditRows with string account and amount values",
+                };
+            }
+
+            const parsedDebitRows = debitRows ?? [];
+            const parsedCreditRows = creditRows ?? [];
+
+            return {
+                type: "ledger",
+                accountOptions,
+                rows: Array.from(
+                    { length: Math.max(parsedDebitRows.length, parsedCreditRows.length) },
+                    (_, index) => ({
+                        transactionDesc: "",
+                        debitRows: parsedDebitRows[index] ? [parsedDebitRows[index]] : [],
+                        creditRows: parsedCreditRows[index] ? [parsedCreditRows[index]] : [],
+                    }),
+                ),
+                debitRows: parsedDebitRows,
+                creditRows: parsedCreditRows,
             };
         }
         case "trial_balance": {
@@ -428,7 +602,7 @@ async function loadQuestionAndSubmodule(
 > {
     const { data: question, error: questionError } = await adminDb
         .from("questions")
-        .select("id, submodule_id, type")
+        .select("id, submodule_id, title, type")
         .eq("id", questionId)
         .maybeSingle<QuestionRecord>();
 
@@ -533,7 +707,13 @@ export async function POST(
             : await (async () => {
                   const { data, error } = await adminDb
                       .from("simulation_tasks")
-                      .insert({ question_id: id })
+                      .insert({
+                          question_id: id,
+                          title: loaded.question.title,
+                          description: `Simulation specific to ${loaded.question.title}`,
+                          max_score: 0,
+                          show_expected_answers_in_evaluation: false,
+                      })
                       .select("id")
                       .single<{ id: string }>();
 
@@ -563,7 +743,11 @@ export async function POST(
             : await (async () => {
                   const { data, error } = await adminDb
                       .from("simulation_steps")
-                      .insert({ task_id: taskId, step_order: 1 })
+                      .insert({
+                          task_id: taskId,
+                          step_order: 1,
+                          title: loaded.question.title,
+                      })
                       .select("id")
                       .single<{ id: string }>();
 
@@ -629,13 +813,17 @@ export async function POST(
 
             if (
                 parsedPayload.type === "classification" ||
-                parsedPayload.type === "grid"
+                parsedPayload.type === "journal_entry" ||
+                parsedPayload.type === "ledger"
             ) {
                 const evidenceTable = buildEvidenceTable(parsedPayload);
-                const questionUpdate: { table_data: ReturnType<typeof buildEvidenceTable> } =
-                    {
-                        table_data: evidenceTable,
-                    };
+                const questionUpdate: {
+                    has_table: boolean;
+                    table_data: ReturnType<typeof buildEvidenceTable>;
+                } = {
+                    has_table: evidenceTable !== null,
+                    table_data: evidenceTable,
+                };
 
                 const { error: questionUpdateError } = await adminDb
                     .from("questions")

@@ -61,12 +61,51 @@ function getAnswerColumnLabel(questionTitle: string): string {
         return "Account Type";
     }
     if (/ledger\s*posting|posting/i.test(questionTitle)) {
-        return "Accounting Action";
+        return "Debit/Credit";
     }
     if (/ledger\s*recognition|recognition/i.test(questionTitle)) {
         return "Account";
     }
     return "Nature";
+}
+
+function isLedgerPostingQuestion(questionTitle: string): boolean {
+    return /ledger\s*posting|posting/i.test(questionTitle);
+}
+
+function getDisplayHeaders(questionTitle: string, headers: string[]): string[] {
+    if (!isLedgerPostingQuestion(questionTitle)) {
+        return headers;
+    }
+
+    const transactionIndex = headers.findIndex((header) => /context|transaction/i.test(header));
+    const orderedIndexes = transactionIndex >= 0
+        ? [transactionIndex, ...headers.map((_, index) => index).filter((index) => index !== transactionIndex)]
+        : headers.map((_, index) => index);
+
+    return orderedIndexes.map((index) =>
+        /context|transaction/i.test(headers[index] ?? "") ? "Transaction" : headers[index] ?? "",
+    );
+}
+
+function getDisplayCells(
+    questionTitle: string,
+    headers: string[],
+    contentCells: string[],
+): string[] {
+    if (!isLedgerPostingQuestion(questionTitle)) {
+        return contentCells;
+    }
+
+    const transactionIndex = headers.findIndex((header) => /context|transaction/i.test(header));
+    if (transactionIndex < 0) {
+        return contentCells;
+    }
+
+    return [
+        contentCells[transactionIndex] ?? "",
+        ...contentCells.filter((_, index) => index !== transactionIndex),
+    ];
 }
 
 function FinancialAccountingSimulationPageInner() {
@@ -110,14 +149,35 @@ function FinancialAccountingSimulationPageInner() {
 
     const baseHeaders = useMemo(() => {
         const headers = task?.tableData?.headers ?? [];
-        if (headers.length > 0) return headers[0] && /^(sl|sr|#)/i.test(headers[0]) ? headers.slice(1) : headers;
-        return ["Transactions"];
-    }, [task?.tableData]);
+        const normalizedHeaders =
+            headers.length > 0
+                ? headers[0] && /^(sl|sr|#)/i.test(headers[0])
+                    ? headers.slice(1)
+                    : headers
+                : isLedgerPostingQuestion(questionTitle)
+                  ? ["Transaction"]
+                  : ["Transactions"];
+
+        return getDisplayHeaders(questionTitle, normalizedHeaders);
+    }, [questionTitle, task?.tableData]);
 
     const renderedRows = useMemo(() => (task?.tableData?.rows ?? []).map((row, index) => {
         const field = (task?.fields ?? []).find(f => f.order_index === index + 1) || null;
-        return { rowIndex: index, field, contentCells: extractContentCells(row), accountName: field?.field_label?.trim() || "Untitled field", options: parseOptions(field?.options) };
-    }), [task]);
+        const rawContentCells = extractContentCells(row);
+        const sourceHeaders = (task?.tableData?.headers ?? []).length > 0
+            ? ((task?.tableData?.headers ?? [])[0] && /^(sl|sr|#)/i.test((task?.tableData?.headers ?? [])[0] ?? "")
+                ? (task?.tableData?.headers ?? []).slice(1)
+                : (task?.tableData?.headers ?? []))
+            : [];
+
+        return {
+            rowIndex: index,
+            field,
+            contentCells: getDisplayCells(questionTitle, sourceHeaders, rawContentCells),
+            accountName: field?.field_label?.trim() || "Untitled field",
+            options: parseOptions(field?.options),
+        };
+    }), [questionTitle, task]);
     const answerColumnLabel = useMemo(() => getAnswerColumnLabel(questionTitle), [questionTitle]);
 
     async function handleLogout() { await supabase.auth.signOut(); window.location.href = "/login"; }

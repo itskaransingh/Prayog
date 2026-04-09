@@ -9,7 +9,8 @@ import {
     reverseParseFields,
     type ClassificationPayload,
     type FinancialStatementPayload,
-    type GridPayload,
+    type JournalEntryPayload,
+    type LedgerPayload,
     type RegistrationPayload,
     type SimulationFieldRecord,
     type TrialBalancePayload,
@@ -63,38 +64,36 @@ describe("answer-field-generator", () => {
         });
     });
 
-    it("generates and round-trips grid payloads with transaction descriptions", () => {
-        const payload: GridPayload = {
-            type: "grid",
+    it("generates and round-trips journal-entry payloads with multi-line transactions", () => {
+        const payload: JournalEntryPayload = {
+            type: "journal_entry",
             accountOptions: ["Cash", " Sales ", "Capital"],
             rows: [
                 {
                     transactionDesc: "Started business with cash",
-                    drAccount: "Cash",
-                    drAmount: "50,000",
-                    crAccount: "Capital",
-                    crAmount: "50,000",
+                    lines: [
+                        { side: "debit", account: "Cash", amount: "50,000" },
+                        { side: "credit", account: "Capital", amount: "50,000" },
+                    ],
                 },
                 {
-                    transactionDesc: "Credit sale",
-                    drAccount: "Debtors",
-                    drAmount: "8,000",
-                    crAccount: "Sales",
-                    crAmount: "8,000",
+                    transactionDesc: "Professional fee with TDS",
+                    lines: [
+                        { side: "debit", account: "Bank", amount: "13,500" },
+                        { side: "debit", account: "TDS Receivable", amount: "1,500" },
+                        { side: "credit", account: "Professional Fees", amount: "15,000" },
+                    ],
                 },
                 {
                     transactionDesc: "Ignored evidence row",
-                    drAccount: "",
-                    drAmount: "",
-                    crAccount: "",
-                    crAmount: "",
+                    lines: [],
                 },
             ],
         };
 
         const fields = generateFields("step-2", payload);
 
-        assert.equal(fields.length, 15);
+        assert.equal(fields.length, 8);
         assert.deepEqual(fields[0], {
             step_id: "step-2",
             field_name: "row1_description",
@@ -106,15 +105,15 @@ describe("answer-field-generator", () => {
         });
         assert.deepEqual(fields[1], {
             step_id: "step-2",
-            field_name: "row1_debit_account",
+            field_name: "row1_debit1_account",
             field_type: "dropdown",
-            field_label: "Row 1 Debit Account",
+            field_label: "Row 1 Debit 1 Account",
             expected_value: "Cash",
             options: ["Cash", "Sales", "Capital"],
             order_index: 2,
         });
         assert.equal(fields[2].expected_value, "50000");
-        assert.equal(fields[14].order_index, 15);
+        assert.equal(fields[7].field_name, "row2_credit1_amount");
 
         const roundTrip = reverseParseFields(
             asRecords(fields),
@@ -123,30 +122,101 @@ describe("answer-field-generator", () => {
         );
 
         assert.deepEqual(roundTrip, {
-            type: "grid",
+            type: "journal_entry",
             accountOptions: ["Cash", "Sales", "Capital"],
             rows: [
                 {
                     transactionDesc: "Started business with cash",
-                    drAccount: "Cash",
-                    drAmount: "50000",
-                    crAccount: "Capital",
-                    crAmount: "50000",
+                    lines: [
+                        { side: "debit", account: "Cash", amount: "50000" },
+                        { side: "credit", account: "Capital", amount: "50000" },
+                    ],
                 },
                 {
-                    transactionDesc: "Credit sale",
-                    drAccount: "Debtors",
-                    drAmount: "8000",
-                    crAccount: "Sales",
-                    crAmount: "8000",
+                    transactionDesc: "Professional fee with TDS",
+                    lines: [
+                        { side: "credit", account: "Professional Fees", amount: "15000" },
+                        { side: "debit", account: "Bank", amount: "13500" },
+                        { side: "debit", account: "TDS Receivable", amount: "1500" },
+                    ],
                 },
                 {
                     transactionDesc: "Ignored evidence row",
-                    drAccount: "",
-                    drAmount: "",
-                    crAccount: "",
-                    crAmount: "",
+                    lines: [],
                 },
+            ],
+        });
+    });
+
+    it("generates and round-trips ledger payloads with transaction details", () => {
+        const payload: LedgerPayload = {
+            type: "ledger",
+            accountOptions: ["Cash", "Bank", "Capital", "Sales"],
+            rows: [
+                {
+                    transactionDesc: "Started business with cash",
+                    debitRows: [{ account: "Cash", amount: "50,000" }],
+                    creditRows: [{ account: "Capital", amount: "50,000" }],
+                },
+                {
+                    transactionDesc: "Cash sales",
+                    debitRows: [{ account: "Bank", amount: "12,000" }],
+                    creditRows: [{ account: "Sales", amount: "12,000" }],
+                },
+            ],
+            debitRows: [
+                { account: "Cash", amount: "50,000" },
+                { account: "Bank", amount: "12,000" },
+            ],
+            creditRows: [
+                { account: "Capital", amount: "50,000" },
+                { account: "Sales", amount: "12,000" },
+            ],
+        };
+
+        const fields = generateFields("step-2b", payload);
+
+        assert.equal(fields.length, 10);
+        assert.deepEqual(fields[0], {
+            step_id: "step-2b",
+            field_name: "row1_description",
+            field_type: "text",
+            field_label: "Row 1 Description",
+            expected_value: "Started business with cash",
+            options: null,
+            order_index: 1,
+        });
+        assert.equal(fields[1].field_name, "row1_debit1_account");
+        assert.equal(fields[4].field_name, "row1_credit1_account");
+
+        const roundTrip = reverseParseFields(
+            asRecords(fields),
+            "ledger",
+            buildEvidenceTable(payload),
+        );
+
+        assert.deepEqual(roundTrip, {
+            type: "ledger",
+            accountOptions: ["Cash", "Bank", "Capital", "Sales"],
+            rows: [
+                {
+                    transactionDesc: "Started business with cash",
+                    debitRows: [{ account: "Cash", amount: "50000" }],
+                    creditRows: [{ account: "Capital", amount: "50000" }],
+                },
+                {
+                    transactionDesc: "Cash sales",
+                    debitRows: [{ account: "Bank", amount: "12000" }],
+                    creditRows: [{ account: "Sales", amount: "12000" }],
+                },
+            ],
+            debitRows: [
+                { account: "Cash", amount: "50000" },
+                { account: "Bank", amount: "12000" },
+            ],
+            creditRows: [
+                { account: "Capital", amount: "50000" },
+                { account: "Sales", amount: "12000" },
             ],
         });
     });
@@ -352,11 +422,11 @@ describe("answer-field-generator", () => {
 
         const result = reverseParseFields(fields as SimulationFieldRecord[], "journal_entry", tableData);
         assert.ok(result);
-        assert.equal(result!.type, "grid");
-        const gridResult = result as GridPayload;
-        assert.equal(gridResult.rows[0].transactionDesc, "Started business with cash");
-        assert.equal(gridResult.rows[0].drAccount, "Cash");
-        assert.equal(gridResult.rows[0].crAccount, "Capital");
+        assert.equal(result!.type, "journal_entry");
+        const journalResult = result as JournalEntryPayload;
+        assert.equal(journalResult.rows[0].transactionDesc, "Started business with cash");
+        assert.equal(journalResult.rows[0].lines[0]?.account, "Cash");
+        assert.equal(journalResult.rows[0].lines[1]?.account, "Capital");
     });
 
     it("parses legacy classification fields saved as field_N", () => {

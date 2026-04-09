@@ -39,7 +39,7 @@ export interface ClassificationPayload {
     rows: { label: string; expected: string }[];
 }
 
-export interface GridPayload {
+export interface LegacyGridPayload {
     type: "grid";
     accountOptions: string[];
     rows: {
@@ -50,6 +50,45 @@ export interface GridPayload {
         crAmount: string;
     }[];
 }
+
+export interface JournalEntryPayload {
+    type: "journal_entry";
+    accountOptions: string[];
+    rows: {
+        transactionDesc: string;
+        lines: {
+            side: "debit" | "credit";
+            account: string;
+            amount: string;
+        }[];
+    }[];
+}
+
+export interface LedgerPayload {
+    type: "ledger";
+    accountOptions: string[];
+    rows: {
+        transactionDesc: string;
+        debitRows: {
+            account: string;
+            amount: string;
+        }[];
+        creditRows: {
+            account: string;
+            amount: string;
+        }[];
+    }[];
+    debitRows?: {
+        account: string;
+        amount: string;
+    }[];
+    creditRows?: {
+        account: string;
+        amount: string;
+    }[];
+}
+
+export type GridPayload = LegacyGridPayload;
 
 export interface TrialBalancePayload {
     type: "trial_balance";
@@ -94,7 +133,9 @@ export interface SimulationFieldDefinition {
 
 export type SyncAnswersPayload =
     | ClassificationPayload
-    | GridPayload
+    | LegacyGridPayload
+    | JournalEntryPayload
+    | LedgerPayload
     | TrialBalancePayload
     | FinancialStatementPayload
     | RegistrationPayload;
@@ -136,6 +177,7 @@ const CLASSIFICATION_FIELD_PATTERN = /^row(\d+)_classification$/i;
 const LEGACY_CLASSIFICATION_FIELD_PATTERN = /^field_(\d+)$/i;
 const GRID_DESCRIPTION_FIELD_PATTERN = /^row(\d+)_description$/i;
 const GRID_FIELD_PATTERN = /^row(\d+)_(debit|credit)_(account|amount)$/i;
+const JOURNAL_LINE_FIELD_PATTERN = /^row(\d+)_(debit|credit)(\d+)_(account|amount)$/i;
 const TRIAL_BALANCE_FIELD_PATTERN = /^row(\d+)_(debit|credit)_(account|amount)$/i;
 const LEGACY_BALANCE_ACCOUNT_FIELD_PATTERN = /^row(\d+)_account$/i;
 const LEGACY_BALANCE_AMOUNT_FIELD_PATTERN = /^row(\d+)_(debit|credit)_amount$/i;
@@ -247,6 +289,75 @@ export function normalizeRegistrationFieldPath(
 
 function hasAnyValue(values: Array<string | null | undefined>): boolean {
     return values.some((value) => trimValue(value).length > 0);
+}
+
+function normalizeJournalLines(
+    lines: JournalEntryPayload["rows"][number]["lines"],
+) {
+    return lines.filter((line) => hasAnyValue([line.account, line.amount]));
+}
+
+function normalizeLedgerRows(rows?: { account: string; amount: string }[]) {
+    return (rows ?? []).filter((row) => hasAnyValue([row.account, row.amount]));
+}
+
+function normalizeLedgerTransactions(payload: LedgerPayload) {
+    const normalizedRows = payload.rows
+        .map((row) => ({
+            transactionDesc: trimValue(row.transactionDesc),
+            debitRows: normalizeLedgerRows(row.debitRows),
+            creditRows: normalizeLedgerRows(row.creditRows),
+        }))
+        .filter(
+            (row) =>
+                hasAnyValue([row.transactionDesc]) ||
+                row.debitRows.length > 0 ||
+                row.creditRows.length > 0,
+        );
+
+    if (normalizedRows.length > 0) {
+        return normalizedRows;
+    }
+
+    const legacyDebitRows = normalizeLedgerRows(payload.debitRows);
+    const legacyCreditRows = normalizeLedgerRows(payload.creditRows);
+    const legacyLength = Math.max(legacyDebitRows.length, legacyCreditRows.length);
+
+    return Array.from({ length: legacyLength }, (_, index) => ({
+        transactionDesc: "",
+        debitRows: legacyDebitRows[index] ? [legacyDebitRows[index]] : [],
+        creditRows: legacyCreditRows[index] ? [legacyCreditRows[index]] : [],
+    })).filter(
+        (row) =>
+            hasAnyValue([row.transactionDesc]) ||
+            row.debitRows.length > 0 ||
+            row.creditRows.length > 0,
+    );
+}
+
+function getTableRowDescription(
+    tableData: QuestionTableData | null | undefined,
+    rowIndex: number,
+): string {
+    const row = tableData?.rows?.[rowIndex] ?? [];
+    const headers = tableData?.headers ?? [];
+
+    const labelHeaderIndex = headers.findIndex((header) =>
+        /transaction|item|particular/i.test(trimValue(header)),
+    );
+    if (labelHeaderIndex >= 0) {
+        return trimValue(row[labelHeaderIndex]);
+    }
+
+    if (row.length >= 3) {
+        return trimValue(row[2]);
+    }
+
+    if (row.length >= 2) {
+        return trimValue(row[1]);
+    }
+
+    return trimValue(row[0]);
 }
 
 function capitalize(value: string): string {
@@ -495,6 +606,131 @@ export function generateFields(
                     },
                 ];
             });
+        case "journal_entry": {
+            let orderIndex = 1;
+
+            return payload.rows.flatMap((row, index) => {
+                const normalizedLines = normalizeJournalLines(row.lines);
+                if (!hasAnyValue([row.transactionDesc]) && normalizedLines.length === 0) {
+                    return [];
+                }
+
+                const rowNumber = index + 1;
+                const accountOptions = normalizeOptions(payload.accountOptions);
+                const fields: SimulationFieldInsert[] = [
+                    {
+                        step_id: stepId,
+                        field_name: `row${rowNumber}_description`,
+                        field_type: "text",
+                        field_label: `Row ${rowNumber} Description`,
+                        expected_value: trimValue(row.transactionDesc),
+                        options: null,
+                        order_index: orderIndex++,
+                    },
+                ];
+
+                const sideCounters = {
+                    debit: 0,
+                    credit: 0,
+                };
+
+                for (const line of normalizedLines) {
+                    sideCounters[line.side] += 1;
+                    const lineNumber = sideCounters[line.side];
+
+                    fields.push(
+                        {
+                            step_id: stepId,
+                            field_name: `row${rowNumber}_${line.side}${lineNumber}_account`,
+                            field_type: "dropdown",
+                            field_label: `Row ${rowNumber} ${capitalize(line.side)} ${lineNumber} Account`,
+                            expected_value: trimValue(line.account),
+                            options: accountOptions,
+                            order_index: orderIndex++,
+                        },
+                        {
+                            step_id: stepId,
+                            field_name: `row${rowNumber}_${line.side}${lineNumber}_amount`,
+                            field_type: "number",
+                            field_label: `Row ${rowNumber} ${capitalize(line.side)} ${lineNumber} Amount`,
+                            expected_value: normalizeAmount(line.amount),
+                            options: null,
+                            order_index: orderIndex++,
+                        },
+                    );
+                }
+
+                return fields;
+            });
+        }
+        case "ledger": {
+            const accountOptions = normalizeOptions(payload.accountOptions);
+            let orderIndex = 1;
+            return normalizeLedgerTransactions(payload).flatMap((row, index) => {
+                const rowNumber = index + 1;
+                const fields: SimulationFieldInsert[] = [
+                    {
+                        step_id: stepId,
+                        field_name: `row${rowNumber}_description`,
+                        field_type: "text",
+                        field_label: `Row ${rowNumber} Description`,
+                        expected_value: trimValue(row.transactionDesc),
+                        options: null,
+                        order_index: orderIndex++,
+                    },
+                ];
+
+                row.debitRows.forEach((line, lineIndex) => {
+                    const lineNumber = lineIndex + 1;
+                    fields.push(
+                        {
+                            step_id: stepId,
+                            field_name: `row${rowNumber}_debit${lineNumber}_account`,
+                            field_type: "dropdown",
+                            field_label: `Row ${rowNumber} Debit ${lineNumber} Account`,
+                            expected_value: trimValue(line.account),
+                            options: accountOptions,
+                            order_index: orderIndex++,
+                        },
+                        {
+                            step_id: stepId,
+                            field_name: `row${rowNumber}_debit${lineNumber}_amount`,
+                            field_type: "number",
+                            field_label: `Row ${rowNumber} Debit ${lineNumber} Amount`,
+                            expected_value: normalizeAmount(line.amount),
+                            options: null,
+                            order_index: orderIndex++,
+                        },
+                    );
+                });
+
+                row.creditRows.forEach((line, lineIndex) => {
+                    const lineNumber = lineIndex + 1;
+                    fields.push(
+                        {
+                            step_id: stepId,
+                            field_name: `row${rowNumber}_credit${lineNumber}_account`,
+                            field_type: "dropdown",
+                            field_label: `Row ${rowNumber} Credit ${lineNumber} Account`,
+                            expected_value: trimValue(line.account),
+                            options: accountOptions,
+                            order_index: orderIndex++,
+                        },
+                        {
+                            step_id: stepId,
+                            field_name: `row${rowNumber}_credit${lineNumber}_amount`,
+                            field_type: "number",
+                            field_label: `Row ${rowNumber} Credit ${lineNumber} Amount`,
+                            expected_value: normalizeAmount(line.amount),
+                            options: null,
+                            order_index: orderIndex++,
+                        },
+                    );
+                });
+
+                return fields;
+            });
+        }
         case "trial_balance":
             return payload.rows.flatMap((row, index) => {
                 if (!hasAnyValue([row.account, row.amount])) {
@@ -636,6 +872,30 @@ export function buildEvidenceTable(
                   }
                 : null;
         }
+        case "journal_entry": {
+            const rows = payload.rows
+                .filter((row) => hasAnyValue([row.transactionDesc]) || normalizeJournalLines(row.lines).length > 0)
+                .map((row, index) => [String(index + 1), trimValue(row.transactionDesc)]);
+
+            return rows.length > 0
+                ? {
+                      headers: ["#", "Transaction"],
+                      rows,
+                  }
+                : null;
+        }
+        case "ledger": {
+            const rows = normalizeLedgerTransactions(payload)
+                .map((row, index) => [String(index + 1), trimValue(row.transactionDesc)])
+                .filter((row) => hasAnyValue([row[1]]));
+
+            return rows.length > 0
+                ? {
+                      headers: ["#", "Transaction"],
+                      rows,
+                  }
+                : null;
+        }
         default:
             return null;
     }
@@ -653,8 +913,9 @@ export function reverseParseFields(
         case "classification":
             return reverseParseClassification(fields, tableData);
         case "journal_entry":
+            return reverseParseJournalEntry(fields, tableData);
         case "ledger":
-            return reverseParseGrid(fields, tableData);
+            return reverseParseLedger(fields, tableData);
         case "trial_balance":
             return reverseParseTrialBalance(fields);
         case "financial_statement":
@@ -746,7 +1007,7 @@ function reverseParseGrid(
 
             current.transactionDesc =
                 trimValue(field.expected_value) ||
-                trimValue(tableData?.rows?.[rowNumber - 1]?.[1]);
+                getTableRowDescription(tableData, rowNumber - 1);
             rows.set(rowNumber, current);
             continue;
         }
@@ -761,7 +1022,7 @@ function reverseParseGrid(
         const kind = match[3].toLowerCase() as "account" | "amount";
 
         const current = rows.get(rowNumber) ?? {
-            transactionDesc: trimValue(tableData?.rows?.[rowNumber - 1]?.[1]),
+            transactionDesc: getTableRowDescription(tableData, rowNumber - 1),
             drAccount: "",
             drAmount: "",
             crAccount: "",
@@ -786,7 +1047,7 @@ function reverseParseGrid(
     if (tableData?.rows) {
         for (const [rowNumber, row] of rows.entries()) {
             if (!row.transactionDesc) {
-                const legacyDesc = trimValue(tableData.rows[rowNumber - 1]?.[1]);
+                const legacyDesc = getTableRowDescription(tableData, rowNumber - 1);
                 if (legacyDesc) {
                     row.transactionDesc = legacyDesc;
                 }
@@ -804,7 +1065,7 @@ function reverseParseGrid(
         const rowNumber = index + 1;
         return (
             rows.get(rowNumber) ?? {
-                transactionDesc: trimValue(tableData?.rows?.[index]?.[1]),
+                transactionDesc: getTableRowDescription(tableData, index),
                 drAccount: "",
                 drAmount: "",
                 crAccount: "",
@@ -827,6 +1088,229 @@ function reverseParseGrid(
         type: "grid",
         accountOptions: normalizeOptions(firstOptions),
         rows: parsedRows,
+    };
+}
+
+function reverseParseJournalEntry(
+    fields: SimulationFieldRecord[],
+    tableData?: QuestionTableData | null,
+): JournalEntryPayload | null {
+    const rows = new Map<
+        number,
+        {
+            transactionDesc: string;
+            lines: Map<string, { side: "debit" | "credit"; order: number; account: string; amount: string }>;
+        }
+    >();
+
+    for (const field of fields) {
+        const fieldName = field.field_name ?? "";
+        const descriptionMatch = fieldName.match(GRID_DESCRIPTION_FIELD_PATTERN);
+        if (descriptionMatch) {
+            const rowNumber = Number(descriptionMatch[1]);
+            const current = rows.get(rowNumber) ?? {
+                transactionDesc: "",
+                lines: new Map(),
+            };
+            current.transactionDesc =
+                trimValue(field.expected_value) || getTableRowDescription(tableData, rowNumber - 1);
+            rows.set(rowNumber, current);
+            continue;
+        }
+
+        const journalMatch = fieldName.match(JOURNAL_LINE_FIELD_PATTERN);
+        if (journalMatch) {
+            const rowNumber = Number(journalMatch[1]);
+            const side = journalMatch[2].toLowerCase() as "debit" | "credit";
+            const order = Number(journalMatch[3]);
+            const kind = journalMatch[4].toLowerCase() as "account" | "amount";
+            const current = rows.get(rowNumber) ?? {
+                transactionDesc: getTableRowDescription(tableData, rowNumber - 1),
+                lines: new Map(),
+            };
+            const key = `${side}:${order}`;
+            const line = current.lines.get(key) ?? { side, order, account: "", amount: "" };
+            if (kind === "account") {
+                line.account = trimValue(field.expected_value);
+            } else {
+                line.amount = trimValue(field.expected_value);
+            }
+            current.lines.set(key, line);
+            rows.set(rowNumber, current);
+            continue;
+        }
+
+        const legacyMatch = fieldName.match(GRID_FIELD_PATTERN);
+        if (!legacyMatch) {
+            continue;
+        }
+
+        const rowNumber = Number(legacyMatch[1]);
+        const side = legacyMatch[2].toLowerCase() as "debit" | "credit";
+        const kind = legacyMatch[3].toLowerCase() as "account" | "amount";
+        const current = rows.get(rowNumber) ?? {
+            transactionDesc: getTableRowDescription(tableData, rowNumber - 1),
+            lines: new Map(),
+        };
+        const key = `${side}:1`;
+        const line = current.lines.get(key) ?? { side, order: 1, account: "", amount: "" };
+        if (kind === "account") {
+            line.account = trimValue(field.expected_value);
+        } else {
+            line.amount = trimValue(field.expected_value);
+        }
+        current.lines.set(key, line);
+        rows.set(rowNumber, current);
+    }
+
+    if (rows.size === 0) {
+        return null;
+    }
+
+    const firstOptions = fields.find((field) => (field.options ?? []).length > 0)?.options;
+    const maxRowNumber = Math.max(...rows.keys());
+    const parsedRows = Array.from({ length: maxRowNumber }, (_, index) => {
+        const rowNumber = index + 1;
+        const row = rows.get(rowNumber);
+        const lines = row
+            ? [...row.lines.values()]
+                  .sort((left, right) =>
+                      left.side === right.side
+                          ? left.order - right.order
+                          : left.side.localeCompare(right.side),
+                  )
+                  .map(({ side, account, amount }) => ({ side, account, amount }))
+            : [];
+
+        return {
+            transactionDesc: row?.transactionDesc ?? getTableRowDescription(tableData, index),
+            lines,
+        };
+    }).filter((row) => hasAnyValue([row.transactionDesc]) || normalizeJournalLines(row.lines).length > 0);
+
+    return {
+        type: "journal_entry",
+        accountOptions: normalizeOptions(firstOptions),
+        rows: parsedRows,
+    };
+}
+
+function reverseParseLedger(
+    fields: SimulationFieldRecord[],
+    tableData?: QuestionTableData | null,
+): LedgerPayload | null {
+    const journalStyleRows = new Map<
+        number,
+        {
+            transactionDesc: string;
+            debitRows: Map<number, { account: string; amount: string }>;
+            creditRows: Map<number, { account: string; amount: string }>;
+        }
+    >();
+
+    for (const field of fields) {
+        const fieldName = field.field_name ?? "";
+        const descriptionMatch = fieldName.match(/^row(\d+)_description$/i);
+        if (descriptionMatch) {
+            const rowNumber = Number(descriptionMatch[1]);
+            const current = journalStyleRows.get(rowNumber) ?? {
+                transactionDesc: getTableRowDescription(tableData, rowNumber - 1),
+                debitRows: new Map(),
+                creditRows: new Map(),
+            };
+            current.transactionDesc = trimValue(field.expected_value);
+            journalStyleRows.set(rowNumber, current);
+            continue;
+        }
+
+        const lineMatch = fieldName.match(/^row(\d+)_(debit|credit)(\d+)_(account|amount)$/i);
+        if (!lineMatch) {
+            continue;
+        }
+
+        const rowNumber = Number(lineMatch[1]);
+        const side = lineMatch[2].toLowerCase() as "debit" | "credit";
+        const lineNumber = Number(lineMatch[3]);
+        const kind = lineMatch[4].toLowerCase() as "account" | "amount";
+        const current = journalStyleRows.get(rowNumber) ?? {
+            transactionDesc: getTableRowDescription(tableData, rowNumber - 1),
+            debitRows: new Map(),
+            creditRows: new Map(),
+        };
+        const targetRows = side === "debit" ? current.debitRows : current.creditRows;
+        const targetRow = targetRows.get(lineNumber) ?? { account: "", amount: "" };
+        targetRow[kind] = trimValue(field.expected_value);
+        targetRows.set(lineNumber, targetRow);
+        journalStyleRows.set(rowNumber, current);
+    }
+
+    if (journalStyleRows.size > 0) {
+        const maxRowNumber = Math.max(...journalStyleRows.keys());
+        const rows = Array.from({ length: maxRowNumber }, (_, index) => {
+            const rowNumber = index + 1;
+            const row = journalStyleRows.get(rowNumber);
+            return {
+                transactionDesc:
+                    row?.transactionDesc ?? getTableRowDescription(tableData, index),
+                debitRows: row
+                    ? [...row.debitRows.entries()]
+                          .sort((left, right) => left[0] - right[0])
+                          .map(([, value]) => value)
+                          .filter((value) => hasAnyValue([value.account, value.amount]))
+                    : [],
+                creditRows: row
+                    ? [...row.creditRows.entries()]
+                          .sort((left, right) => left[0] - right[0])
+                          .map(([, value]) => value)
+                          .filter((value) => hasAnyValue([value.account, value.amount]))
+                    : [],
+            };
+        }).filter(
+            (row) =>
+                hasAnyValue([row.transactionDesc]) ||
+                row.debitRows.length > 0 ||
+                row.creditRows.length > 0,
+        );
+
+        return {
+            type: "ledger",
+            accountOptions: normalizeOptions(
+                fields.find((field) => (field.options ?? []).length > 0)?.options,
+            ),
+            rows,
+            debitRows: rows.flatMap((row) => row.debitRows),
+            creditRows: rows.flatMap((row) => row.creditRows),
+        };
+    }
+
+    const legacyGrid = reverseParseGrid(fields, tableData ?? null);
+    if (!legacyGrid) {
+        return null;
+    }
+
+    const rows = legacyGrid.rows
+        .map((row) => ({
+            transactionDesc: row.transactionDesc,
+            debitRows: hasAnyValue([row.drAccount, row.drAmount])
+                ? [{ account: row.drAccount, amount: row.drAmount }]
+                : [],
+            creditRows: hasAnyValue([row.crAccount, row.crAmount])
+                ? [{ account: row.crAccount, amount: row.crAmount }]
+                : [],
+        }))
+        .filter(
+            (row) =>
+                hasAnyValue([row.transactionDesc]) ||
+                row.debitRows.length > 0 ||
+                row.creditRows.length > 0,
+        );
+
+    return {
+        type: "ledger",
+        accountOptions: legacyGrid.accountOptions,
+        rows,
+        debitRows: rows.flatMap((row) => row.debitRows),
+        creditRows: rows.flatMap((row) => row.creditRows),
     };
 }
 

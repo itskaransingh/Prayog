@@ -47,11 +47,16 @@ export async function POST(request: Request) {
         const body = (await request.json()) as {
             task_id?: unknown;
             step_order?: unknown;
+            title?: unknown;
         };
         const taskId = asNonEmptyString(body.task_id);
         const stepOrder = body.step_order === undefined
             ? 1
             : asOptionalNumber(body.step_order);
+        const title =
+            typeof body.title === "string" && body.title.trim().length > 0
+                ? body.title.trim()
+                : `Step ${stepOrder ?? 1}`;
 
         if (!taskId) {
             return badRequest("task_id is required");
@@ -66,6 +71,7 @@ export async function POST(request: Request) {
             .insert({
                 task_id: taskId,
                 step_order: stepOrder,
+                title,
             })
             .select("*")
             .single();

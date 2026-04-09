@@ -235,6 +235,37 @@ export default function AdminQuestionsPage() {
                                 !row.crAmount.trim(),
                         )
                     );
+                case "journal_entry":
+                    return (
+                        payload.accountOptions.length === 0 &&
+                        payload.rows.every(
+                            (row) =>
+                                !row.transactionDesc.trim() &&
+                                row.lines.every(
+                                    (line) =>
+                                        !line.account.trim() &&
+                                        !line.amount.trim(),
+                                ),
+                        )
+                    );
+                case "ledger":
+                    return (
+                        payload.accountOptions.length === 0 &&
+                        payload.rows.every(
+                            (row) =>
+                                !row.transactionDesc.trim() &&
+                                row.debitRows.every(
+                                    (line) =>
+                                        !line.account.trim() &&
+                                        !line.amount.trim(),
+                                ) &&
+                                row.creditRows.every(
+                                    (line) =>
+                                        !line.account.trim() &&
+                                        !line.amount.trim(),
+                                ),
+                        )
+                    );
                 case "trial_balance":
                     return (
                         payload.accountOptions.length === 0 &&
@@ -562,6 +593,7 @@ export default function AdminQuestionsPage() {
             if (
                 form.type === "question" &&
                 qaPayload !== null &&
+                !isEmptyQaPayload(qaPayload, simulatorType) &&
                 (!editingQuestionId || qaDirty)
             ) {
                 const answersRes = await fetch(

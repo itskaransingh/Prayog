@@ -61,6 +61,20 @@ export async function POST(request: Request) {
             return badRequest("question_id is required");
         }
 
+        const { data: question, error: questionError } = await adminDb
+            .from("questions")
+            .select("id, title")
+            .eq("id", questionId)
+            .maybeSingle<{ id: string; title: string }>();
+
+        if (questionError) {
+            throw questionError;
+        }
+
+        if (!question) {
+            return badRequest("question_id does not reference an existing question");
+        }
+
         const { data: existingTask, error: existingTaskError } = await adminDb
             .from("simulation_tasks")
             .select("*")
@@ -83,6 +97,9 @@ export async function POST(request: Request) {
             .from("simulation_tasks")
             .insert({
                 question_id: questionId,
+                title: question.title,
+                description: `Simulation specific to ${question.title}`,
+                max_score: 0,
                 show_expected_answers_in_evaluation: showExpectedAnswersInEvaluation,
             })
             .select("*")

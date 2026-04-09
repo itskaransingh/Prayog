@@ -11,17 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { PrayogLogo } from "@/components/branding/prayog-logo";
+import { LmsBreadcrumbs } from "@/components/lms/lms-breadcrumbs";
+import { LmsBreadcrumbProvider, useLmsBreadcrumbs } from "@/components/lms/lms-breadcrumb-context";
 
-export default function LmsLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+function LmsLayoutShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const supabase = useMemo(() => createClient(), []);
     const [role, setRole] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const { breadcrumbs } = useLmsBreadcrumbs();
 
     useEffect(() => {
         const fetchUserRole = async () => {
@@ -50,14 +49,15 @@ export default function LmsLayout({
     };
 
     const isCoursePage = pathname.startsWith("/course");
+    const hasCourseBreadcrumbs = isCoursePage && breadcrumbs.length > 0;
 
     return (
-        <SidebarProvider>
-            <div className="flex min-h-screen w-full bg-background text-foreground">
-                {isCoursePage && <CourseTopicsSidebar />}
-                <SidebarInset className="flex flex-col">
-                    {/* Top header */}
-                    <header className="flex container mx-auto h-20 shrink-0 items-center justify-between border-b px-4 bg-background sticky top-0 z-10">
+        <div className="flex min-h-screen w-full bg-background text-foreground">
+            {isCoursePage && <CourseTopicsSidebar />}
+            <SidebarInset className="flex flex-col">
+                {/* Top header */}
+                <header className="sticky top-0 z-40 flex h-20 shrink-0 items-center justify-between border-b bg-background px-4">
+                    <div className="container mx-auto flex items-center justify-between gap-4">
                         <div className="flex items-center gap-2">
                             <Link href={"/"} className="flex items-center gap-2 group transition-all duration-200">
                                 <PrayogLogo className="h-16 w-[264px] transition-transform duration-200 group-hover:scale-[1.02]" priority />
@@ -100,16 +100,38 @@ export default function LmsLayout({
                                 </Button>
                             </div>
                         </div>
-                    </header>
-
-                    {/* Main content area */}
-                    <div className="flex flex-1 flex-col bg-muted/30">
-                        <main className="flex-1 overflow-y-auto w-full">
-                            {children}
-                        </main>
                     </div>
-                </SidebarInset>
-            </div>
+                </header>
+
+                {hasCourseBreadcrumbs && (
+                    <div className="sticky top-20 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+                        <div className="container mx-auto px-6 py-3">
+                            <LmsBreadcrumbs items={breadcrumbs} />
+                        </div>
+                    </div>
+                )}
+
+                {/* Main content area */}
+                <div className="flex flex-1 flex-col bg-muted/30">
+                    <main className="flex-1 overflow-y-auto w-full">
+                        {children}
+                    </main>
+                </div>
+            </SidebarInset>
+        </div>
+    );
+}
+
+export default function LmsLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    return (
+        <SidebarProvider>
+            <LmsBreadcrumbProvider>
+                <LmsLayoutShell>{children}</LmsLayoutShell>
+            </LmsBreadcrumbProvider>
         </SidebarProvider>
     );
 }

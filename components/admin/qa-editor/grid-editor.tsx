@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 import type { GridPayload } from "@/lib/simulation/answer-field-generator";
@@ -53,41 +53,74 @@ function toPayload(optionsText: string, rows: GridRowState[]): GridPayload {
     };
 }
 
+function getPayloadSignature(payload: GridPayload | null): string {
+    return JSON.stringify(payload ?? null);
+}
+
 export function GridEditor({
     initialPayload,
     onChange,
     disabled = false,
 }: QAEditorProps) {
-    const payload =
+    const startingPayload =
         initialPayload?.type === "grid"
             ? initialPayload
-            : toPayload("", [{ ...EMPTY_ROW }]);
-    const accountOptionsText = payload.accountOptions.join(", ");
-    const rows = payload.rows.length > 0 ? payload.rows : [{ ...EMPTY_ROW }];
+            : null;
+    const [accountOptionsText, setAccountOptionsText] = useState(
+        startingPayload?.accountOptions.join(", ") ?? "",
+    );
+    const [rows, setRows] = useState<GridRowState[]>(
+        startingPayload?.rows.length ? startingPayload.rows : [{ ...EMPTY_ROW }],
+    );
+    const lastIncomingSignatureRef = useRef(getPayloadSignature(startingPayload));
+    const lastEmittedSignatureRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        const nextPayload = initialPayload?.type === "grid" ? initialPayload : null;
+        const nextSignature = getPayloadSignature(nextPayload);
+
+        if (lastIncomingSignatureRef.current === nextSignature) {
+            return;
+        }
+
+        lastIncomingSignatureRef.current = nextSignature;
+        lastEmittedSignatureRef.current = null;
+        setAccountOptionsText(nextPayload?.accountOptions.join(", ") ?? "");
+        setRows(nextPayload?.rows.length ? nextPayload.rows : [{ ...EMPTY_ROW }]);
+    }, [initialPayload]);
+
+    useEffect(() => {
+        const nextPayload = toPayload(accountOptionsText, rows);
+        const nextSignature = getPayloadSignature(nextPayload);
+
+        if (lastEmittedSignatureRef.current === nextSignature) {
+            return;
+        }
+
+        lastEmittedSignatureRef.current = nextSignature;
+        lastIncomingSignatureRef.current = nextSignature;
+        onChange(nextPayload);
+    }, [accountOptionsText, onChange, rows]);
 
     const accountOptions = useMemo(
         () => splitCommaList(accountOptionsText),
         [accountOptionsText],
     );
 
-    function updateRows(nextRows: GridRowState[]) {
-        onChange(toPayload(accountOptionsText, nextRows));
-    }
-
     function updateRow(index: number, patch: Partial<GridRowState>) {
-        updateRows(
-            rows.map((row, rowIndex) =>
+        setRows((current) =>
+            current.map((row, rowIndex) =>
                 rowIndex === index ? { ...row, ...patch } : row,
             ),
         );
     }
 
     function addRow() {
-        updateRows([...rows, { ...EMPTY_ROW }]);
+        setRows((current) => [...current, { ...EMPTY_ROW }]);
     }
 
     function deleteRow(index: number) {
-        updateRows(normalizeRows(rows.filter((_, rowIndex) => rowIndex !== index)));
+        setRows((current) => normalizeRows(current.filter((_, rowIndex) => rowIndex !== index)));
     }
 
     return (
@@ -102,7 +135,7 @@ export function GridEditor({
                 </div>
                 <Input
                     value={accountOptionsText}
-                    onChange={(event) => onChange(toPayload(event.target.value, rows))}
+                    onChange={(event) => setAccountOptionsText(event.target.value)}
                     placeholder="Cash, Capital, Sales, Debtors"
                     disabled={disabled}
                 />
