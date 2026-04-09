@@ -4,10 +4,9 @@ import { AlertCircle, ImageIcon, Loader2 } from "lucide-react";
 
 import { QAEditor } from "@/components/admin/qa-editor";
 import type { SimulatorType, SyncAnswersPayload } from "@/components/admin/qa-editor/types";
+import type { QuestionFormState } from "@/components/admin/question-builder.types";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-
-import type { QuestionFormState } from "./page";
 
 interface QuestionBuilderProps {
     simulatorType: SimulatorType;

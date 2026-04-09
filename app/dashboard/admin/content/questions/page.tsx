@@ -20,6 +20,7 @@ import {
 
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
 import { QuestionBuilder } from "@/components/admin/question-builder";
+import type { QuestionFormState } from "@/components/admin/question-builder.types";
 import type {
     SimulatorType,
     SyncAnswersPayload,
@@ -86,21 +87,6 @@ interface Question {
     video_url: string | null;
     link_url: string | null;
     link_title: string | null;
-}
-
-interface QuestionFormState {
-    title: string;
-    contentHtml: string;
-    upperBodyHtml: string;
-    lowerBodyHtml: string;
-    hasImage: boolean;
-    imageUrl: string;
-    type: QuestionType;
-    courseObjectives: string[];
-    videoUrl: string;
-    linkUrl: string;
-    linkTitle: string;
-    showExpectedAnswersInEvaluation: boolean;
 }
 
 interface SimulationTaskRecord {
