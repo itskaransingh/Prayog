@@ -26,6 +26,7 @@ export async function PUT(
         const body = (await request.json()) as {
             step_id?: unknown;
             field_name?: unknown;
+            field_type?: unknown;
             field_label?: unknown;
             expected_value?: unknown;
             options?: unknown;
@@ -34,6 +35,7 @@ export async function PUT(
         const updateData: {
             step_id?: string;
             field_name?: string;
+            field_type?: string | null;
             field_label?: string | null;
             expected_value?: string | null;
             options?: string[];
@@ -54,6 +56,14 @@ export async function PUT(
                 return badRequest("field_name must be a non-empty string");
             }
             updateData.field_name = fieldName;
+        }
+
+        if (body.field_type !== undefined) {
+            const fieldType = asNullableString(body.field_type);
+            if (fieldType === undefined) {
+                return badRequest("field_type must be a string or null");
+            }
+            updateData.field_type = fieldType;
         }
 
         if (body.field_label !== undefined) {

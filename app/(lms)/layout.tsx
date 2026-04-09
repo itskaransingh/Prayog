@@ -57,10 +57,10 @@ export default function LmsLayout({
                 {isCoursePage && <CourseTopicsSidebar />}
                 <SidebarInset className="flex flex-col">
                     {/* Top header */}
-                    <header className="flex container mx-auto h-14 shrink-0 items-center justify-between border-b px-4 bg-background sticky top-0 z-10">
+                    <header className="flex container mx-auto h-20 shrink-0 items-center justify-between border-b px-4 bg-background sticky top-0 z-10">
                         <div className="flex items-center gap-2">
                             <Link href={"/"} className="flex items-center gap-2 group transition-all duration-200">
-                                <PrayogLogo className="h-14 w-[228px] transition-transform duration-200 group-hover:scale-[1.02]" priority />
+                                <PrayogLogo className="h-16 w-[264px] transition-transform duration-200 group-hover:scale-[1.02]" priority />
                             </Link>
                         </div>
                         <div className="flex items-center gap-2 sm:gap-4">

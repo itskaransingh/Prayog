@@ -8,6 +8,7 @@ import {
     requireAdmin,
     revalidateQuestionsTag,
 } from "../../simulation-route-utils";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function PUT(
     request: Request,
@@ -15,10 +16,11 @@ export async function PUT(
 ) {
     try {
         const { id } = await params;
-        const { supabase, errorResponse } = await requireAdmin();
+        const { errorResponse } = await requireAdmin();
         if (errorResponse) {
             return errorResponse;
         }
+        const adminDb = createAdminClient();
 
         const body = (await request.json()) as {
             question_id?: unknown;
@@ -35,7 +37,7 @@ export async function PUT(
                 return badRequest("question_id must be a non-empty string");
             }
 
-            const { data: existingTask, error: existingTaskError } = await supabase
+            const { data: existingTask, error: existingTaskError } = await adminDb
                 .from("simulation_tasks")
                 .select("id")
                 .eq("question_id", questionId)
@@ -72,7 +74,7 @@ export async function PUT(
             return badRequest("No fields to update");
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await adminDb
             .from("simulation_tasks")
             .update(updateData)
             .eq("id", id)
@@ -101,12 +103,13 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        const { supabase, errorResponse } = await requireAdmin();
+        const { errorResponse } = await requireAdmin();
         if (errorResponse) {
             return errorResponse;
         }
+        const adminDb = createAdminClient();
 
-        const { data: steps, error: stepsError } = await supabase
+        const { data: steps, error: stepsError } = await adminDb
             .from("simulation_steps")
             .select("id")
             .eq("task_id", id);
@@ -117,7 +120,7 @@ export async function DELETE(
 
         const stepIds = (steps ?? []).map((step) => step.id);
         if (stepIds.length > 0) {
-            const { error: fieldsError } = await supabase
+            const { error: fieldsError } = await adminDb
                 .from("simulation_fields")
                 .delete()
                 .in("step_id", stepIds);
@@ -126,7 +129,7 @@ export async function DELETE(
                 throw fieldsError;
             }
 
-            const { error: deleteStepsError } = await supabase
+            const { error: deleteStepsError } = await adminDb
                 .from("simulation_steps")
                 .delete()
                 .eq("task_id", id);
@@ -136,7 +139,7 @@ export async function DELETE(
             }
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await adminDb
             .from("simulation_tasks")
             .delete()
             .eq("id", id)

@@ -95,6 +95,7 @@ export async function POST(request: Request) {
         const body = (await request.json()) as {
             step_id?: unknown;
             field_name?: unknown;
+            field_type?: unknown;
             field_label?: unknown;
             expected_value?: unknown;
             options?: unknown;
@@ -103,6 +104,7 @@ export async function POST(request: Request) {
 
         const stepId = asNonEmptyString(body.step_id);
         const fieldName = asNonEmptyString(body.field_name);
+        const fieldType = asNullableString(body.field_type);
         const fieldLabel = asNullableString(body.field_label);
         const expectedValue = asNullableString(body.expected_value);
         const options = asOptionalStringArray(body.options);
@@ -118,6 +120,10 @@ export async function POST(request: Request) {
 
         if (body.field_label !== undefined && fieldLabel === undefined) {
             return badRequest("field_label must be a string or null");
+        }
+
+        if (body.field_type !== undefined && fieldType === undefined) {
+            return badRequest("field_type must be a string or null");
         }
 
         if (body.expected_value !== undefined && expectedValue === undefined) {
@@ -137,6 +143,7 @@ export async function POST(request: Request) {
             .insert({
                 step_id: stepId,
                 field_name: fieldName,
+                field_type: fieldType ?? "text",
                 field_label: fieldLabel ?? null,
                 expected_value: expectedValue ?? null,
                 options,

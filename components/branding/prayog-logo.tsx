@@ -9,13 +9,13 @@ interface PrayogLogoProps {
 
 export function PrayogLogo({ className, priority = false }: PrayogLogoProps) {
     return (
-        <div className={cn("relative h-14 w-[228px] shrink-0", className)}>
+        <div className={cn("relative h-16 w-[264px] shrink-0", className)}>
             <Image
                 src="/prayog-logo.png"
                 alt="Prayog"
                 fill
                 priority={priority}
-                sizes="228px"
+                sizes="264px"
                 className="object-contain object-left"
             />
         </div>

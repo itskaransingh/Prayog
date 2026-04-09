@@ -403,7 +403,7 @@ function LedgerHeader({
       >
         {/* Left: Logo + Ledger badge */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <PrayogLogo className="h-14 w-[228px]" priority />
+          <PrayogLogo className="h-16 w-[264px]" priority />
           {/* Ledger badge */}
           <span
             style={{

@@ -1,4 +1,5 @@
 import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
     LMS_MODULES_TAG,
     LMS_QUESTIONS_TAG,
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
         const admin = await verifyAdminAccess(supabase);
+        const adminDb = createAdminClient();
 
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -47,7 +49,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await adminDb
             .from("questions")
             .select("*")
             .eq("submodule_id", submoduleId)
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
     try {
         const supabase = await createClient();
         const admin = await verifyAdminAccess(supabase);
+        const adminDb = createAdminClient();
 
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -128,7 +131,7 @@ export async function POST(request: Request) {
                     ? resource_description
                     : "";
 
-        const { data, error } = await supabase
+        const { data, error } = await adminDb
             .from("questions")
             .insert({
                 submodule_id,

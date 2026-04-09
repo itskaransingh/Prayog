@@ -16,6 +16,7 @@ export interface QuestionTableData {
 export interface SimulationFieldInsert {
     step_id: string;
     field_name: string;
+    field_type: string;
     field_label: string | null;
     expected_value: string | null;
     options: string[] | null;
@@ -132,9 +133,12 @@ const LEGACY_ITR_REGISTRATION_FIELD_PATHS: Record<string, string> = {
 };
 
 const CLASSIFICATION_FIELD_PATTERN = /^row(\d+)_classification$/i;
+const LEGACY_CLASSIFICATION_FIELD_PATTERN = /^field_(\d+)$/i;
 const GRID_DESCRIPTION_FIELD_PATTERN = /^row(\d+)_description$/i;
 const GRID_FIELD_PATTERN = /^row(\d+)_(debit|credit)_(account|amount)$/i;
 const TRIAL_BALANCE_FIELD_PATTERN = /^row(\d+)_(debit|credit)_(account|amount)$/i;
+const LEGACY_BALANCE_ACCOUNT_FIELD_PATTERN = /^row(\d+)_account$/i;
+const LEGACY_BALANCE_AMOUNT_FIELD_PATTERN = /^row(\d+)_(debit|credit)_amount$/i;
 const FS_FIELD_PATTERN =
     /^(pl_direct_expense|pl_direct_income|pl_indirect_expense|pl_indirect_income|bs_capital|bs_ncl|bs_cl|bs_ppe|bs_onca|bs_ca)_row(\d+)_(account|amount)$/i;
 
@@ -156,50 +160,50 @@ const FALLBACK_REGISTRATION_FIELD_DEFINITIONS: Record<
     SimulationFieldDefinition[]
 > = {
     itr_registration: [
-        ["registerAs", "Register As", "Registration"],
-        ["pan", "PAN", "Registration"],
-        ["personalDetails.firstName", "First Name", "Personal Details"],
-        ["personalDetails.middleName", "Middle Name", "Personal Details"],
-        ["personalDetails.lastName", "Last Name", "Personal Details"],
-        ["personalDetails.dob", "Date of Birth", "Personal Details"],
-        ["personalDetails.gender", "Gender", "Personal Details"],
-        ["personalDetails.residentialStatus", "Residential Status", "Personal Details"],
-        ["addressDetails.flatDoorNo", "Flat / Door No", "Address Details"],
-        ["addressDetails.road", "Road", "Address Details"],
-        ["addressDetails.area", "Area", "Address Details"],
-        ["addressDetails.postOffice", "Post Office", "Address Details"],
-        ["addressDetails.city", "City", "Address Details"],
-        ["addressDetails.state", "State", "Address Details"],
-        ["addressDetails.pincode", "Pincode", "Address Details"],
-        ["contactDetails.mobile", "Mobile", "Contact Details"],
-        ["contactDetails.email", "Email", "Contact Details"],
-        ["contactDetails.alternateContact", "Alternate Contact", "Contact Details"],
-        ["contactDetails.mobileBelongsTo", "Mobile Belongs To", "Contact Details"],
-        ["contactDetails.emailBelongsTo", "Email Belongs To", "Contact Details"],
-    ].map(([fieldName, fieldLabel, fieldGroup], index) => ({
+        ["registerAs", "Register As", "Registration", "radio"],
+        ["pan", "PAN", "Registration", "text"],
+        ["personalDetails.firstName", "First Name", "Personal Details", "text"],
+        ["personalDetails.middleName", "Middle Name", "Personal Details", "text"],
+        ["personalDetails.lastName", "Last Name", "Personal Details", "text"],
+        ["personalDetails.dob", "Date of Birth", "Personal Details", "date"],
+        ["personalDetails.gender", "Gender", "Personal Details", "radio"],
+        ["personalDetails.residentialStatus", "Residential Status", "Personal Details", "select"],
+        ["addressDetails.flatDoorNo", "Flat / Door No", "Address Details", "text"],
+        ["addressDetails.road", "Road", "Address Details", "text"],
+        ["addressDetails.area", "Area", "Address Details", "text"],
+        ["addressDetails.postOffice", "Post Office", "Address Details", "text"],
+        ["addressDetails.city", "City", "Address Details", "text"],
+        ["addressDetails.state", "State", "Address Details", "select"],
+        ["addressDetails.pincode", "Pincode", "Address Details", "text"],
+        ["contactDetails.mobile", "Mobile", "Contact Details", "text"],
+        ["contactDetails.email", "Email", "Contact Details", "text"],
+        ["contactDetails.alternateContact", "Alternate Contact", "Contact Details", "text"],
+        ["contactDetails.mobileBelongsTo", "Mobile Belongs To", "Contact Details", "radio"],
+        ["contactDetails.emailBelongsTo", "Email Belongs To", "Contact Details", "radio"],
+    ].map(([fieldName, fieldLabel, fieldGroup, inputType], index) => ({
         simulatorType: "itr_registration",
         fieldName,
         fieldLabel,
         fieldGroup,
-        inputType: "text",
+        inputType,
         sortOrder: index + 1,
         isActive: true,
         helpText: null,
     })),
     epan_registration: [
-        ["fullName", "Full Name", "Personal Details"],
-        ["dob", "Date of Birth", "Personal Details"],
-        ["gender", "Gender", "Personal Details"],
-        ["mobile", "Mobile", "Contact Details"],
-        ["email", "Email", "Contact Details"],
-        ["address", "Address", "Address Details"],
-        ["aadhaarNumber", "Aadhaar Number", "Verification"],
-    ].map(([fieldName, fieldLabel, fieldGroup], index) => ({
+        ["fullName", "Full Name", "Personal Details", "text"],
+        ["dob", "Date of Birth", "Personal Details", "date"],
+        ["gender", "Gender", "Personal Details", "radio"],
+        ["mobile", "Mobile", "Contact Details", "text"],
+        ["email", "Email", "Contact Details", "text"],
+        ["address", "Address", "Address Details", "text"],
+        ["aadhaarNumber", "Aadhaar Number", "Verification", "text"],
+    ].map(([fieldName, fieldLabel, fieldGroup, inputType], index) => ({
         simulatorType: "epan_registration",
         fieldName,
         fieldLabel,
         fieldGroup,
-        inputType: "text",
+        inputType,
         sortOrder: index + 1,
         isActive: true,
         helpText: null,
@@ -212,6 +216,16 @@ function trimValue(value: string | null | undefined): string {
 
 function normalizeAmount(value: string | null | undefined): string {
     return trimValue(value).replaceAll(",", "");
+}
+
+function amountAsNumber(value: string | null | undefined): number {
+    const normalized = normalizeAmount(value);
+    if (!normalized) {
+        return 0;
+    }
+
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function normalizeOptions(options: string[] | null | undefined): string[] {
@@ -237,6 +251,22 @@ function hasAnyValue(values: Array<string | null | undefined>): boolean {
 
 function capitalize(value: string): string {
     return value ? value[0].toUpperCase() + value.slice(1) : value;
+}
+
+function normalizeFieldType(value: string | null | undefined): string {
+    const normalized = trimValue(value).toLowerCase();
+
+    switch (normalized) {
+        case "dropdown":
+        case "select":
+        case "radio":
+        case "date":
+        case "number":
+        case "text":
+            return normalized;
+        default:
+            return "text";
+    }
 }
 
 export function fieldPathToLabel(fieldPath: string): string {
@@ -379,6 +409,7 @@ export function generateFields(
     payload: SyncAnswersPayload,
     options?: {
         registrationFieldDefinitions?: SimulationFieldDefinition[] | null;
+        simulatorType?: RegistrationSimulatorType | null;
     },
 ): SimulationFieldInsert[] {
     switch (payload.type) {
@@ -392,6 +423,7 @@ export function generateFields(
                 .map(({ row, index }) => ({
                     step_id: stepId,
                     field_name: `row${index + 1}_classification`,
+                    field_type: "dropdown",
                     field_label: trimValue(row.label) || `Row ${index + 1}`,
                     expected_value: trimValue(row.expected),
                     options: normalizeOptions(payload.options),
@@ -419,6 +451,7 @@ export function generateFields(
                     {
                         step_id: stepId,
                         field_name: `row${rowNumber}_description`,
+                        field_type: "text",
                         field_label: `Row ${rowNumber} Description`,
                         expected_value: trimValue(row.transactionDesc),
                         options: null,
@@ -427,6 +460,7 @@ export function generateFields(
                     {
                         step_id: stepId,
                         field_name: `row${rowNumber}_debit_account`,
+                        field_type: "dropdown",
                         field_label: `Row ${rowNumber} Debit Account`,
                         expected_value: trimValue(row.drAccount),
                         options: accountOptions,
@@ -435,6 +469,7 @@ export function generateFields(
                     {
                         step_id: stepId,
                         field_name: `row${rowNumber}_debit_amount`,
+                        field_type: "number",
                         field_label: `Row ${rowNumber} Debit Amount`,
                         expected_value: normalizeAmount(row.drAmount),
                         options: null,
@@ -443,6 +478,7 @@ export function generateFields(
                     {
                         step_id: stepId,
                         field_name: `row${rowNumber}_credit_account`,
+                        field_type: "dropdown",
                         field_label: `Row ${rowNumber} Credit Account`,
                         expected_value: trimValue(row.crAccount),
                         options: accountOptions,
@@ -451,6 +487,7 @@ export function generateFields(
                     {
                         step_id: stepId,
                         field_name: `row${rowNumber}_credit_amount`,
+                        field_type: "number",
                         field_label: `Row ${rowNumber} Credit Amount`,
                         expected_value: normalizeAmount(row.crAmount),
                         options: null,
@@ -472,6 +509,7 @@ export function generateFields(
                     {
                         step_id: stepId,
                         field_name: `row${rowNumber}_${side}_account`,
+                        field_type: "select",
                         field_label: `Row ${rowNumber} ${capitalize(side)} Account`,
                         expected_value: trimValue(row.account),
                         options: accountOptions,
@@ -480,6 +518,7 @@ export function generateFields(
                     {
                         step_id: stepId,
                         field_name: `row${rowNumber}_${side}_amount`,
+                        field_type: "number",
                         field_label: `Row ${rowNumber} ${capitalize(side)} Amount`,
                         expected_value: normalizeAmount(row.amount),
                         options: null,
@@ -512,6 +551,7 @@ export function generateFields(
                         {
                             step_id: stepId,
                             field_name: `${sectionKey}_row${rowNumber}_account`,
+                            field_type: "select",
                             field_label: `${sectionKeyToLabel(sectionKey)} Row ${rowNumber} Account`,
                             expected_value: trimValue(row.account),
                             options,
@@ -520,6 +560,7 @@ export function generateFields(
                         {
                             step_id: stepId,
                             field_name: `${sectionKey}_row${rowNumber}_amount`,
+                            field_type: "number",
                             field_label: `${sectionKeyToLabel(sectionKey)} Row ${rowNumber} Amount`,
                             expected_value: normalizeAmount(row.amount),
                             options: null,
@@ -533,8 +574,9 @@ export function generateFields(
             return payload.fields
                 .filter((field) => trimValue(field.expectedValue).length > 0)
                 .map((field, index) => {
+                    const actualSimulatorType = options?.simulatorType ?? "itr_registration";
                     const normalizedFieldPath = normalizeRegistrationFieldPath(
-                        "itr_registration",
+                        actualSimulatorType,
                         field.fieldPath,
                     );
                     const matchedDefinition =
@@ -546,6 +588,7 @@ export function generateFields(
                     return {
                         step_id: stepId,
                         field_name: normalizedFieldPath,
+                        field_type: normalizeFieldType(matchedDefinition?.inputType),
                         field_label:
                             matchedDefinition?.fieldLabel ??
                             fieldPathToLabel(normalizedFieldPath),
@@ -624,6 +667,7 @@ export function reverseParseFields(
                     simulatorType,
                     options?.registrationFieldDefinitions,
                 ),
+                simulatorType,
             );
         case "none":
         default:
@@ -637,7 +681,10 @@ function reverseParseClassification(
 ): ClassificationPayload | null {
     const rows = fields
         .map((field) => {
-            const match = (field.field_name ?? "").match(CLASSIFICATION_FIELD_PATTERN);
+            const fieldName = field.field_name ?? "";
+            const match =
+                fieldName.match(CLASSIFICATION_FIELD_PATTERN) ??
+                fieldName.match(LEGACY_CLASSIFICATION_FIELD_PATTERN);
             if (!match) {
                 return null;
             }
@@ -734,6 +781,19 @@ function reverseParseGrid(
         rows.set(rowNumber, current);
     }
 
+    // Backfill transactionDesc from tableData for questions saved before the
+    // row{N}_description field was introduced (backward compatibility)
+    if (tableData?.rows) {
+        for (const [rowNumber, row] of rows.entries()) {
+            if (!row.transactionDesc) {
+                const legacyDesc = trimValue(tableData.rows[rowNumber - 1]?.[1]);
+                if (legacyDesc) {
+                    row.transactionDesc = legacyDesc;
+                }
+            }
+        }
+    }
+
     if (rows.size === 0) {
         return null;
     }
@@ -809,7 +869,22 @@ function reverseParseTrialBalance(
     }
 
     if (rows.size === 0) {
-        return null;
+        const legacyRows = reverseParseLegacyBalanceRows(fields);
+        if (legacyRows.length === 0) {
+            return null;
+        }
+
+        return {
+            type: "trial_balance",
+            accountOptions: normalizeOptions(
+                Array.from(new Set(legacyRows.flatMap((row) => row.options))),
+            ),
+            rows: legacyRows.map((row) => ({
+                account: row.account,
+                side: row.side,
+                amount: row.amount,
+            })),
+        };
     }
 
     const firstOptions = fields.find((field) => (field.options ?? []).length > 0)?.options;
@@ -871,7 +946,7 @@ function reverseParseFinancialStatement(
     }
 
     if (sections.size === 0) {
-        return null;
+        return reverseParseLegacyFinancialStatement(fields);
     }
 
     return {
@@ -902,14 +977,270 @@ function reverseParseFinancialStatement(
     };
 }
 
+function reverseParseLegacyBalanceRows(
+    fields: SimulationFieldRecord[],
+): Array<{
+    rowNumber: number;
+    account: string;
+    side: "debit" | "credit";
+    amount: string;
+    options: string[];
+}> {
+    const rows = new Map<
+        number,
+        {
+            account: string;
+            debitAmount: string;
+            creditAmount: string;
+            options: string[];
+        }
+    >();
+
+    for (const field of fields) {
+        const fieldName = field.field_name ?? "";
+        const accountMatch = fieldName.match(LEGACY_BALANCE_ACCOUNT_FIELD_PATTERN);
+        if (accountMatch) {
+            const rowNumber = Number(accountMatch[1]);
+            const current = rows.get(rowNumber) ?? {
+                account: "",
+                debitAmount: "",
+                creditAmount: "",
+                options: [],
+            };
+            current.account = trimValue(field.expected_value);
+            current.options = normalizeOptions(field.options);
+            rows.set(rowNumber, current);
+            continue;
+        }
+
+        const amountMatch = fieldName.match(LEGACY_BALANCE_AMOUNT_FIELD_PATTERN);
+        if (!amountMatch) {
+            continue;
+        }
+
+        const rowNumber = Number(amountMatch[1]);
+        const side = amountMatch[2].toLowerCase() as "debit" | "credit";
+        const current = rows.get(rowNumber) ?? {
+            account: "",
+            debitAmount: "",
+            creditAmount: "",
+            options: [],
+        };
+
+        if (side === "debit") {
+            current.debitAmount = trimValue(field.expected_value);
+        } else {
+            current.creditAmount = trimValue(field.expected_value);
+        }
+
+        rows.set(rowNumber, current);
+    }
+
+    return [...rows.entries()]
+        .sort(([left], [right]) => left - right)
+        .map(([rowNumber, row]) => {
+            const debitAmount = normalizeAmount(row.debitAmount);
+            const creditAmount = normalizeAmount(row.creditAmount);
+            const debitValue = amountAsNumber(debitAmount);
+            const creditValue = amountAsNumber(creditAmount);
+            const side: "debit" | "credit" =
+                creditValue > 0 && debitValue === 0
+                    ? "credit"
+                    : debitValue > 0
+                      ? "debit"
+                      : "debit";
+            const amount = side === "credit" ? creditAmount : debitAmount || creditAmount;
+
+            return {
+                rowNumber,
+                account: row.account,
+                side,
+                amount,
+                options: row.options,
+            };
+        })
+        .filter((row) => hasAnyValue([row.account, row.amount]));
+}
+
+function reverseParseLegacyFinancialStatement(
+    fields: SimulationFieldRecord[],
+): FinancialStatementPayload | null {
+    const legacyRows = reverseParseLegacyBalanceRows(fields);
+    if (legacyRows.length === 0) {
+        return null;
+    }
+
+    const sections = new Map<
+        FinancialStatementSectionKey,
+        {
+            sectionKey: FinancialStatementSectionKey;
+            options: string[];
+            rows: Array<{ account: string; amount: string }>;
+        }
+    >();
+
+    for (const row of legacyRows) {
+        const sectionKey = inferLegacyFinancialStatementSection(
+            row.account,
+            row.side,
+            row.amount,
+        );
+        const currentSection = sections.get(sectionKey) ?? {
+            sectionKey,
+            options: [],
+            rows: [],
+        };
+
+        currentSection.options = Array.from(
+            new Set([...currentSection.options, ...row.options]),
+        );
+        currentSection.rows.push({
+            account: row.account,
+            amount: row.amount,
+        });
+        sections.set(sectionKey, currentSection);
+    }
+
+    return {
+        type: "financial_statement",
+        sections: FINANCIAL_STATEMENT_SECTION_ORDER.flatMap((sectionKey) => {
+            const section = sections.get(sectionKey);
+            if (!section || section.rows.length === 0) {
+                return [];
+            }
+
+            return [section];
+        }),
+    };
+}
+
+function inferLegacyFinancialStatementSection(
+    account: string,
+    side: "debit" | "credit",
+    amount: string,
+): FinancialStatementSectionKey {
+    const normalizedAccount = trimValue(account).toLowerCase();
+    const normalizedAmount = amountAsNumber(amount);
+
+    if (
+        normalizedAccount.includes("capital") ||
+        normalizedAccount.includes("drawings") ||
+        normalizedAccount.includes("profit & loss")
+    ) {
+        return "bs_capital";
+    }
+
+    if (
+        normalizedAccount.includes("loan") ||
+        normalizedAccount.includes("mortgage") ||
+        normalizedAccount.includes("debenture")
+    ) {
+        return "bs_ncl";
+    }
+
+    if (
+        normalizedAccount.includes("creditor") ||
+        normalizedAccount.includes("bills payable") ||
+        normalizedAccount.includes("payable") ||
+        normalizedAccount.includes("outstanding") ||
+        normalizedAccount.includes("output cgst") ||
+        normalizedAccount.includes("output sgst") ||
+        normalizedAccount.includes("output igst") ||
+        normalizedAccount.includes("tds payable")
+    ) {
+        return "bs_cl";
+    }
+
+    if (
+        normalizedAccount.includes("building") ||
+        normalizedAccount.includes("furniture") ||
+        normalizedAccount.includes("machinery") ||
+        normalizedAccount.includes("plant") ||
+        normalizedAccount.includes("equipment") ||
+        normalizedAccount.includes("vehicle")
+    ) {
+        return "bs_ppe";
+    }
+
+    if (
+        normalizedAccount.includes("fixed deposit") ||
+        normalizedAccount.includes("investment") ||
+        normalizedAccount.includes("goodwill") ||
+        normalizedAccount.includes("patent") ||
+        normalizedAccount.includes("trademark")
+    ) {
+        return "bs_onca";
+    }
+
+    if (
+        normalizedAccount.includes("cash") ||
+        normalizedAccount.includes("bank") ||
+        normalizedAccount.includes("debtor") ||
+        normalizedAccount.includes("stock") ||
+        normalizedAccount.includes("closing stock") ||
+        normalizedAccount.includes("input cgst") ||
+        normalizedAccount.includes("input sgst") ||
+        normalizedAccount.includes("input igst")
+    ) {
+        return "bs_ca";
+    }
+
+    if (
+        normalizedAccount.includes("sales") ||
+        normalizedAccount.includes("closing stock") ||
+        normalizedAccount.includes("purchase return")
+    ) {
+        return "pl_direct_income";
+    }
+
+    if (
+        normalizedAccount.includes("purchase") ||
+        normalizedAccount.includes("opening stock") ||
+        normalizedAccount.includes("wages") ||
+        normalizedAccount.includes("carriage inward")
+    ) {
+        return "pl_direct_expense";
+    }
+
+    if (
+        normalizedAccount.includes("rent income") ||
+        normalizedAccount.includes("rental income") ||
+        normalizedAccount.includes("commission income") ||
+        normalizedAccount.includes("dividend income") ||
+        normalizedAccount.includes("interest income") ||
+        normalizedAccount.includes("discount received")
+    ) {
+        return "pl_indirect_income";
+    }
+
+    if (
+        normalizedAccount.includes("salary") ||
+        normalizedAccount.includes("carriage outward") ||
+        normalizedAccount.includes("insurance") ||
+        normalizedAccount.includes("rent expense") ||
+        normalizedAccount.includes("bad debts") ||
+        normalizedAccount.includes("depreciation") ||
+        normalizedAccount.includes("electricity")
+    ) {
+        return "pl_indirect_expense";
+    }
+
+    if (side === "credit") {
+        return normalizedAmount > 0 ? "pl_indirect_income" : "bs_cl";
+    }
+
+    return "pl_indirect_expense";
+}
+
 function reverseParseRegistration(
     fields: SimulationFieldRecord[],
     definitions: SimulationFieldDefinition[],
+    simulatorType: RegistrationSimulatorType,
 ): RegistrationPayload | null {
     const allowedDefinitions = new Map(
         definitions.map((definition) => {
             const normalizedFieldName = normalizeRegistrationFieldPath(
-                "itr_registration",
+                definition.simulatorType,
                 definition.fieldName,
             );
 
@@ -926,7 +1257,7 @@ function reverseParseRegistration(
     const parsedFields = fields
         .map((field) => ({
             fieldPath: normalizeRegistrationFieldPath(
-                "itr_registration",
+                simulatorType,
                 trimValue(field.field_name),
             ),
             expectedValue: trimValue(field.expected_value),

@@ -177,7 +177,7 @@ function FinancialAccountingSimulationPageInner() {
                 html, body { margin: 0; padding: 0; }
                 .rci-page { min-height: 100vh; background: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
                 .rci-header { position: sticky; top: 0; z-index: 50; width: 100%; background: #ffffff; border-bottom: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-                .rci-header-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+                .rci-header-inner { max-width: 1100px; margin: 0 auto; padding: 0 24px; min-height: 76px; display: flex; align-items: center; justify-content: space-between; }
                 .rci-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
                 .rci-header-badge { border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 4px 14px; font-size: 13px; font-weight: 600; color: #334155; background: #fff; }
                 .rci-header-right { display: flex; align-items: center; gap: 16px; }
@@ -217,7 +217,7 @@ function FinancialAccountingSimulationPageInner() {
                     <div className="rci-header-inner">
                         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                             <Link href="/" className="rci-logo">
-                                <PrayogLogo className="h-14 w-[228px]" priority />
+                                <PrayogLogo className="h-16 w-[264px]" priority />
                             </Link>
                             <div className="rci-header-badge">{questionTitle}</div>
                         </div>

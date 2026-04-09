@@ -1,4 +1,5 @@
 import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
     LMS_MODULES_TAG,
     LMS_QUESTIONS_TAG,
@@ -38,6 +39,7 @@ export async function PUT(
         const { id } = await params;
         const supabase = await createClient();
         const admin = await verifyAdminAccess(supabase);
+        const adminDb = createAdminClient();
 
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -138,7 +140,7 @@ export async function PUT(
             );
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await adminDb
             .from("questions")
             .update(updateData)
             .eq("id", id)
@@ -171,12 +173,13 @@ export async function DELETE(
         const { id } = await params;
         const supabase = await createClient();
         const admin = await verifyAdminAccess(supabase);
+        const adminDb = createAdminClient();
 
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const { error } = await supabase.from("questions").delete().eq("id", id);
+        const { error } = await adminDb.from("questions").delete().eq("id", id);
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });

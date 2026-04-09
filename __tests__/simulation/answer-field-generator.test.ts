@@ -40,6 +40,7 @@ describe("answer-field-generator", () => {
         assert.deepEqual(fields[0], {
             step_id: "step-1",
             field_name: "row1_classification",
+            field_type: "dropdown",
             field_label: "Sale of goods",
             expected_value: "Revenue",
             options: ["Revenue", "Capital", "Expense"],
@@ -97,6 +98,7 @@ describe("answer-field-generator", () => {
         assert.deepEqual(fields[0], {
             step_id: "step-2",
             field_name: "row1_description",
+            field_type: "text",
             field_label: "Row 1 Description",
             expected_value: "Started business with cash",
             options: null,
@@ -105,6 +107,7 @@ describe("answer-field-generator", () => {
         assert.deepEqual(fields[1], {
             step_id: "step-2",
             field_name: "row1_debit_account",
+            field_type: "dropdown",
             field_label: "Row 1 Debit Account",
             expected_value: "Cash",
             options: ["Cash", "Sales", "Capital"],
@@ -165,6 +168,7 @@ describe("answer-field-generator", () => {
         assert.deepEqual(fields[2], {
             step_id: "step-3",
             field_name: "row2_credit_account",
+            field_type: "select",
             field_label: "Row 2 Credit Account",
             expected_value: "Capital",
             options: ["Cash", "Capital"],
@@ -255,6 +259,7 @@ describe("answer-field-generator", () => {
         assert.deepEqual(fields[0], {
             step_id: "step-5",
             field_name: "personalDetails.firstName",
+            field_type: "text",
             field_label: "First Name",
             expected_value: "Aarav",
             options: null,
@@ -297,6 +302,7 @@ describe("answer-field-generator", () => {
         assert.deepEqual(fields[0], {
             step_id: "step-6",
             field_name: "aadhaarNumber",
+            field_type: "text",
             field_label: "Aadhaar Number",
             expected_value: "123412341234",
             options: null,
@@ -329,6 +335,256 @@ describe("answer-field-generator", () => {
                 {
                     fieldPath: "aadhaarNumber",
                     expectedValue: "123412341234",
+                },
+            ],
+        });
+    });
+
+    it("restores transactionDesc from tableData for questions saved before description field was added", () => {
+        // Old-style fields: only debit/credit, no description field
+        const fields = [
+            { field_name: "row1_debit_account", field_label: "Row 1 Debit Account", expected_value: "Cash", options: ["Cash", "Capital"], order_index: 1 },
+            { field_name: "row1_debit_amount",  field_label: "Row 1 Debit Amount",  expected_value: "50000", options: null, order_index: 2 },
+            { field_name: "row1_credit_account",field_label: "Row 1 Credit Account",expected_value: "Capital", options: ["Cash", "Capital"], order_index: 3 },
+            { field_name: "row1_credit_amount", field_label: "Row 1 Credit Amount", expected_value: "50000", options: null, order_index: 4 },
+        ];
+        const tableData = { headers: ["#", "Transaction"], rows: [["1", "Started business with cash"]] };
+
+        const result = reverseParseFields(fields as SimulationFieldRecord[], "journal_entry", tableData);
+        assert.ok(result);
+        assert.equal(result!.type, "grid");
+        const gridResult = result as GridPayload;
+        assert.equal(gridResult.rows[0].transactionDesc, "Started business with cash");
+        assert.equal(gridResult.rows[0].drAccount, "Cash");
+        assert.equal(gridResult.rows[0].crAccount, "Capital");
+    });
+
+    it("parses legacy classification fields saved as field_N", () => {
+        const fields: SimulationFieldRecord[] = [
+            {
+                id: "field-1",
+                field_name: "field_1",
+                field_label: "Sundry Creditors",
+                expected_value: "Current Liability",
+                options: ["Current Asset", "Current Liability"],
+                order_index: 1,
+            },
+            {
+                id: "field-2",
+                field_name: "field_2",
+                field_label: "Sundry Debtors",
+                expected_value: "Current Asset",
+                options: ["Current Asset", "Current Liability"],
+                order_index: 2,
+            },
+        ];
+
+        const result = reverseParseFields(fields, "classification", {
+            headers: ["Sl. No.", "Account Name"],
+            rows: [
+                ["1", "Sundry Creditors"],
+                ["2", "Sundry Debtors"],
+            ],
+        });
+
+        assert.deepEqual(result, {
+            type: "classification",
+            options: ["Current Asset", "Current Liability"],
+            rows: [
+                { label: "Sundry Creditors", expected: "Current Liability" },
+                { label: "Sundry Debtors", expected: "Current Asset" },
+            ],
+        });
+    });
+
+    it("parses legacy trial balance fields saved as rowN_account with debit/credit amounts", () => {
+        const fields: SimulationFieldRecord[] = [
+            {
+                id: "field-1",
+                field_name: "row1_account",
+                field_label: "Account (Row 1)",
+                expected_value: "Cash",
+                options: ["Cash", "Capital"],
+                order_index: 1,
+            },
+            {
+                id: "field-2",
+                field_name: "row1_debit_amount",
+                field_label: "Debit Amount (Row 1)",
+                expected_value: "12500",
+                options: null,
+                order_index: 2,
+            },
+            {
+                id: "field-3",
+                field_name: "row1_credit_amount",
+                field_label: "Credit Amount (Row 1)",
+                expected_value: "0",
+                options: null,
+                order_index: 3,
+            },
+            {
+                id: "field-4",
+                field_name: "row2_account",
+                field_label: "Account (Row 2)",
+                expected_value: "Capital",
+                options: ["Cash", "Capital"],
+                order_index: 4,
+            },
+            {
+                id: "field-5",
+                field_name: "row2_debit_amount",
+                field_label: "Debit Amount (Row 2)",
+                expected_value: "0",
+                options: null,
+                order_index: 5,
+            },
+            {
+                id: "field-6",
+                field_name: "row2_credit_amount",
+                field_label: "Credit Amount (Row 2)",
+                expected_value: "12500",
+                options: null,
+                order_index: 6,
+            },
+        ];
+
+        const result = reverseParseFields(fields, "trial_balance");
+
+        assert.deepEqual(result, {
+            type: "trial_balance",
+            accountOptions: ["Cash", "Capital"],
+            rows: [
+                { account: "Cash", side: "debit", amount: "12500" },
+                { account: "Capital", side: "credit", amount: "12500" },
+            ],
+        });
+    });
+
+    it("parses legacy financial statement rows saved without section keys", () => {
+        const fields: SimulationFieldRecord[] = [
+            {
+                id: "field-1",
+                field_name: "row1_account",
+                field_label: "Account (Row 1)",
+                expected_value: "Sales",
+                options: ["Sales", "Purchase", "Capital", "Building"],
+                order_index: 1,
+            },
+            {
+                id: "field-2",
+                field_name: "row1_debit_amount",
+                field_label: "Debit Amount (Row 1)",
+                expected_value: "0",
+                options: null,
+                order_index: 2,
+            },
+            {
+                id: "field-3",
+                field_name: "row1_credit_amount",
+                field_label: "Credit Amount (Row 1)",
+                expected_value: "720000",
+                options: null,
+                order_index: 3,
+            },
+            {
+                id: "field-4",
+                field_name: "row2_account",
+                field_label: "Account (Row 2)",
+                expected_value: "Purchase",
+                options: ["Sales", "Purchase", "Capital", "Building"],
+                order_index: 4,
+            },
+            {
+                id: "field-5",
+                field_name: "row2_debit_amount",
+                field_label: "Debit Amount (Row 2)",
+                expected_value: "760450",
+                options: null,
+                order_index: 5,
+            },
+            {
+                id: "field-6",
+                field_name: "row2_credit_amount",
+                field_label: "Credit Amount (Row 2)",
+                expected_value: "0",
+                options: null,
+                order_index: 6,
+            },
+            {
+                id: "field-7",
+                field_name: "row3_account",
+                field_label: "Account (Row 3)",
+                expected_value: "Capital",
+                options: ["Sales", "Purchase", "Capital", "Building"],
+                order_index: 7,
+            },
+            {
+                id: "field-8",
+                field_name: "row3_debit_amount",
+                field_label: "Debit Amount (Row 3)",
+                expected_value: "0",
+                options: null,
+                order_index: 8,
+            },
+            {
+                id: "field-9",
+                field_name: "row3_credit_amount",
+                field_label: "Credit Amount (Row 3)",
+                expected_value: "200000",
+                options: null,
+                order_index: 9,
+            },
+            {
+                id: "field-10",
+                field_name: "row4_account",
+                field_label: "Account (Row 4)",
+                expected_value: "Building",
+                options: ["Sales", "Purchase", "Capital", "Building"],
+                order_index: 10,
+            },
+            {
+                id: "field-11",
+                field_name: "row4_debit_amount",
+                field_label: "Debit Amount (Row 4)",
+                expected_value: "27000",
+                options: null,
+                order_index: 11,
+            },
+            {
+                id: "field-12",
+                field_name: "row4_credit_amount",
+                field_label: "Credit Amount (Row 4)",
+                expected_value: "0",
+                options: null,
+                order_index: 12,
+            },
+        ];
+
+        const result = reverseParseFields(fields, "financial_statement");
+
+        assert.deepEqual(result, {
+            type: "financial_statement",
+            sections: [
+                {
+                    sectionKey: "pl_direct_expense",
+                    options: ["Sales", "Purchase", "Capital", "Building"],
+                    rows: [{ account: "Purchase", amount: "760450" }],
+                },
+                {
+                    sectionKey: "pl_direct_income",
+                    options: ["Sales", "Purchase", "Capital", "Building"],
+                    rows: [{ account: "Sales", amount: "720000" }],
+                },
+                {
+                    sectionKey: "bs_capital",
+                    options: ["Sales", "Purchase", "Capital", "Building"],
+                    rows: [{ account: "Capital", amount: "200000" }],
+                },
+                {
+                    sectionKey: "bs_ppe",
+                    options: ["Sales", "Purchase", "Capital", "Building"],
+                    rows: [{ account: "Building", amount: "27000" }],
                 },
             ],
         });

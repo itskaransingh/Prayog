@@ -190,6 +190,8 @@ export default function AdminQuestionsPage() {
     const [, setEditingSimulationTaskId] = useState<string | null>(null);
     const [form, setForm] = useState<QuestionFormState>(getEmptyQuestionForm);
     const [qaPayload, setQaPayload] = useState<SyncAnswersPayload | null>(null);
+    const [loadedQaPayload, setLoadedQaPayload] = useState<SyncAnswersPayload | null>(null);
+    const [qaDirty, setQaDirty] = useState(false);
     const [qaNotice, setQaNotice] = useState<string | null>(null);
     const [isLoadingModules, setIsLoadingModules] = useState(true);
     const [isLoadingSubmodules, setIsLoadingSubmodules] = useState(false);
@@ -206,6 +208,78 @@ export default function AdminQuestionsPage() {
     const simulatorTypeMissing =
         Boolean(selectedSubmoduleId) &&
         (simulatorType === null || simulatorType === "none");
+
+    const isEmptyQaPayload = useCallback(
+        (payload: SyncAnswersPayload | null, type: SimulatorType | null) => {
+            if (!payload) {
+                return true;
+            }
+
+            switch (payload.type) {
+                case "classification":
+                    return (
+                        payload.options.length === 0 &&
+                        payload.rows.every(
+                            (row) => !row.label.trim() && !row.expected.trim(),
+                        )
+                    );
+                case "grid":
+                    return (
+                        payload.accountOptions.length === 0 &&
+                        payload.rows.every(
+                            (row) =>
+                                !row.transactionDesc.trim() &&
+                                !row.drAccount.trim() &&
+                                !row.drAmount.trim() &&
+                                !row.crAccount.trim() &&
+                                !row.crAmount.trim(),
+                        )
+                    );
+                case "trial_balance":
+                    return (
+                        payload.accountOptions.length === 0 &&
+                        payload.rows.every(
+                            (row) => !row.account.trim() && !row.amount.trim(),
+                        )
+                    );
+                case "financial_statement":
+                    return payload.sections.every(
+                        (section) =>
+                            section.options.length === 0 &&
+                            section.rows.every(
+                                (row) => !row.account.trim() && !row.amount.trim(),
+                            ),
+                    );
+                case "registration":
+                    return payload.fields.length === 0;
+                default:
+                    return type === "none";
+            }
+        },
+        [],
+    );
+
+    const handleQaPayloadChange = useCallback(
+        (nextPayload: SyncAnswersPayload | null) => {
+            if (editingQuestionId && !qaDirty) {
+                const loadedSignature = JSON.stringify(loadedQaPayload);
+                const nextSignature = JSON.stringify(nextPayload);
+
+                if (loadedSignature === nextSignature) {
+                    setQaPayload(nextPayload);
+                    return;
+                }
+
+                if (loadedQaPayload === null && isEmptyQaPayload(nextPayload, simulatorType)) {
+                    return;
+                }
+            }
+
+            setQaPayload(nextPayload);
+            setQaDirty(true);
+        },
+        [editingQuestionId, isEmptyQaPayload, loadedQaPayload, qaDirty, simulatorType],
+    );
 
     const fetchModules = useCallback(async () => {
         setIsLoadingModules(true);
@@ -299,6 +373,8 @@ export default function AdminQuestionsPage() {
         setEditingSimulationTaskId(null);
         setForm(getEmptyQuestionForm());
         setQaPayload(null);
+        setLoadedQaPayload(null);
+        setQaDirty(false);
         setQaNotice(null);
         setIsLoadingAnswers(false);
     }, []);
@@ -323,6 +399,8 @@ export default function AdminQuestionsPage() {
                 showExpectedAnswersInEvaluation: false,
             });
             setQaPayload(null);
+            setLoadedQaPayload(null);
+            setQaDirty(false);
             setQaNotice(null);
             setEditingSimulationTaskId(null);
 
@@ -383,6 +461,8 @@ export default function AdminQuestionsPage() {
                     answersData.simulatorType ?? simulatorType ?? "none";
 
                 setQaPayload(answersData.answers ?? null);
+                setLoadedQaPayload(answersData.answers ?? null);
+                setQaDirty(false);
                 setQaNotice(
                     answersData.answers === null && nextSimulatorType !== "none"
                         ? "No answers saved yet. Add your expected answers below."
@@ -479,7 +559,11 @@ export default function AdminQuestionsPage() {
             }
             const savedQuestionId = savedQuestion.id;
 
-            if (form.type === "question" && qaPayload !== null) {
+            if (
+                form.type === "question" &&
+                qaPayload !== null &&
+                (!editingQuestionId || qaDirty)
+            ) {
                 const answersRes = await fetch(
                     `/api/admin/questions/${savedQuestion.id}/sync-answers`,
                     {
@@ -1229,7 +1313,7 @@ export default function AdminQuestionsPage() {
                                                     key={`${editingQuestionId ?? "new"}:${simulatorType ?? "none"}`}
                                                     simulatorType={simulatorType ?? "none"}
                                                     initialPayload={qaPayload}
-                                                    onChange={setQaPayload}
+                                                    onChange={handleQaPayloadChange}
                                                     disabled={isSaving}
                                                 />
                                             </div>

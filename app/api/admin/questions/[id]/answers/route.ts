@@ -4,6 +4,7 @@ import {
     internalServerError,
     requireAdmin,
 } from "@/app/api/admin/simulation-route-utils";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
     isRegistrationSimulatorType,
     normalizeSimulationFieldDefinitions,
@@ -30,14 +31,14 @@ interface SubmoduleRecord {
 }
 
 async function loadRegistrationFieldDefinitions(
-    supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+    adminDb: ReturnType<typeof createAdminClient>,
     simulatorType: SimulatorType,
 ): Promise<SimulationFieldDefinition[] | null> {
     if (!isRegistrationSimulatorType(simulatorType)) {
         return null;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminDb
         .from("simulation_field_definitions")
         .select(
             "id, simulator_type, field_name, field_label, field_group, input_type, sort_order, is_active, help_text",
@@ -63,12 +64,13 @@ export async function GET(
 ) {
     try {
         const { id } = await params;
-        const { supabase, errorResponse } = await requireAdmin();
+        const { errorResponse } = await requireAdmin();
         if (errorResponse) {
             return errorResponse;
         }
+        const adminDb = createAdminClient();
 
-        const { data: question, error: questionError } = await supabase
+        const { data: question, error: questionError } = await adminDb
             .from("questions")
             .select("id, submodule_id, table_data, type")
             .eq("id", id)
@@ -89,7 +91,7 @@ export async function GET(
             );
         }
 
-        const { data: submodule, error: submoduleError } = await supabase
+        const { data: submodule, error: submoduleError } = await adminDb
             .from("submodules")
             .select("id, is_active, simulator_type")
             .eq("id", question.submodule_id)
@@ -105,9 +107,9 @@ export async function GET(
 
         const simulatorType = submodule.simulator_type ?? "none";
         const registrationFieldDefinitions =
-            await loadRegistrationFieldDefinitions(supabase, simulatorType);
+            await loadRegistrationFieldDefinitions(adminDb, simulatorType);
 
-        const { data: task } = await supabase
+        const { data: task } = await adminDb
             .from("simulation_tasks")
             .select("id")
             .eq("question_id", id)
@@ -123,15 +125,20 @@ export async function GET(
             });
         }
 
-        const { data: step } = await supabase
+        const { data: steps, error: stepsError } = await adminDb
             .from("simulation_steps")
-            .select("id")
+            .select("id, step_order")
             .eq("task_id", task.id)
-            .order("step_order", { ascending: true })
-            .limit(1)
-            .maybeSingle<{ id: string }>();
+            .order("step_order", { ascending: true });
 
-        if (!step?.id) {
+        if (stepsError) {
+            throw stepsError;
+        }
+
+        const orderedSteps = steps ?? [];
+        const stepIds = orderedSteps.map((step) => step.id);
+
+        if (stepIds.length === 0) {
             return NextResponse.json({
                 answers: null,
                 fieldDefinitions: registrationFieldDefinitions,
@@ -139,18 +146,36 @@ export async function GET(
             });
         }
 
-        const { data: fields, error: fieldsError } = await supabase
+        const { data: fields, error: fieldsError } = await adminDb
             .from("simulation_fields")
             .select("id, step_id, field_name, field_label, expected_value, options, order_index")
-            .eq("step_id", step.id)
+            .in("step_id", stepIds)
             .order("order_index", { ascending: true });
 
         if (fieldsError) {
             throw fieldsError;
         }
 
+        const stepOrderMap = new Map(
+            orderedSteps.map((step, index) => [step.id, index]),
+        );
+        const orderedFields = ((fields ?? []) as SimulationFieldRecord[]).sort(
+            (left, right) => {
+                const leftStepOrder = stepOrderMap.get(left.step_id ?? "") ?? Number.MAX_SAFE_INTEGER;
+                const rightStepOrder =
+                    stepOrderMap.get(right.step_id ?? "") ?? Number.MAX_SAFE_INTEGER;
+
+                if (leftStepOrder !== rightStepOrder) {
+                    return leftStepOrder - rightStepOrder;
+                }
+
+                return (left.order_index ?? Number.MAX_SAFE_INTEGER) -
+                    (right.order_index ?? Number.MAX_SAFE_INTEGER);
+            },
+        );
+
         const answers = reverseParseFields(
-            (fields ?? []) as SimulationFieldRecord[],
+            orderedFields,
             simulatorType,
             question.table_data,
             {

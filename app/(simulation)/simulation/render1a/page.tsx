@@ -217,7 +217,7 @@ function JournalEntryContent() {
             <header style={{ background: "#fff", borderBottom: "1px solid #e2e6ea", padding: "12px 24px" }}>
                 <div style={{ maxWidth: "1200px", margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <PrayogLogo className="h-14 w-[228px]" priority />
+                        <PrayogLogo className="h-16 w-[264px]" priority />
                         <span style={{ border: "1px solid #c7d2de", borderRadius: "6px", padding: "4px 12px", fontSize: "13px", color: "#374151", fontWeight: "500" }}>
                             {pageHeading}
                         </span>

@@ -7,6 +7,7 @@ import {
     requireAdmin,
     revalidateQuestionsTag,
 } from "@/app/api/admin/simulation-route-utils";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
     buildEvidenceTable,
     generateFields,
@@ -19,6 +20,7 @@ import {
     type GridPayload,
     type RegistrationPayload,
     type SimulationFieldDefinition,
+    type SimulationFieldInsert,
     type SimulatorType,
     type SyncAnswersPayload,
     type TrialBalancePayload,
@@ -37,15 +39,19 @@ interface SubmoduleRecord {
     simulator_type: SimulatorType | null;
 }
 
+interface ExistingSimulationFieldRecord extends SimulationFieldInsert {
+    id: string;
+}
+
 async function loadRegistrationFieldDefinitions(
-    supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+    adminDb: ReturnType<typeof createAdminClient>,
     simulatorType: SimulatorType | null,
 ): Promise<SimulationFieldDefinition[] | null> {
     if (!isRegistrationSimulatorType(simulatorType)) {
         return null;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await adminDb
         .from("simulation_field_definitions")
         .select(
             "id, simulator_type, field_name, field_label, field_group, input_type, sort_order, is_active, help_text",
@@ -415,12 +421,12 @@ function parsePayload(body: unknown): SyncAnswersPayload | { error: string } {
 
 async function loadQuestionAndSubmodule(
     questionId: string,
-    supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+    adminDb: ReturnType<typeof createAdminClient>,
 ): Promise<
     | { question: QuestionRecord; submodule: SubmoduleRecord }
     | { errorResponse: NextResponse }
 > {
-    const { data: question, error: questionError } = await supabase
+    const { data: question, error: questionError } = await adminDb
         .from("questions")
         .select("id, submodule_id, type")
         .eq("id", questionId)
@@ -438,7 +444,7 @@ async function loadQuestionAndSubmodule(
         return { errorResponse: badRequest("Only question tasks can sync answers") };
     }
 
-    const { data: submodule, error: submoduleError } = await supabase
+    const { data: submodule, error: submoduleError } = await adminDb
         .from("submodules")
         .select("id, is_active, simulator_type")
         .eq("id", question.submodule_id)
@@ -461,12 +467,13 @@ export async function POST(
 ) {
     try {
         const { id } = await params;
-        const { supabase, errorResponse } = await requireAdmin();
+        const { errorResponse } = await requireAdmin();
         if (errorResponse) {
             return errorResponse;
         }
+        const adminDb = createAdminClient();
 
-        const loaded = await loadQuestionAndSubmodule(id, supabase);
+        const loaded = await loadQuestionAndSubmodule(id, adminDb);
         if ("errorResponse" in loaded) {
             return loaded.errorResponse;
         }
@@ -490,7 +497,7 @@ export async function POST(
         const registrationFieldDefinitions =
             parsedPayload.type === "registration"
                 ? await loadRegistrationFieldDefinitions(
-                      supabase,
+                      adminDb,
                       loaded.submodule.simulator_type,
                   )
                 : null;
@@ -509,7 +516,7 @@ export async function POST(
             }
         }
 
-        const { data: existingTask, error: taskLookupError } = await supabase
+        const { data: existingTask, error: taskLookupError } = await adminDb
             .from("simulation_tasks")
             .select("id")
             .eq("question_id", id)
@@ -524,7 +531,7 @@ export async function POST(
         const taskId = existingTask?.id
             ? existingTask.id
             : await (async () => {
-                  const { data, error } = await supabase
+                  const { data, error } = await adminDb
                       .from("simulation_tasks")
                       .insert({ question_id: id })
                       .select("id")
@@ -541,22 +548,20 @@ export async function POST(
             throw new Error("Failed to create simulation task");
         }
 
-        const { data: existingStep, error: stepLookupError } = await supabase
+        const { data: existingSteps, error: stepLookupError } = await adminDb
             .from("simulation_steps")
-            .select("id")
+            .select("id, step_order")
             .eq("task_id", taskId)
-            .order("step_order", { ascending: true })
-            .limit(1)
-            .maybeSingle<{ id: string }>();
+            .order("step_order", { ascending: true });
 
         if (stepLookupError) {
             throw stepLookupError;
         }
 
-        const stepId = existingStep?.id
-            ? existingStep.id
+        const primaryStepId = existingSteps?.[0]?.id
+            ? existingSteps[0].id
             : await (async () => {
-                  const { data, error } = await supabase
+                  const { data, error } = await adminDb
                       .from("simulation_steps")
                       .insert({ task_id: taskId, step_order: 1 })
                       .select("id")
@@ -569,50 +574,105 @@ export async function POST(
                   return data?.id;
               })();
 
-        if (!stepId) {
+        if (!primaryStepId) {
             throw new Error("Failed to create simulation step");
         }
 
-        const { error: deleteError } = await supabase
-            .from("simulation_fields")
-            .delete()
-            .eq("step_id", stepId);
+        const allStepIds = [
+            primaryStepId,
+            ...((existingSteps ?? []).map((step) => step.id).filter((id) => id !== primaryStepId)),
+        ];
 
-        if (deleteError) {
-            throw deleteError;
-        }
-
-        const fields = generateFields(stepId, parsedPayload, {
+        const submoduleSimulatorType = loaded.submodule.simulator_type;
+        const fields = generateFields(primaryStepId, parsedPayload, {
             registrationFieldDefinitions,
+            simulatorType: isRegistrationSimulatorType(submoduleSimulatorType)
+                ? submoduleSimulatorType
+                : null,
         });
-        if (fields.length > 0) {
-            const { error: insertError } = await supabase
-                .from("simulation_fields")
-                .insert(fields);
+        const { data: existingFields, error: existingFieldsError } = await adminDb
+            .from("simulation_fields")
+            .select(
+                "id, step_id, field_name, field_type, field_label, expected_value, options, order_index",
+            )
+            .in("step_id", allStepIds)
+            .order("step_id", { ascending: true })
+            .order("order_index", { ascending: true });
 
-            if (insertError) {
-                throw insertError;
-            }
+        if (existingFieldsError) {
+            throw existingFieldsError;
         }
 
-        if (
-            parsedPayload.type === "classification" ||
-            parsedPayload.type === "grid"
-        ) {
-            const evidenceTable = buildEvidenceTable(parsedPayload);
-            const questionUpdate: { table_data: ReturnType<typeof buildEvidenceTable> } =
-                {
-                    table_data: evidenceTable,
-                };
+        let fieldsDeleted = false;
 
-            const { error: questionUpdateError } = await supabase
-                .from("questions")
-                .update(questionUpdate)
-                .eq("id", id);
+        try {
+            const { error: deleteError } = await adminDb
+                .from("simulation_fields")
+                .delete()
+                .in("step_id", allStepIds);
 
-            if (questionUpdateError) {
-                throw questionUpdateError;
+            if (deleteError) {
+                throw deleteError;
             }
+
+            fieldsDeleted = true;
+
+            if (fields.length > 0) {
+                const { error: insertError } = await adminDb
+                    .from("simulation_fields")
+                    .insert(fields);
+
+                if (insertError) {
+                    throw insertError;
+                }
+            }
+
+            if (
+                parsedPayload.type === "classification" ||
+                parsedPayload.type === "grid"
+            ) {
+                const evidenceTable = buildEvidenceTable(parsedPayload);
+                const questionUpdate: { table_data: ReturnType<typeof buildEvidenceTable> } =
+                    {
+                        table_data: evidenceTable,
+                    };
+
+                const { error: questionUpdateError } = await adminDb
+                    .from("questions")
+                    .update(questionUpdate)
+                    .eq("id", id);
+
+                if (questionUpdateError) {
+                    throw questionUpdateError;
+                }
+            }
+        } catch (error) {
+            if (fieldsDeleted && (existingFields?.length ?? 0) > 0) {
+                const restorePayload = (existingFields as ExistingSimulationFieldRecord[]).map(
+                    (field) => ({
+                        step_id: field.step_id,
+                        field_name: field.field_name,
+                        field_type: field.field_type,
+                        field_label: field.field_label,
+                        expected_value: field.expected_value,
+                        options: field.options,
+                        order_index: field.order_index,
+                    }),
+                );
+
+                const { error: restoreError } = await adminDb
+                    .from("simulation_fields")
+                    .insert(restorePayload);
+
+                if (restoreError) {
+                    console.error(
+                        "Failed to restore simulation fields after sync error:",
+                        restoreError,
+                    );
+                }
+            }
+
+            throw error;
         }
 
         revalidateQuestionsTag();
@@ -621,7 +681,7 @@ export async function POST(
             success: true,
             fieldCount: fields.length,
             taskId,
-            stepId,
+            stepId: primaryStepId,
         });
     } catch (error: unknown) {
         return internalServerError("Error syncing question answers:", error);

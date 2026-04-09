@@ -306,7 +306,7 @@ function FSHeader({ questionNo }: { questionNo: string }) {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <PrayogLogo className="h-14 w-[228px]" priority />
+          <PrayogLogo className="h-16 w-[264px]" priority />
           <span
             style={{
               border: "1px solid #c7d2de",

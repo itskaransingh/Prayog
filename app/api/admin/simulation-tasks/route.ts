@@ -8,20 +8,22 @@ import {
     requireAdmin,
     revalidateQuestionsTag,
 } from "../simulation-route-utils";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(request: NextRequest) {
     try {
-        const { supabase, errorResponse } = await requireAdmin();
+        const { errorResponse } = await requireAdmin();
         if (errorResponse) {
             return errorResponse;
         }
+        const adminDb = createAdminClient();
 
         const questionId = request.nextUrl.searchParams.get("questionId");
         if (!questionId) {
             return badRequest("questionId query param is required");
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await adminDb
             .from("simulation_tasks")
             .select("*")
             .eq("question_id", questionId)
@@ -39,10 +41,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: Request) {
     try {
-        const { supabase, errorResponse } = await requireAdmin();
+        const { errorResponse } = await requireAdmin();
         if (errorResponse) {
             return errorResponse;
         }
+        const adminDb = createAdminClient();
 
         const body = (await request.json()) as {
             question_id?: unknown;
@@ -58,7 +61,7 @@ export async function POST(request: Request) {
             return badRequest("question_id is required");
         }
 
-        const { data: existingTask, error: existingTaskError } = await supabase
+        const { data: existingTask, error: existingTaskError } = await adminDb
             .from("simulation_tasks")
             .select("*")
             .eq("question_id", questionId)
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
             );
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await adminDb
             .from("simulation_tasks")
             .insert({
                 question_id: questionId,
