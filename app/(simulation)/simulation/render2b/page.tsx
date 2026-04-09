@@ -77,6 +77,7 @@ function FinancialStatementContent() {
   const [loading, setLoading] = useState(true);
   const [questionNo, setQuestionNo] = useState("FS_000");
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
   const [fields, setFields] = useState<FSFieldRecord[]>([]);
   const [allRows, setAllRows] = useState<AllRows>(INITIAL_ROWS);
   const [nextId, setNextId] = useState(11);
@@ -102,10 +103,11 @@ function FinancialStatementContent() {
         }
 
         const { data: task } = await supabase
-          .from("simulation_tasks").select("id").eq("question_id", questionId).single();
+          .from("simulation_tasks").select("id, show_expected_answers_in_evaluation").eq("question_id", questionId).single();
 
         if (task) {
           setTaskId(task.id);
+          setShowExpectedAnswersInEvaluation(task.show_expected_answers_in_evaluation ?? false);
           const { data: steps } = await supabase
             .from("simulation_steps").select("id")
             .eq("task_id", task.id).order("step_order");
@@ -277,6 +279,7 @@ function FinancialStatementContent() {
         onClose={() => setShowEval(false)}
         results={evaluation}
         variant="fs"
+        showExpectedValues={showExpectedAnswersInEvaluation}
       />
       <DraggableCalculator />
     </>

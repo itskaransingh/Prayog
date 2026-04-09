@@ -113,6 +113,7 @@ function JournalEntryContent() {
     const [rows, setRows] = useState<string[][]>([]);
     const [fields, setFields] = useState<SimulationFieldWithOptions[]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
 
     const [entries, setEntries] = useState<Record<number, JournalLineInput[]>>({});
     const [narrations, setNarrations] = useState<Record<number, string>>({});
@@ -159,7 +160,7 @@ function JournalEntryContent() {
                 // 2. Fetch Task Data
                 const { data: task, error: tErr } = await supabase
                     .from("simulation_tasks")
-                    .select("id")
+                    .select("id, show_expected_answers_in_evaluation")
                     .eq("question_id", questionId)
                     .single();
 
@@ -167,6 +168,7 @@ function JournalEntryContent() {
                     console.error("❌ Supabase Tasks Error:", tErr.message);
                 } else if (task) {
                     setTaskId(task.id);
+                    setShowExpectedAnswersInEvaluation(task.show_expected_answers_in_evaluation ?? false);
 
                     // 3. Fetch Fields/Steps
                     const { data: step } = await supabase
@@ -479,7 +481,7 @@ function JournalEntryContent() {
                 )}
             </main>
 
-            <EvaluationPopup open={showEval} onClose={() => setShowEval(false)} results={evaluation} variant="grid" />
+            <EvaluationPopup open={showEval} onClose={() => setShowEval(false)} results={evaluation} variant="grid" showExpectedValues={showExpectedAnswersInEvaluation} />
             <DraggableCalculator />
         </div>
     );

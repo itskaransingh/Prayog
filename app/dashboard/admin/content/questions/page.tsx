@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
     AlertCircle,
     ArrowLeft,
+    ChevronDown,
     FileText,
     ImageIcon,
     LayoutList,
@@ -18,7 +19,7 @@ import {
 } from "lucide-react";
 
 import { RichTextEditor } from "@/components/admin/rich-text-editor";
-import { QAEditor } from "@/components/admin/qa-editor";
+import { QuestionBuilder } from "@/components/admin/question-builder";
 import type {
     SimulatorType,
     SyncAnswersPayload,
@@ -70,6 +71,8 @@ interface Question {
     title: string;
     paragraph: string;
     content_html: string;
+    upper_body_html: string | null;
+    lower_body_html: string | null;
     has_table: boolean;
     table_data: {
         headers?: string[];
@@ -88,6 +91,8 @@ interface Question {
 interface QuestionFormState {
     title: string;
     contentHtml: string;
+    upperBodyHtml: string;
+    lowerBodyHtml: string;
     hasImage: boolean;
     imageUrl: string;
     type: QuestionType;
@@ -108,6 +113,8 @@ function getEmptyQuestionForm(): QuestionFormState {
     return {
         title: "",
         contentHtml: "",
+        upperBodyHtml: "",
+        lowerBodyHtml: "",
         hasImage: false,
         imageUrl: "",
         type: "question",
@@ -200,6 +207,9 @@ export default function AdminQuestionsPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [showUpperBody, setShowUpperBody] = useState(false);
+    const [showLowerBody, setShowLowerBody] = useState(false);
+    const [showQuestionBuilder, setShowQuestionBuilder] = useState(false);
 
     const formMode = useMemo(() => getFormMode(form.type), [form.type]);
     const selectedSubmodule =
@@ -408,18 +418,20 @@ export default function AdminQuestionsPage() {
         setQaDirty(false);
         setQaNotice(null);
         setIsLoadingAnswers(false);
+        setShowUpperBody(false);
+        setShowLowerBody(false);
+        setShowQuestionBuilder(false);
     }, []);
 
     const openQuestion = useCallback(
         async (question: Question, options?: { preserveStatus?: boolean }) => {
+            const derivedUpperBody = question.upper_body_html || question.content_html || question.paragraph || question.resource_description || "";
             setEditingQuestionId(question.id);
             setForm({
                 title: question.title,
-                contentHtml:
-                    question.content_html ||
-                    question.paragraph ||
-                    question.resource_description ||
-                    "",
+                upperBodyHtml: derivedUpperBody,
+                contentHtml: "",
+                lowerBodyHtml: question.lower_body_html || "",
                 hasImage: question.has_image,
                 imageUrl: question.image_url || "",
                 type: question.type ?? "question",
@@ -434,6 +446,9 @@ export default function AdminQuestionsPage() {
             setQaDirty(false);
             setQaNotice(null);
             setEditingSimulationTaskId(null);
+            setShowUpperBody(Boolean(derivedUpperBody));
+            setShowLowerBody(Boolean(question.lower_body_html));
+            setShowQuestionBuilder(true);
 
             if (!options?.preserveStatus) {
                 setSuccessMessage(null);
@@ -547,6 +562,8 @@ export default function AdminQuestionsPage() {
                 title: form.title.trim(),
                 paragraph: legacyParagraph,
                 content_html: trimmedContentHtml,
+                upper_body_html: form.upperBodyHtml.trim() || null,
+                lower_body_html: form.lowerBodyHtml.trim() || null,
                 has_image: form.type === "question" ? form.hasImage : false,
                 image_url:
                     form.type === "question" && form.hasImage
@@ -1050,7 +1067,7 @@ export default function AdminQuestionsPage() {
                             <div className="space-y-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-slate-700">
-                                        Add Mode
+                                        Task Type
                                     </label>
                                     <div className="grid gap-3 md:grid-cols-2">
                                         <label className={`rounded-2xl border p-4 transition ${
@@ -1182,274 +1199,149 @@ export default function AdminQuestionsPage() {
                                     </div>
                                 )}
 
-                                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
-                                    <div className="space-y-1.5">
-                                        <label className="text-sm font-medium text-slate-700">
-                                            {form.type === "question"
-                                                ? "Task Title"
-                                                : "Resource Title"}
-                                        </label>
-                                        <Input
-                                            value={form.title}
-                                            onChange={(event) =>
-                                                setForm((prev) => ({
-                                                    ...prev,
-                                                    title: event.target.value,
-                                                }))
-                                            }
-                                            placeholder={
-                                                form.type === "question"
-                                                    ? "e.g. ITR Registration for Resident Individual"
-                                                    : "e.g. E-PAN User Guide"
-                                            }
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <label className="text-sm font-medium text-slate-700">
-                                            Item Type
-                                        </label>
-                                        <select
-                                            value={form.type}
-                                            onChange={(event) =>
-                                                setForm((prev) =>
-                                                    normalizeFormForType(
-                                                        prev,
-                                                        event.target.value as QuestionType,
-                                                    ),
-                                                )
-                                            }
-                                            className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-emerald-500"
-                                        >
-                                            <option value="question">Task</option>
-                                            <option value="video">Video</option>
-                                            <option value="document">Document</option>
-                                        </select>
-                                    </div>
-                                </div>
-
                                 <div className="space-y-1.5">
-                                    <RichTextEditor
-                                        label={
-                                            form.type === "question"
-                                                ? "Case Study and Additional Context"
-                                                : "Learner-Facing Content"
-                                        }
-                                        value={form.contentHtml}
-                                        onChange={(value) =>
+                                    <label className="text-sm font-medium text-slate-700">
+                                        {form.type === "question"
+                                            ? "Task Title"
+                                            : "Resource Title"}
+                                    </label>
+                                    <Input
+                                        value={form.title}
+                                        onChange={(event) =>
                                             setForm((prev) => ({
                                                 ...prev,
-                                                contentHtml: value,
+                                                title: event.target.value,
                                             }))
                                         }
                                         placeholder={
                                             form.type === "question"
-                                                ? "Describe the scenario, instructions, and any additional context the learner needs."
-                                                : "Add the learner-facing description that should appear with this resource."
+                                                ? "e.g. ITR Registration for Resident Individual"
+                                                : "e.g. E-PAN User Guide"
                                         }
-                                        disabled={isSaving}
                                     />
-                                    <p className="text-xs text-slate-500">
-                                        This is now the canonical authored body. Legacy
-                                        paragraph/resource fields are populated automatically
-                                        for compatibility during rollout.
-                                    </p>
                                 </div>
 
-                                <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                    <div>
+                                {form.type === "question" && (
+                                    <div className="space-y-3">
                                         <h3 className="text-sm font-semibold text-slate-900">
                                             Course Objectives
                                         </h3>
-                                        <p className="text-sm text-slate-500">
-                                            Tag the question or resource with the relevant
-                                            course objectives.
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        {COURSE_OBJECTIVE_OPTIONS.map((objective) => {
-                                            const isSelected =
-                                                form.courseObjectives.includes(objective);
+                                        <div className="flex flex-wrap gap-2">
+                                            {COURSE_OBJECTIVE_OPTIONS.map((objective) => {
+                                                const isSelected =
+                                                    form.courseObjectives.includes(objective);
 
-                                            return (
-                                                <label
-                                                    key={objective}
-                                                    className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-sm transition ${
-                                                        isSelected
-                                                            ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                                                            : "border-slate-200 bg-white text-slate-600"
-                                                    }`}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={(event) =>
-                                                            setForm((prev) => ({
-                                                                ...prev,
-                                                                courseObjectives:
-                                                                    event.target.checked
-                                                                        ? [
-                                                                              ...prev.courseObjectives,
-                                                                              objective,
-                                                                          ]
-                                                                        : prev.courseObjectives.filter(
-                                                                              (value) =>
-                                                                                  value !==
+                                                return (
+                                                    <label
+                                                        key={objective}
+                                                        className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-2 text-sm transition ${
+                                                            isSelected
+                                                                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                                                                : "border-slate-200 bg-white text-slate-600"
+                                                        }`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isSelected}
+                                                            onChange={(event) =>
+                                                                setForm((prev) => ({
+                                                                    ...prev,
+                                                                    courseObjectives:
+                                                                        event.target.checked
+                                                                            ? [
+                                                                                  ...prev.courseObjectives,
                                                                                   objective,
-                                                                          ),
-                                                            }))
-                                                        }
-                                                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                                    />
-                                                    {objective}
-                                                </label>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {form.type === "question" ? (
-                                <>
-                                    <Separator />
-
-                                    <div className="space-y-4">
-                                        <div>
-                                            <h3 className="text-sm font-semibold text-slate-900">
-                                                Add Question and Answer
-                                            </h3>
-                                            <p className="text-sm text-slate-500">
-                                                The answer grid adapts to the selected submodule&apos;s
-                                                simulator type.
-                                            </p>
-                                        </div>
-
-                                        {isLoadingAnswers ? (
-                                            <div className="flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
-                                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                Loading answers...
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-3">
-                                                {qaNotice ? (
-                                                    <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                                                        <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
-                                                        <span>{qaNotice}</span>
-                                                    </div>
-                                                ) : null}
-                                                {!editingQuestionId && qaPayload !== null ? (
-                                                    <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-                                                        Unsaved answers
-                                                    </div>
-                                                ) : null}
-                                                <QAEditor
-                                                    key={`${editingQuestionId ?? "new"}:${simulatorType ?? "none"}`}
-                                                    simulatorType={simulatorType ?? "none"}
-                                                    initialPayload={qaPayload}
-                                                    onChange={handleQaPayloadChange}
-                                                    disabled={isSaving}
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                        <div className="flex items-start justify-between gap-4">
-                                            <div>
-                                                <h3 className="text-sm font-semibold text-slate-900">
-                                                    Evaluation Popup
-                                                </h3>
-                                                <p className="text-sm text-slate-500">
-                                                    Decide whether learners should see the
-                                                    authored expected answers after completing
-                                                    the simulator.
-                                                </p>
-                                            </div>
-                                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={
-                                                        form.showExpectedAnswersInEvaluation
-                                                    }
-                                                    onChange={(event) =>
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            showExpectedAnswersInEvaluation:
-                                                                event.target.checked,
-                                                        }))
-                                                    }
-                                                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                                />
-                                                Show expected answers
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <Separator />
-
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                                                    <ImageIcon className="h-4 w-4 text-slate-500" />
-                                                    Supporting Image
-                                                </h3>
-                                                <p className="text-sm text-slate-500">
-                                                    Attach an image URL when a screenshot or document visual is required.
-                                                </p>
-                                            </div>
-                                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={form.hasImage}
-                                                    onChange={(event) =>
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            hasImage:
-                                                                event.target.checked,
-                                                        }))
-                                                    }
-                                                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                                                />
-                                                Include image
-                                            </label>
-                                        </div>
-
-                                        {form.hasImage && (
-                                            <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                <div className="space-y-1.5">
-                                                    <label className="text-sm font-medium text-slate-700">
-                                                        Image URL
-                                                    </label>
-                                                    <Input
-                                                        value={form.imageUrl}
-                                                        onChange={(event) =>
-                                                            setForm((prev) => ({
-                                                                ...prev,
-                                                                imageUrl:
-                                                                    event.target.value,
-                                                            }))
-                                                        }
-                                                        placeholder="https://..."
-                                                    />
-                                                </div>
-                                                {form.imageUrl.trim() && (
-                                                    <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                                        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                                            Preview
-                                                        </p>
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img
-                                                            src={form.imageUrl}
-                                                            alt="Question asset preview"
-                                                            className="max-h-72 rounded-lg border border-slate-200 object-contain"
+                                                                              ]
+                                                                            : prev.courseObjectives.filter(
+                                                                                  (value) =>
+                                                                                      value !==
+                                                                                      objective,
+                                                                              ),
+                                                                }))
+                                                            }
+                                                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
                                                         />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
+                                                        {objective}
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </>
-                            ) : (
+                                )}
+
+                                {showUpperBody ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-sm font-semibold text-slate-900">
+                                                Upper Body
+                                            </h3>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowUpperBody(false)}
+                                                className="text-sm text-slate-500 hover:text-red-600"
+                                            >
+                                                Remove
+                                            </button>
+                                        </div>
+                                        <RichTextEditor
+                                            label=""
+                                            value={form.upperBodyHtml}
+                                            onChange={(value) =>
+                                                setForm((prev) => ({
+                                                    ...prev,
+                                                    upperBodyHtml: value,
+                                                }))
+                                            }
+                                            placeholder="Add content that appears before the task question..."
+                                            disabled={isSaving}
+                                        />
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowUpperBody(true)}
+                                        className="w-full rounded-2xl border-2 border-dashed border-slate-300 py-3 text-sm font-medium text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600"
+                                    >
+                                        + Add Upper Body
+                                    </button>
+                                )}
+
+                                </div>
+
+                            {form.type === "question" && (
+                                <div className="rounded-2xl border border-slate-200 bg-white">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowQuestionBuilder(!showQuestionBuilder)}
+                                        className="flex w-full items-center justify-between px-6 py-4 text-left"
+                                    >
+                                        <span className="font-semibold text-slate-900">Question Builder</span>
+                                        <ChevronDown
+                                            className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${showQuestionBuilder ? "rotate-180" : ""}`}
+                                        />
+                                    </button>
+                                    {showQuestionBuilder && (
+                                        <div className="border-t border-slate-100 px-6 py-6">
+                                            <QuestionBuilder
+                                                simulatorType={simulatorType ?? "none"}
+                                                qaPayload={qaPayload}
+                                                qaDirty={qaDirty}
+                                                qaNotice={qaNotice}
+                                                isLoadingAnswers={isLoadingAnswers}
+                                                editingQuestionId={editingQuestionId}
+                                                isSaving={isSaving}
+                                                showExpectedAnswersInEvaluation={form.showExpectedAnswersInEvaluation}
+                                                hasImage={form.hasImage}
+                                                imageUrl={form.imageUrl}
+                                                handleQaPayloadChange={handleQaPayloadChange}
+                                                setForm={setForm}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {form.type !== "question" && (
                                 <>
                                     <Separator />
 
@@ -1522,6 +1414,43 @@ export default function AdminQuestionsPage() {
                                         )}
                                     </div>
                                 </>
+                            )}
+
+                            {showLowerBody ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-sm font-semibold text-slate-900">
+                                            Lower Body
+                                        </h3>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowLowerBody(false)}
+                                            className="text-sm text-slate-500 hover:text-red-600"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                    <RichTextEditor
+                                        label=""
+                                        value={form.lowerBodyHtml}
+                                        onChange={(value) =>
+                                            setForm((prev) => ({
+                                                ...prev,
+                                                lowerBodyHtml: value,
+                                            }))
+                                        }
+                                        placeholder="Add content that appears after the task..."
+                                        disabled={isSaving}
+                                    />
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowLowerBody(true)}
+                                    className="w-full rounded-2xl border-2 border-dashed border-slate-300 py-3 text-sm font-medium text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600"
+                                >
+                                    + Add Lower Body
+                                </button>
                             )}
 
                             <Separator />

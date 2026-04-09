@@ -243,7 +243,7 @@ export function CaseStudyContent({
             try {
                 const response = await fetch(
                     `/api/lms/submodules/${submoduleSlug}/question-status`,
-                    { cache: "no-store" },
+                    { cache: "no-store", credentials: "include" },
                 );
                 const payload = await response.json();
 
@@ -363,6 +363,7 @@ export function CaseStudyContent({
                 `/api/lms/questions/${activeQuestion.id}/completion`,
                 {
                     method: "POST",
+                    credentials: "include",
                 },
             );
             const payload = await response.json();
@@ -390,7 +391,6 @@ export function CaseStudyContent({
     return (
         <div className="flex flex-1 flex-col pb-32">
             <div className="container mx-auto flex flex-1 flex-col gap-6 p-6">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">{title}</h1>
                 {activeQuestion && (
                     <div className="mt-1 flex flex-col gap-3">
                         <p className="text-muted-foreground text-sm">
@@ -399,9 +399,9 @@ export function CaseStudyContent({
                                 : `${getQuestionTypeLabel(activeQuestion.type)} Resource`}
                         </p>
                         <div className="flex flex-col gap-2">
-                            <h2 className="text-xl font-semibold text-foreground">
+                            <h1 className="text-xl font-semibold text-foreground">
                                 {activeQuestion.title}
-                            </h2>
+                            </h1>
                             {activeCourseObjectives.length > 0 && (
                                 <div className="flex flex-wrap gap-2">
                                     {activeCourseObjectives.map((objective) => (
@@ -426,28 +426,25 @@ export function CaseStudyContent({
                 <div
                     key={activeQuestion.id}
                     id={`question-${activeQuestion.id}`}
-                    className="container mx-auto flex flex-col gap-6 px-6"
+                    className="container mx-auto flex flex-col gap-6 p-6"
                 >
                     {activeQuestionContentHtml && (
-                        <Card className="border-blue-200 bg-blue-50/30 dark:border-blue-900/50 dark:bg-blue-900/10">
-                            <CardContent className="pt-6">
+                       <div className="pt-6">
                                 <RichQuestionContent
-                                    html={activeQuestionContentHtml}
-                                    variant={isTaskQuestionType(activeQuestion.type) ? "task" : "resource"}
-                                />
-                            </CardContent>
-                        </Card>
+                                
+                                
+                                html={activeQuestionContentHtml}
+                                variant={isTaskQuestionType(activeQuestion.type) ? "task" : "resource"}
+                                /> 
+                                </div>
                     )}
 
                     {activeQuestion.has_table &&
                         activeQuestion.table_data && (
-                        <Card className="border-border bg-card">
-                            <CardContent className="pt-6">
+               
                                 <QuestionTable
                                     tableData={activeQuestion.table_data}
-                                />
-                            </CardContent>
-                        </Card>
+                                /> 
                     )}
                     {activeQuestion.has_image &&
                         activeQuestion.image_url && (

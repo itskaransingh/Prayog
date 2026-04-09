@@ -53,7 +53,7 @@ export async function GET(
         if (questionIds.length > 0) {
             const { data: attempts, error: attemptsError } = await supabaseAdmin
                 .from("user_question_attempts")
-                .select("question_id, user_simulation_attempts!attempt_id(user_id)")
+                .select("question_id, user_simulation_attempts!attempt_id!inner(user_id)")
                 .in("question_id", questionIds)
                 .eq("user_simulation_attempts.user_id", user.id);
 

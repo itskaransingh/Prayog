@@ -109,6 +109,13 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
+        // Get module_id before deleting
+        const { data: submodule } = await supabase
+            .from("submodules")
+            .select("module_id")
+            .eq("id", id)
+            .single();
+
         const { error } = await supabase
             .from("submodules")
             .delete()
@@ -116,6 +123,19 @@ export async function DELETE(
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Recalculate course_count for the parent module
+        if (submodule?.module_id) {
+            const { count: submoduleCount } = await supabase
+                .from("submodules")
+                .select("*", { count: "exact", head: true })
+                .eq("module_id", submodule.module_id);
+
+            await supabase
+                .from("modules")
+                .update({ course_count: submoduleCount ?? 0 })
+                .eq("id", submodule.module_id);
         }
 
         revalidateTag(LMS_MODULES_TAG, "max");

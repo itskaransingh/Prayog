@@ -12,6 +12,8 @@ export interface Question {
     title: string;
     paragraph: string;
     content_html: string;
+    upper_body_html: string | null;
+    lower_body_html: string | null;
     course_objectives: string[];
     has_table: boolean;
     table_data: QuestionTableData | null;
@@ -32,6 +34,8 @@ export type QuestionInsert = Pick<
     | "title"
     | "paragraph"
     | "content_html"
+    | "upper_body_html"
+    | "lower_body_html"
     | "course_objectives"
     | "has_table"
     | "table_data"

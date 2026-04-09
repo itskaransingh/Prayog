@@ -123,6 +123,7 @@ function FinancialAccountingSimulationPageInner() {
     const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
     const [evaluationResults, setEvaluationResults] = useState<EvaluationResult | null>(null);
     const [showEvaluation, setShowEvaluation] = useState(false);
+    const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
 
     useEffect(() => { setStartedAt(Date.now()); }, [questionId]);
 
@@ -131,8 +132,9 @@ function FinancialAccountingSimulationPageInner() {
             if (!questionId) { setError("No question specified."); setLoading(false); return; }
             setLoading(true); setError(null);
             try {
-                const { data: taskRecord } = await supabase.from("simulation_tasks").select("id").eq("question_id", questionId).limit(1).maybeSingle();
+                const { data: taskRecord } = await supabase.from("simulation_tasks").select("id, show_expected_answers_in_evaluation").eq("question_id", questionId).limit(1).maybeSingle();
                 if (!taskRecord) throw new Error("No simulation task found.");
+                setShowExpectedAnswersInEvaluation(taskRecord.show_expected_answers_in_evaluation ?? false);
                 const { data: stepRecord } = await supabase.from("simulation_steps").select("id").eq("task_id", taskRecord.id).order("step_order", { ascending: true }).limit(1).maybeSingle();
                 if (!stepRecord) throw new Error("No simulation step found.");
                 const { data: fields } = await supabase.from("simulation_fields").select("id, field_name, field_label, options, order_index, expected_value").eq("step_id", stepRecord.id).order("order_index", { ascending: true });
@@ -357,7 +359,7 @@ function FinancialAccountingSimulationPageInner() {
                     open={showEvaluation}
                     onClose={() => setShowEvaluation(false)}
                     results={evaluationResults}
-                    showExpectedValues={false}
+                    showExpectedValues={showExpectedAnswersInEvaluation}
                 />
                 <DraggableCalculator />
             </div>

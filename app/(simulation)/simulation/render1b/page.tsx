@@ -204,6 +204,7 @@ function LedgerCreationContent() {
     const [questionNo, setQuestionNo] = useState("Ledger_003AC");
     const [questionRows, setQuestionRows] = useState<string[][]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
     const [fields, setFields] = useState<SimulationFieldWithOptions[]>([]);
     const [drEntries, setDrEntries] = useState<LedgerEntry[]>([{ id: 1, account: "", amount: "" }]);
     const [crEntries, setCrEntries] = useState<LedgerEntry[]>([{ id: 2, account: "", amount: "" }]);
@@ -238,12 +239,13 @@ function LedgerCreationContent() {
 
                 const { data: task } = await supabase
                     .from("simulation_tasks")
-                    .select("id")
+                    .select("id, show_expected_answers_in_evaluation")
                     .eq("question_id", questionId)
                     .single();
 
                 if (task) {
                     setTaskId(task.id);
+                    setShowExpectedAnswersInEvaluation(task.show_expected_answers_in_evaluation ?? false);
 
                     const { data: steps } = await supabase
                         .from("simulation_steps")
@@ -512,7 +514,7 @@ function LedgerCreationContent() {
                     onPreview={() => setShowPreview(true)}
                 />
             )}
-            <EvaluationPopup open={showEval} onClose={() => setShowEval(false)} results={evaluation} variant="grid" />
+            <EvaluationPopup open={showEval} onClose={() => setShowEval(false)} results={evaluation} variant="grid" showExpectedValues={showExpectedAnswersInEvaluation} />
             <DraggableCalculator />
         </>
     );

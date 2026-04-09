@@ -98,6 +98,7 @@ export function RegistrationEditor({
     initialPayload,
     onChange,
     disabled = false,
+    fieldsLocked = false,
 }: QAEditorProps) {
     const startingPayload =
         initialPayload?.type === "registration" ? initialPayload : null;
@@ -237,6 +238,11 @@ export function RegistrationEditor({
 
     return (
         <div className="space-y-6">
+            {fieldsLocked && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Field structure is locked. Only expected values can be edited.
+                </div>
+            )}
             <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
                     <h3 className="text-sm font-medium">Registration Checks</h3>
@@ -296,14 +302,14 @@ export function RegistrationEditor({
                             placeholder={`Expected ${row.fieldLabel}`}
                             disabled={disabled || !row.included}
                         />
-                        <label className="flex items-center gap-2 text-sm font-medium md:justify-center">
+                        <label className={`flex items-center gap-2 text-sm font-medium md:justify-center ${fieldsLocked ? "opacity-50" : ""}`}>
                             <input
                                 type="checkbox"
                                 checked={row.included}
                                 onChange={(event) =>
                                     updateRow(index, { included: event.target.checked })
                                 }
-                                disabled={disabled}
+                                disabled={disabled || fieldsLocked}
                                 className="h-4 w-4 rounded border-border text-primary focus:ring-ring"
                             />
                             <span className="md:sr-only">Include {row.fieldPath}</span>

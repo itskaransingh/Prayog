@@ -712,7 +712,6 @@ export async function POST(
                           title: loaded.question.title,
                           description: `Simulation specific to ${loaded.question.title}`,
                           max_score: 0,
-                          show_expected_answers_in_evaluation: false,
                       })
                       .select("id")
                       .single<{ id: string }>();

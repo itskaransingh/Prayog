@@ -40,15 +40,24 @@ Supabase SSR cookies are used for server-side auth. The client uses `createBrows
 
 ### API Route Pattern
 
-Admin routes use `requireAdmin()` from `simulation-route-utils.ts` which returns `{ supabase, errorResponse }`. Early return on `errorResponse`. Cache invalidation uses `revalidateQuestionsTag()`.
+Admin routes use `requireAdmin()` from `simulation-route-utils.ts` which returns `{ supabase, errorResponse }`. Early return on `errorResponse`. Cache invalidation uses `revalidateTag(LMS_QUESTIONS_TAG, "max")`.
+
+### Simulator Types
+
+Core domain types in `lib/simulation/attempts.ts`:
+- `classification` — Tax form classification
+- `itr_registration` / `epan_registration` — Portal registration flows
+- `journal_entry` / `ledger` / `trial_balance` — Accounting simulations
+- `financial_statement` — Financial statement preparation
 
 ### Key Libraries
 
 - `lib/supabase/` — Client, server, and admin Supabase clients
-- `lib/evaluation.ts` — Field scoring logic (accuracy, partial credit, time tracking)
+- `lib/evaluation.ts` — Field scoring (accuracy, partial credit for substring matches, time tracking)
 - `lib/simulation/answer-field-generator.ts` — Generates DB field records from typed payloads (Classification, FinancialStatement, Grid, Registration, TrialBalance)
-- `lib/simulation/fs-field-mapper.ts` — Legacy financial statement field mapping
+- `lib/simulation/runtime-evaluation.ts` — Builds evaluation mappings at runtime, resolving field definitions against simulator type
 - `lib/simulation/grid-field-mapper.ts` — Grid-type field mapping
+- `lib/simulation/attempts.ts` — Simulation attempt persistence and simulator type definitions
 
 ### Component Organization
 

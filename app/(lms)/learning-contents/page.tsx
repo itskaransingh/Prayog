@@ -1,12 +1,112 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getModulePresentation } from "@/lib/learning-contents";
-import { getCachedModules } from "@/lib/supabase/lms-cache";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { LmsBreadcrumbs } from "@/components/lms/lms-breadcrumbs";
 
 export default async function LearningContentsPage() {
-    const modules = await getCachedModules();
+    const supabase = await createClient();
+    const supabaseAdmin = createAdminClient();
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Fetch modules directly (not cached, since we need per-user progress)
+    const { data: modules } = await supabaseAdmin
+        .from("modules")
+        .select("id, title, slug, course_count, icon_name, bg_color, text_color")
+        .eq("is_active", true)
+        .order("created_at", { ascending: true });
+
+    // Calculate per-user progress for each module
+    interface ModuleWithProgress {
+        id: string;
+        title: string;
+        slug: string;
+        course_count: number;
+        icon_name: string;
+        bg_color: string;
+        text_color: string;
+        progress: number;
+    }
+
+    const modulesWithProgress: ModuleWithProgress[] = (modules ?? []).map((mod) => ({
+        id: mod.id,
+        title: mod.title,
+        slug: mod.slug,
+        course_count: mod.course_count,
+        icon_name: mod.icon_name,
+        bg_color: mod.bg_color,
+        text_color: mod.text_color,
+        progress: 0,
+    }));
+
+    if (user && modules && modules.length > 0) {
+        const moduleIds = modules.map((m) => m.id);
+
+        // Fetch submodules for all modules
+        const { data: submodules } = await supabaseAdmin
+            .from("submodules")
+            .select("id, module_id")
+            .in("module_id", moduleIds)
+            .eq("is_active", true);
+
+        const submoduleIds = (submodules ?? []).map((s) => s.id);
+
+        if (submoduleIds.length > 0) {
+            // Fetch all questions for these submodules
+            const { data: allQuestions } = await supabaseAdmin
+                .from("questions")
+                .select("id, type, submodule_id")
+                .in("submodule_id", submoduleIds);
+
+            const questionIds = (allQuestions ?? []).map((q) => q.id);
+
+            // Fetch user completions and attempts
+            const { data: completions } = await supabaseAdmin
+                .from("user_question_completions")
+                .select("question_id")
+                .in("question_id", questionIds)
+                .eq("user_id", user.id);
+
+            const { data: attempts } = await supabaseAdmin
+                .from("user_question_attempts")
+                .select("question_id, user_simulation_attempts!attempt_id!inner(user_id)")
+                .in("question_id", questionIds)
+                .eq("user_simulation_attempts.user_id", user.id);
+
+            const completedQuestionIds = new Set((completions ?? []).map((c) => c.question_id));
+            const attemptedQuestionIds = new Set((attempts ?? []).map((a) => a.question_id));
+
+            // Map questions to modules
+            const questionsByModule = new Map<string, typeof allQuestions>();
+            for (const q of allQuestions ?? []) {
+                const submodule = submodules?.find((s) => s.id === q.submodule_id);
+                if (submodule) {
+                    const list = questionsByModule.get(submodule.module_id) ?? [];
+                    list.push(q);
+                    questionsByModule.set(submodule.module_id, list);
+                }
+            }
+
+            // Calculate progress per module
+            for (const mod of modulesWithProgress) {
+                const moduleQuestions = questionsByModule.get(mod.id) ?? [];
+
+                if (moduleQuestions.length > 0) {
+                    const completedCount = moduleQuestions.filter(
+                        (q) =>
+                            q.type === "question"
+                                ? attemptedQuestionIds.has(q.id)
+                                : completedQuestionIds.has(q.id),
+                    ).length;
+
+                    mod.progress = Math.round((completedCount / moduleQuestions.length) * 100);
+                }
+            }
+        }
+    }
 
     return (
         <div className="flex flex-1 flex-col gap-6 p-6 w-full container mx-auto">
@@ -29,7 +129,7 @@ export default async function LearningContentsPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {modules.map((item) => {
+                {modulesWithProgress.map((item) => {
                     const { Icon, bgColor, textColor } = getModulePresentation(
                         item.title,
                         item.icon_name,

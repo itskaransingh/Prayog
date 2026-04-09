@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { LMS_MODULES_TAG, LMS_SUBMODULES_TAG } from "@/lib/supabase/lms-cache-tags";
 
 export async function POST(
     _request: Request,
@@ -23,9 +25,9 @@ export async function POST(
 
         const { data: question, error: questionError } = await supabaseAdmin
             .from("questions")
-            .select("id, type")
+            .select("id, type, submodule_id")
             .eq("id", questionId)
-            .maybeSingle<{ id: string; type: "question" | "video" | "document" }>();
+            .maybeSingle<{ id: string; type: "question" | "video" | "document"; submodule_id: string }>();
 
         if (questionError) {
             throw questionError;
@@ -55,6 +57,10 @@ export async function POST(
         if (upsertError) {
             throw upsertError;
         }
+
+        // Always revalidate tags to ensure fresh data
+        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_MODULES_TAG, "max");
 
         return NextResponse.json({ success: true, questionId });
     } catch (error) {

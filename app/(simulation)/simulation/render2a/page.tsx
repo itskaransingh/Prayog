@@ -62,6 +62,7 @@ function TrialBalanceContent() {
   const [questionNo, setQuestionNo] = useState("TB_000");
   const [taskLineItemCount, setTaskLineItemCount] = useState(0);
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
   const [fields, setFields] = useState<SimulationFieldWithOptions[]>([]);
   const [rows, setRows] = useState<TBRow[]>(createTrialBalanceRows(1));
   const [showPreview, setShowPreview] = useState(false);
@@ -88,10 +89,11 @@ function TrialBalanceContent() {
         }
 
         const { data: task } = await supabase
-          .from("simulation_tasks").select("id").eq("question_id", questionId).single();
+          .from("simulation_tasks").select("id, show_expected_answers_in_evaluation").eq("question_id", questionId).single();
 
         if (task) {
           setTaskId(task.id);
+          setShowExpectedAnswersInEvaluation(task.show_expected_answers_in_evaluation ?? false);
           const { data: steps } = await supabase
             .from("simulation_steps").select("id")
             .eq("task_id", task.id).order("step_order");
@@ -224,6 +226,7 @@ function TrialBalanceContent() {
         onClose={() => setShowEval(false)}
         results={evaluation}
         variant="grid"
+        showExpectedValues={showExpectedAnswersInEvaluation}
       />
       <DraggableCalculator />
     </>

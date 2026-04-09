@@ -79,7 +79,7 @@ export function CourseTopicsSidebar() {
             try {
                 const response = await fetch(
                     `/api/lms/submodules/${submoduleSlug}/question-status`,
-                    { cache: "no-store" },
+                    { cache: "no-store", credentials: "include" },
                 );
                 const payload = await response.json();
 

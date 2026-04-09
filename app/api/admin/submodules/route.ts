@@ -97,7 +97,7 @@ export async function POST(request: Request) {
                 module_id,
                 title,
                 slug,
-                task_count,
+                task_count: task_count ?? 0,
                 sort_order,
                 is_active: is_active ?? true,
                 simulator_type: simulator_type ?? "none",
@@ -107,6 +107,19 @@ export async function POST(request: Request) {
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Recalculate course_count for the parent module
+        if (data?.module_id) {
+            const { count: submoduleCount } = await supabase
+                .from("submodules")
+                .select("*", { count: "exact", head: true })
+                .eq("module_id", data.module_id);
+
+            await supabase
+                .from("modules")
+                .update({ course_count: submoduleCount ?? 0 })
+                .eq("id", data.module_id);
         }
 
         revalidateTag(LMS_MODULES_TAG, "max");

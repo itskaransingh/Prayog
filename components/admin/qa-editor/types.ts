@@ -17,6 +17,8 @@ export interface QAEditorProps {
     initialPayload: SyncAnswersPayload | null;
     onChange: (payload: SyncAnswersPayload | null) => void;
     disabled?: boolean;
+    /** When true, field structure (labels, options, rows) is locked — only expected values are editable. */
+    fieldsLocked?: boolean;
 }
 
 export type { SyncAnswersPayload };

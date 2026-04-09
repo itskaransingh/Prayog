@@ -85,6 +85,8 @@ export async function POST(request: Request) {
             title,
             paragraph,
             content_html,
+            upper_body_html,
+            lower_body_html,
             has_table,
             table_data,
             has_image,
@@ -138,6 +140,8 @@ export async function POST(request: Request) {
                 title,
                 paragraph: paragraph ?? "",
                 content_html: normalizedContentHtml,
+                upper_body_html: typeof upper_body_html === "string" ? upper_body_html : null,
+                lower_body_html: typeof lower_body_html === "string" ? lower_body_html : null,
                 has_table: normalizedHasTable,
                 table_data: normalizedHasTable ? table_data : null,
                 has_image: normalizedHasImage,
@@ -155,6 +159,17 @@ export async function POST(request: Request) {
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        // Recalculate task_count for the submodule
+        const { count: taskCount } = await adminDb
+            .from("questions")
+            .select("*", { count: "exact", head: true })
+            .eq("submodule_id", submodule_id);
+
+        await adminDb
+            .from("submodules")
+            .update({ task_count: taskCount ?? 0 })
+            .eq("id", submodule_id);
 
         revalidateTag(LMS_MODULES_TAG, "max");
         revalidateTag(LMS_SUBMODULES_TAG, "max");

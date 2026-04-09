@@ -50,6 +50,8 @@ export async function PUT(
             title,
             paragraph,
             content_html,
+            upper_body_html,
+            lower_body_html,
             has_table,
             table_data,
             has_image,
@@ -82,6 +84,8 @@ export async function PUT(
         if (title !== undefined) updateData.title = title;
         if (paragraph !== undefined) updateData.paragraph = paragraph;
         if (content_html !== undefined) updateData.content_html = content_html;
+        if (upper_body_html !== undefined) updateData.upper_body_html = upper_body_html;
+        if (lower_body_html !== undefined) updateData.lower_body_html = lower_body_html;
         if (resource_description !== undefined) {
             updateData.resource_description = resource_description;
         }
@@ -151,6 +155,19 @@ export async function PUT(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        // Recalculate task_count if type changed
+        if (data?.submodule_id && normalizedType !== undefined) {
+            const { count: taskCount } = await adminDb
+                .from("questions")
+                .select("*", { count: "exact", head: true })
+                .eq("submodule_id", data.submodule_id);
+
+            await adminDb
+                .from("submodules")
+                .update({ task_count: taskCount ?? 0 })
+                .eq("id", data.submodule_id);
+        }
+
         revalidateTag(LMS_MODULES_TAG, "max");
         revalidateTag(LMS_SUBMODULES_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
@@ -179,10 +196,30 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
+        // Get submodule_id before deleting
+        const { data: question } = await adminDb
+            .from("questions")
+            .select("submodule_id")
+            .eq("id", id)
+            .single();
+
         const { error } = await adminDb.from("questions").delete().eq("id", id);
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        // Recalculate task_count for the submodule
+        if (question?.submodule_id) {
+            const { count: taskCount } = await adminDb
+                .from("questions")
+                .select("*", { count: "exact", head: true })
+                .eq("submodule_id", question.submodule_id);
+
+            await adminDb
+                .from("submodules")
+                .update({ task_count: taskCount ?? 0 })
+                .eq("id", question.submodule_id);
         }
 
         revalidateTag(LMS_MODULES_TAG, "max");
