@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import type { QuestionTableData, Question } from "@/lib/supabase/questions";
 import {
@@ -207,6 +207,8 @@ export function CaseStudyContent({
     moduleSlug,
     simulatorType,
 }: CaseStudyContentProps) {
+    const pathname = usePathname();
+    const router = useRouter();
     const searchParams = useSearchParams();
     const qid = searchParams.get("qid");
     const [activeQid, setActiveQid] = React.useState<string | null>(qid);
@@ -325,18 +327,14 @@ export function CaseStudyContent({
     const hasQuestions = questions.length > 0;
 
     const goToQuestion = React.useCallback((questionId: string) => {
-        if (typeof window === "undefined") return;
+        const nextParams = new URLSearchParams(searchParams.toString());
+        nextParams.set("qid", questionId);
+        const nextUrl = `${pathname}?${nextParams.toString()}`;
 
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set("qid", questionId);
-
-        const query = currentUrl.searchParams.toString();
-        const nextUrl = query ? `${currentUrl.pathname}?${query}` : currentUrl.pathname;
-
-        window.history.pushState({}, "", nextUrl);
+        router.replace(nextUrl, { scroll: false });
         setActiveQid(questionId);
         dispatchCourseTopicChange(questionId);
-    }, []);
+    }, [pathname, router, searchParams]);
 
     const previousQuestion = activeQuestionIndex > 0 ? questions[activeQuestionIndex - 1] : null;
     const nextQuestion = activeQuestionIndex >= 0 && activeQuestionIndex < questions.length - 1

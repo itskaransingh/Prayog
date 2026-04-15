@@ -5,13 +5,15 @@ import {
     type SimulationFieldDefinition,
     type SimulationFieldRecord,
 } from "@/lib/simulation/answer-field-generator";
+import { getTrnFieldPathFromLabel } from "@/lib/simulation/gst/trn-registration";
 import type { PersistableEvaluationMapping } from "@/lib/simulation/attempts";
 
 export interface SimulationEvaluationConfig {
     taskId: string | null;
-    simulatorType: RegistrationSimulatorType;
+    simulatorType: RegistrationSimulatorType | "gstf-simulation";
     showExpectedAnswersInEvaluation: boolean;
     mappings: PersistableEvaluationMapping[];
+    questionTitle?: string | null;
 }
 
 function trimValue(value: string | null | undefined): string {
@@ -55,4 +57,27 @@ export function buildRegistrationEvaluationMappings(
             weight: 1,
         };
     });
+}
+
+export function buildGstfEvaluationMappings(
+    fields: SimulationFieldRecord[],
+): PersistableEvaluationMapping[] {
+    return [...fields]
+        .sort(
+            (left, right) =>
+                (left.order_index ?? Number.MAX_SAFE_INTEGER) -
+                (right.order_index ?? Number.MAX_SAFE_INTEGER),
+        )
+        .map((field, index) => {
+            const label = trimValue(field.field_label) || `Field ${index + 1}`;
+
+            return {
+                fieldId: trimValue(field.id) || undefined,
+                fieldName: trimValue(field.field_name) || undefined,
+                fieldPath: getTrnFieldPathFromLabel(label, index),
+                expectedValue: trimValue(field.expected_value),
+                label,
+                weight: 1,
+            };
+        });
 }

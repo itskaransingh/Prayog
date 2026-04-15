@@ -12,12 +12,14 @@ import {
 } from "@/lib/simulation/answer-field-generator";
 import {
     buildRegistrationEvaluationMappings,
+    buildGstfEvaluationMappings,
     type SimulationEvaluationConfig,
 } from "@/lib/simulation/runtime-evaluation";
 
 interface QuestionRecord {
     id: string;
     submodule_id: string;
+    title?: string | null;
 }
 
 interface SubmoduleRecord {
@@ -62,6 +64,7 @@ function buildEmptyConfig(
         simulatorType,
         showExpectedAnswersInEvaluation: false,
         mappings: buildRegistrationEvaluationMappings(simulatorType, []),
+        questionTitle: null,
     };
 }
 
@@ -75,7 +78,7 @@ export async function GET(
 
         const { data: question, error: questionError } = await supabase
             .from("questions")
-            .select("id, submodule_id")
+            .select("id, submodule_id, title")
             .eq("id", questionId)
             .maybeSingle<QuestionRecord>();
 
@@ -97,18 +100,31 @@ export async function GET(
             throw submoduleError;
         }
 
-        if (!submodule || !isRegistrationSimulatorType(submodule.simulator_type)) {
+        if (!submodule) {
             return NextResponse.json(
-                { error: "Question is not backed by a registration simulator" },
+                { error: "Question is not backed by a supported simulator" },
+                { status: 400 },
+            );
+        }
+
+        if (
+            submodule.simulator_type !== "gstf-simulation" &&
+            !isRegistrationSimulatorType(submodule.simulator_type)
+        ) {
+            return NextResponse.json(
+                { error: "Question is not backed by a supported simulator" },
                 { status: 400 },
             );
         }
 
         const simulatorType = submodule.simulator_type;
-        const fieldDefinitions = await loadRegistrationFieldDefinitions(
-            supabase,
-            simulatorType,
-        );
+        const fieldDefinitions =
+            simulatorType === "gstf-simulation"
+                ? null
+                : await loadRegistrationFieldDefinitions(
+                      supabase,
+                      simulatorType,
+                  );
 
         const { data: task, error: taskError } = await supabase
             .from("simulation_tasks")
@@ -123,7 +139,20 @@ export async function GET(
         }
 
         if (!task?.id) {
-            return NextResponse.json(buildEmptyConfig(simulatorType));
+            if (simulatorType === "gstf-simulation") {
+                return NextResponse.json({
+                    taskId: null,
+                    simulatorType,
+                    showExpectedAnswersInEvaluation: false,
+                    mappings: [],
+                    questionTitle: question.title ?? null,
+                } satisfies SimulationEvaluationConfig);
+            }
+
+            return NextResponse.json({
+                ...buildEmptyConfig(simulatorType),
+                questionTitle: question.title ?? null,
+            } satisfies SimulationEvaluationConfig);
         }
 
         const { data: steps, error: stepsError } = await supabase
@@ -144,11 +173,15 @@ export async function GET(
                 simulatorType,
                 showExpectedAnswersInEvaluation:
                     task.show_expected_answers_in_evaluation ?? false,
-                mappings: buildRegistrationEvaluationMappings(
-                    simulatorType,
-                    [],
-                    fieldDefinitions,
-                ),
+                mappings:
+                    simulatorType === "gstf-simulation"
+                        ? []
+                        : buildRegistrationEvaluationMappings(
+                              simulatorType,
+                              [],
+                              fieldDefinitions,
+                          ),
+                questionTitle: question.title ?? null,
             } satisfies SimulationEvaluationConfig);
         }
 
@@ -167,11 +200,17 @@ export async function GET(
             simulatorType,
             showExpectedAnswersInEvaluation:
                 task.show_expected_answers_in_evaluation ?? false,
-            mappings: buildRegistrationEvaluationMappings(
-                simulatorType,
-                (fields ?? []) as SimulationFieldRecord[],
-                fieldDefinitions,
-            ),
+            mappings:
+                simulatorType === "gstf-simulation"
+                    ? buildGstfEvaluationMappings(
+                          (fields ?? []) as SimulationFieldRecord[],
+                      )
+                    : buildRegistrationEvaluationMappings(
+                          simulatorType,
+                          (fields ?? []) as SimulationFieldRecord[],
+                          fieldDefinitions,
+                      ),
+            questionTitle: question.title ?? null,
         } satisfies SimulationEvaluationConfig);
     } catch (error) {
         console.error("Error fetching simulation evaluation config:", error);

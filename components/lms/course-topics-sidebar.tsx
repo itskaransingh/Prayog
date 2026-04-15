@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
     COURSE_STATUS_CHANGE_EVENT,
@@ -22,6 +22,7 @@ interface Topic {
 
 export function CourseTopicsSidebar() {
     const pathname = usePathname();
+    const router = useRouter();
     const searchParams = useSearchParams();
     const qid = searchParams.get("qid");
     const slugMatch = pathname.match(/\/course\/([^\/]+)/);
@@ -56,21 +57,18 @@ export function CourseTopicsSidebar() {
     }, []);
 
     const handleTopicSelect = React.useCallback((questionId: string) => {
-        if (typeof window === "undefined") return;
-
-        const currentUrl = new URL(window.location.href);
-        if (currentUrl.searchParams.get("qid") === questionId) {
+        const nextParams = new URLSearchParams(searchParams.toString());
+        if (nextParams.get("qid") === questionId) {
             return;
         }
 
-        currentUrl.searchParams.set("qid", questionId);
-        const query = currentUrl.searchParams.toString();
-        const nextUrl = query ? `${currentUrl.pathname}?${query}` : currentUrl.pathname;
+        nextParams.set("qid", questionId);
+        const nextUrl = `${pathname}?${nextParams.toString()}`;
 
-        window.history.pushState({}, "", nextUrl);
+        router.replace(nextUrl, { scroll: false });
         setActiveQid(questionId);
         dispatchCourseTopicChange(questionId);
-    }, []);
+    }, [pathname, router, searchParams]);
 
     React.useEffect(() => {
         if (!submoduleSlug) return;
