@@ -1,30 +1,41 @@
 export const GSTIN_SUBMODULE_ID = "42173d58-c1b7-41a1-a1fe-5deeafa19cf2";
 
 export const GSTIN_CONSTITUTION_OPTIONS = [
-    "Proprietorship",
-    "Partnership",
-    "Hindu Undivided Family",
-    "Private Limited Company",
-    "Public Limited Company",
-    "Society/Club/Trust/AOP",
-    "Government Department",
-    "Public Sector Undertaking",
-    "Unlimited Company",
     "Foreign Company",
+    "Foreign Limited Liability Partnership",
+    "Government Department",
+    "Hindu Undivided Family",
+    "Limited Liability Partnership",
+    "Local Authority",
     "Others",
+    "Partnership",
+    "Private Limited Company",
+    "Proprietorship",
+    "Public Limited Company",
+    "Public Sector Undertaking",
+    "Society/Club/Trust/AOP",
+    "Statutory Body",
+    "Unlimited Company",
 ] as const;
 
 export const GSTIN_REASON_OPTIONS = [
-    "Voluntary basis",
-    "Crossing Threshold",
-    "Transfer of Business",
-    "Death of Proprietor",
-    "Succession",
+    "Crossing the Threshold",
+    "Inter-State supply",
+    "Liability to pay as recipient of goods or services",
+    "Transfer / Succession of business",
+    "Death of the Proprietor",
+    "De-merger",
     "Change in constitution of business",
-    "Merger",
-    "E-Commerce Operations",
-    "Selling through E-Commerce",
+    "Merger /Amalgamation",
+    "E-Commerce Operator",
+    "Selling through e-Commerce portal",
+    "Voluntary Basis",
+    "Input Service Distributor only",
+    "Supplies on behalf of other taxable Person",
+    "SEZ Unit",
+    "SEZ Developer",
     "Others",
+    "Corporate Debtor undergoing the Corporate Insolvency Resolution Process with IRP/RP",
 ] as const;
 
 export const GSTIN_DESIGNATION_OPTIONS = [
@@ -40,32 +51,47 @@ export const GSTIN_DESIGNATION_OPTIONS = [
 ] as const;
 
 export const GSTIN_NATURE_OF_POSSESSION_OPTIONS = [
+    "Consent",
+    "Leased",
+    "Others",
     "Own",
     "Rented",
-    "Leased",
-    "Consent",
+    "Shared",
 ] as const;
 
-export const GSTIN_DOCUMENT_TYPE_OPTIONS = [
-    "Rent Agreement",
-    "Consent Letter",
-    "Copy of possession issued by RDCS/Managing Committee",
-    "Property Tax Payment Receipt",
+// Document options for PPOB (Tab 5)
+export const GSTIN_PPOB_DOCUMENT_OPTIONS = [
     "Electricity Bill",
+    "Legal ownership document",
+    "Municipal Khata Copy",
+    "Property Tax Receipt",
 ] as const;
 
-export const GSTIN_BUSINESS_NATURE_OPTIONS = [
-    "Service/Wholesale",
-    "Manufacturing",
-    "Import",
-    "Export",
-    "Supplier of Services",
-    "Recipient of Goods or Services",
-    "Warehouse/Depot",
-    "Retail Business",
-    "Others (Please Specify)",
-    "Media Content",
-    "Wholesale Business",
+// Document options for Authorized Signatory proof (Tab 3)
+export const GSTIN_SIGNATORY_DOCUMENT_OPTIONS = [
+    "Letter of Authorisation",
+    "Copy of resolution passed by BoD / Managing Committee",
+] as const;
+
+// Keep old export name as alias for backward compatibility
+export const GSTIN_DOCUMENT_TYPE_OPTIONS = GSTIN_PPOB_DOCUMENT_OPTIONS;
+
+export const GSTIN_EXISTING_REG_TYPE_OPTIONS = [
+    "GSTIN",
+    "Temporary ID",
+    "Registration Number under Value Added Tax (TIN)",
+    "Central Sales Tax Registration Number",
+    "Central Excise Registration Number",
+    "Service Tax Registration Number",
+    "Importer/Exporter Code Number",
+    "Entry Tax Registration Number",
+    "Entertainment Tax Registration Number",
+    "Hotel And Luxury Tax Registration Number",
+    "Corporate Identity Number / Foreign Company Registration Number",
+    "Limited Liability Partnership / Foreign Limited Liability Partnership Identification Number",
+    "Registration number under Medicinal and Toilet Preparations (Excise Duties) Act",
+    "Registration under Shops and Establishment Act",
+    "Others (Please specify)",
 ] as const;
 
 export type GstinFieldPath =
@@ -147,7 +173,7 @@ export interface GstinRegistrationData {
     residentialDistrict: string;
     residentialState: string;
     residentialPin: string;
-    // Tab 4 — Principal Place of Business
+    // Tab 5 — Principal Place of Business
     businessFlatNo: string;
     businessBuilding: string;
     businessFloor: string;
@@ -157,9 +183,9 @@ export interface GstinRegistrationData {
     businessState: string;
     businessPin: string;
     businessEmail: string;
-    // Tab 6 — Goods and Services
+    // Tab 7 — Goods and Services
     hsn: string;
-    // Tab 9 — Verification
+    // Tab 10 — Verification
     verificationName: string;
     verificationPlace: string;
     // Non-evaluated UI-only state
