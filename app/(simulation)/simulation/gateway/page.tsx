@@ -5,7 +5,7 @@ import { PortalFooter } from "@/components/simulation/income-tax/shared/portal-f
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 
 export default function GatewayPage() {
     return (
@@ -18,162 +18,188 @@ export default function GatewayPage() {
 function GatewayContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const qId = searchParams?.get('questionId') || '6771ce37-57d3-479f-a57c-d53affa3264a'; // fallback to first Priya Nambiar ID for direct testing
+    const qId = searchParams?.get('questionId') || '6771ce37-57d3-479f-a57c-d53affa3264a';
     const registerHref = `/simulation?questionId=${qId}`;
+    const epanHref = `/epan-simulation/gateway?questionId=${qId}`;
+
+    const [currentSlide, setCurrentSlide] = useState(0);
+    const banners = [
+        { src: "/simulation/banner-new-1.webp", alt: "Income Tax Act 2025 Launch" },
+        { src: "/simulation/banner-new-2.webp", alt: "e-Filing Portal Update" },
+        { src: "/simulation/banner-new-3.webp", alt: "New Portal Banners" },
+        { src: "/simulation/banner-new-4.webp", alt: "New Portal Banners 2" },
+    ];
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentSlide(prev => (prev + 1) % banners.length);
+        }, 4000);
+        return () => clearInterval(timer);
+    }, []);
 
     return (
         <>
             <PortalHeader />
-            <main className="sim-gateway-body">
-                <div className="sim-gateway-content">
-                    {/* Left Sidebar: Quick Links */}
-                    <aside className="sim-quick-links-card">
-                        <div className="sim-sidebar-title">Quick Links</div>
-                        <nav className="sim-sidebar-list" aria-label="Quick Links">
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/e-_Verify_Return.svg"
-                                label="e- Verify Return"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/Link_Aadhaar.svg"
-                                label="Link Aadhaar"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/Link_Aadhaar_Status.svg"
-                                label="Link Aadhaar Status"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/e-Pay_Tax.svg"
-                                label="e-Pay Tax"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/Income_Tax_Calculator.svg"
-                                label="Income Tax Return (ITR) Status"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/Verify_PAN_Status.svg"
-                                label="Verify Your PAN"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/Know_TAN_Details.svg"
-                                label="Know TAN Details"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/Tax_Information_&_services.svg"
-                                label="Tax Information & services"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/Authenticate_notice-order_issued_by_ITD.svg"
-                                label="Authenticate notice/order issued by ITD"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/Know_your_JAO.svg"
-                                label="Know Your AO"
-                            />
-                            <Link
-                                href={`/epan-simulation/gateway?questionId=${qId}`}
-                                style={{ cursor: "pointer" }}
-                            >
-                                <SidebarItem
-                                    iconSrc="/simulation/icons/Income-tax-menu-icons/Instant_E-PAN.svg"
-                                    label="Instant E-PAN"
-                                />
-                            </Link>
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/TDS_On_Cash_Withdrawal.svg"
-                                label="TDS On Cash Withdrawal"
-                            />
-                            <SidebarItem
-                                iconSrc="/simulation/icons/Income-tax-menu-icons/Report_Account_Misuse.svg"
-                                label="Account Misuse"
-                            />
-                        </nav>
-                    </aside>
+            <main className="sim-gateway-body-new">
 
-                    {/* Main Area */}
-                    <div className="sim-main-area">
-                        {/* Hero Section with Banner and Login/Register Overlay */}
-                        <section className="sim-hero-section">
-                            <div className="sim-hero-banner">
-                                <div className="sim-hero-overlay">
-                                    <h2>e-Filing Anywhere, Anytime!</h2>
-                                    <p>Experience the new e-Filing portal 2.0</p>
-                                    <div className="sim-hero-actions">
-                                        <button className="sim-btn-filled big" type="button">Login</button>
-                                        <button className="sim-btn-outline big" type="button" onClick={() => router.push(registerHref)}>Register</button>
-                                    </div>
-                                </div>
+                {/* Ticker / Notification Bar */}
+                <div className="sim-ticker-bar">
+                    <div className="sim-ticker-icon">
+                        <Image src="/simulation/icons/quicklinks/nudge.svg" alt="notification" width={20} height={20} />
+                    </div>
+                    <div className="sim-ticker-track-wrap">
+                        <div className="sim-ticker-track">
+                            <span>1. Offline Utility for Form 145 and Form 146 has been enabled on the e-Filing Portal.</span>
+                            <span className="sim-ticker-sep">|</span>
+                            <span>2. Form No. 105, (earlier Form No.10AB) is now available for e-Filing.</span>
+                            <span className="sim-ticker-sep">|</span>
+                            <span>3. The Income Tax Act, 1961 stands repealed effective 01.04.2026, pursuant to Section 536 of the Income Tax Act, 2025.</span>
+                            <span className="sim-ticker-sep">|</span>
+                            <span>4. New challan forms are live on e-Filing portal for tax payments under the Income Tax Act, 2025.</span>
+                            <span className="sim-ticker-sep">|</span>
+                            <span>5. From 1st April 2026, Forms under Income Tax Act, 2025 will be available on the e‑Filing Portal.</span>
+                            <span className="sim-ticker-sep">|</span>
+                            <span>6. Forms applicable for Assessment Year 2026–27 are available under &quot;Forms as per Income-tax Act, 1961&quot; on the e-Filing portal from 1 April 2026.</span>
+                            <span className="sim-ticker-sep">|</span>
+                            <span>1. Offline Utility for Form 145 and Form 146 has been enabled on the e-Filing Portal.</span>
+                            <span className="sim-ticker-sep">|</span>
+                            <span>2. Form No. 105, (earlier Form No.10AB) is now available for e-Filing.</span>
+                            <span className="sim-ticker-sep">|</span>
+                            <span>3. The Income Tax Act, 1961 stands repealed effective 01.04.2026, pursuant to Section 536 of the Income Tax Act, 2025.</span>
+                            <span className="sim-ticker-sep">|</span>
+                            <span>4. New challan forms are live on e-Filing portal for tax payments under the Income Tax Act, 2025.</span>
+                        </div>
+                    </div>
+                    <div className="sim-ticker-controls">
+                        <button className="sim-ticker-btn" title="Pause">❚❚</button>
+                    </div>
+                </div>
+
+                {/* Hero Carousel */}
+                <section className="sim-hero-carousel">
+                    <div className="sim-carousel-inner" style={{ transform: `translateX(-${currentSlide * 100}%)` }}>
+                        {banners.map((b, i) => (
+                            <div key={i} className="sim-carousel-slide">
                                 <Image
-                                    src="/simulation/banner1.png"
-                                    alt="Income Tax Portal Banner"
-                                    className="sim-hero-img"
-                                    width={1320}
-                                    height={400}
-                                    priority
+                                    src={b.src}
+                                    alt={b.alt}
+                                    fill
+                                    style={{ objectFit: "cover" }}
+                                    priority={i === 0}
                                 />
                             </div>
-                        </section>
+                        ))}
+                    </div>
+                    <button
+                        className="sim-carousel-arrow sim-carousel-prev"
+                        onClick={() => setCurrentSlide(prev => (prev - 1 + banners.length) % banners.length)}
+                        aria-label="Previous"
+                    >&#8249;</button>
+                    <button
+                        className="sim-carousel-arrow sim-carousel-next"
+                        onClick={() => setCurrentSlide(prev => (prev + 1) % banners.length)}
+                        aria-label="Next"
+                    >&#8250;</button>
+                    <div className="sim-carousel-dots">
+                        {banners.map((_, i) => (
+                            <button
+                                key={i}
+                                className={`sim-carousel-dot${i === currentSlide ? " active" : ""}`}
+                                onClick={() => setCurrentSlide(i)}
+                                aria-label={`Slide ${i + 1}`}
+                            />
+                        ))}
+                    </div>
+                </section>
 
-                        {/* Info Cards Grid */}
-                        <div className="sim-info-grid">
-                            <InfoCard
-                                icon="👤"
-                                title="Individual/HUF"
-                                description="Salaried, Professionals, and Business Owners."
+                {/* What's New Section */}
+                <section className="sim-whats-new-section">
+                    <div className="sim-ql-container">
+                        <div className="sim-ql-header">
+                            <div className="sim-ql-header-icon">
+                                <Image src="/simulation/icons/quicklinks/nudge.svg" alt="whats new" width={28} height={28} />
+                            </div>
+                            <div>
+                                <h2 className="sim-ql-title">What&apos;s New</h2>
+                                <p className="sim-ql-subtitle">Stay updated with the latest announcements</p>
+                            </div>
+                        </div>
+                        <div className="sim-whats-new-grid">
+                            <WhatsNewCard
+                                title="Rollout of Forms under Income Tax Rule, 2026"
+                                body="To support the transition to the Income Tax Rules, 2026, the new Income Tax Forms have been made available on the e‑Filing portal. New Forms can be accessed via: e-File → Income Tax Forms → File Income Tax Forms → Forms under Income Tax Act, 2025."
                             />
-                            <InfoCard
-                                icon="🏢"
-                                title="Company"
-                                description="Domestic and Foreign Companies."
-                            />
-                            <InfoCard
-                                icon="👥"
-                                title="Non-Company"
-                                description="Firms, LLPs, AOPs, and BOIs."
-                            />
-                            <InfoCard
-                                icon="👨‍💼"
-                                title="Tax Professionals"
-                                description="Chartered Accountants and External Reporting Agencies."
+                            <WhatsNewCard
+                                title="New Integrated Payment Module Goes Live on e‑Filing Portal"
+                                body="Seamless payments now enabled across both the Income‑tax Act, 1961 and the Income‑tax Act, 2025. Taxpayers can conveniently make payments under the existing Income‑tax Act, 1961 for dues up to FY 2025‑26, as well as for Tax Year 2026‑27 onwards — all from a single interface."
                             />
                         </div>
                     </div>
-                </div>
+                </section>
+
+                {/* Quick Links Section */}
+                <section className="sim-quicklinks-section">
+                    <div className="sim-ql-container">
+                        <div className="sim-ql-header">
+                            <div className="sim-ql-header-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#29398D" strokeWidth="1.5">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 className="sim-ql-title">Quick Links</h2>
+                                <p className="sim-ql-subtitle">Access all services at your fingertips</p>
+                            </div>
+                        </div>
+
+                        <div className="sim-quicklinks-grid">
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/nudge.svg"               label="NUDGE Campaign" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/epay-tax.svg"            label="e-Pay Tax" />
+                            <Link href={epanHref} className="sim-quicklink-card-link">
+                                <QuickLinkCard iconSrc="/simulation/icons/quicklinks/instant-epan.svg"    label="Instant E-PAN" />
+                            </Link>
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/know-your-jao.svg"       label="Know Your JAO" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/verify-service-request.svg" label="Verify Service Request" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/report-account-misuse.svg"  label="Report Account Misuse" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/verify-pan.svg"          label="Verify PAN Status" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/income-tax-calculator.svg" label="Income Tax Calculator" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/know-tan-details.svg"    label="Know TAN Details" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/e-verify-return.svg"     label="e-Verify Return" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/know-payment-status.svg" label="Know Tax Payment Status" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/tax-calendar.svg"        label="Tax Calendar" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/tax-info-services.svg"   label="Tax Information &amp; Services" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/download-csi-file.svg"   label="Download CSI File" />
+                            <QuickLinkCard iconSrc="/simulation/icons/quicklinks/comply-to-notice.svg"    label="Comply to Notice" />
+                        </div>
+                    </div>
+                </section>
+
             </main>
             <PortalFooter />
         </>
     );
 }
 
-type SidebarItemProps = {
-    iconSrc: string;
-    label: string;
-};
-
-function SidebarItem({ iconSrc, label }: SidebarItemProps) {
+function WhatsNewCard({ title, body }: { title: string; body: string }) {
     return (
-        <div className="sim-sidebar-item">
-            <span className="sim-sidebar-icon">
-                <Image
-                    src={iconSrc}
-                    alt={label}
-                    width={24}
-                    height={24}
-                />
-            </span>
-            <span>{label}</span>
+        <div className="sim-whats-new-card">
+            <div className="sim-whats-new-indicator" />
+            <div className="sim-whats-new-content">
+                <h3 className="sim-whats-new-title">{title}</h3>
+                <p className="sim-whats-new-body">{body}</p>
+            </div>
         </div>
     );
 }
 
-function InfoCard({ icon, title, description }: { icon: string; title: string; description: string }) {
+function QuickLinkCard({ iconSrc, label }: { iconSrc: string; label: string }) {
     return (
-        <div className="sim-gateway-card">
-            <div className="sim-card-icon-box">{icon}</div>
-            <div className="sim-card-content">
-                <h3>{title}</h3>
-                <p>{description}</p>
+        <div className="sim-quicklink-card">
+            <div className="sim-quicklink-icon">
+                <Image src={iconSrc} alt={label} width={64} height={64} />
             </div>
+            <span className="sim-quicklink-label">{label}</span>
         </div>
     );
 }

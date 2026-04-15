@@ -2174,3 +2174,314 @@
 .sim-eval-popup-body::-webkit-scrollbar-thumb:hover {
   background: #9aa5b4;
 }
+
+
+/* ============================================================
+   GATEWAY PAGE – New Layout (2025 Income Tax Portal Redesign)
+   ============================================================ */
+
+.sim-gateway-body-new {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+/* ---------- Ticker / Notification Bar ---------- */
+.sim-ticker-bar {
+  display: flex;
+  align-items: center;
+  background: #EBF4FD;
+  height: 46px;
+  overflow: hidden;
+  padding: 0 20px;
+  gap: 12px;
+  border-bottom: 1px solid #c9e0f5;
+}
+
+.sim-ticker-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.sim-ticker-track-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.sim-ticker-track {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  animation: sim-ticker-scroll 65s linear infinite;
+  gap: 0;
+}
+
+.sim-ticker-track span {
+  color: #29398D;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 20px;
+}
+
+.sim-ticker-sep {
+  color: #29398D !important;
+  padding: 0 4px !important;
+  opacity: 0.45;
+}
+
+@keyframes sim-ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.sim-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+.sim-ticker-controls {
+  flex-shrink: 0;
+}
+
+.sim-ticker-btn {
+  background: none;
+  border: none;
+  color: #29398D;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 4px 8px;
+  letter-spacing: 1px;
+}
+
+/* ---------- Hero Carousel ---------- */
+.sim-hero-carousel {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  overflow: hidden;
+  background: #1b3281;
+}
+
+.sim-carousel-inner {
+  display: flex;
+  height: 100%;
+  transition: transform 0.6s ease;
+}
+
+.sim-carousel-slide {
+  position: relative;
+  min-width: 100%;
+  height: 420px;
+  flex-shrink: 0;
+}
+
+.sim-carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  border: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 32px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.sim-carousel-arrow:hover {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.sim-carousel-prev { left: 16px; }
+.sim-carousel-next { right: 16px; }
+
+.sim-carousel-dots {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.sim-carousel-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s;
+  padding: 0;
+}
+
+.sim-carousel-dot.active {
+  background: #fff;
+  border-color: #fff;
+}
+
+/* ---------- Shared Section Container ---------- */
+.sim-ql-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 48px;
+  width: 100%;
+}
+
+.sim-ql-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.sim-ql-header-icon {
+  width: 48px;
+  height: 48px;
+  background: #eef2ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sim-ql-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a2e6c;
+  margin: 0 0 4px;
+}
+
+.sim-ql-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ---------- What's New Section ---------- */
+.sim-whats-new-section {
+  background: #f0f4ff;
+  padding: 40px 0;
+  border-bottom: 1px solid #dce3f3;
+}
+
+.sim-whats-new-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.sim-whats-new-card {
+  background: #fff;
+  border: 1px solid #dce3f3;
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  gap: 16px;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.sim-whats-new-card:hover {
+  border-color: #1b3281;
+  box-shadow: 0 4px 16px rgba(27, 50, 129, 0.1);
+}
+
+.sim-whats-new-indicator {
+  width: 4px;
+  border-radius: 4px;
+  background: #1b3281;
+  flex-shrink: 0;
+}
+
+.sim-whats-new-content {
+  flex: 1;
+}
+
+.sim-whats-new-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a2e6c;
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.sim-whats-new-body {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ---------- Quick Links Section ---------- */
+.sim-quicklinks-section {
+  background: #fff;
+  padding: 40px 0 56px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.sim-quicklinks-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+.sim-quicklink-card-link {
+  display: contents;
+  text-decoration: none;
+}
+
+.sim-quicklink-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px 12px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sim-quicklink-card:hover {
+  border-color: #1b3281;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(27, 50, 129, 0.12);
+}
+
+.sim-quicklink-icon {
+  width: 80px;
+  height: 80px;
+  background: #f0f4ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  transition: background 0.2s;
+}
+
+.sim-quicklink-card:hover .sim-quicklink-icon {
+  background: #dce5ff;
+}
+
+.sim-quicklink-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  line-height: 1.4;
+  text-decoration: none;
+}

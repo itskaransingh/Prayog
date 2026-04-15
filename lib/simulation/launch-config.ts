@@ -28,7 +28,7 @@ export function getSimulationLaunchConfig({
         case "epan_registration":
             return {
                 storageKey: "epan-registration-started",
-                gatewayPath: "/epan-simulation/gateway",
+                gatewayPath: "/simulation/gateway",
             };
         case "itr_registration":
             return {
