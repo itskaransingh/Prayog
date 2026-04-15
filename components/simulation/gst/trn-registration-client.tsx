@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Lock, Mail } from "lucide-react";
+import { ChevronUp, Lock, Mail } from "lucide-react";
 import {
     useEffect,
     useMemo,
@@ -238,9 +238,9 @@ function GSTPortalChrome({
                         </div>
                     </div>
 
-                    <div className="gst-trn-profile-icon" aria-hidden="true">
-                        <span>♟</span>
-                        <ChevronDown size={10} strokeWidth={2.5} />
+                    <div className="gst-sim-auth gst-trn-auth" aria-hidden="true">
+                        <button type="button">REGISTER</button>
+                        <button type="button">LOGIN</button>
                     </div>
                 </div>
             </header>

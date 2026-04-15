@@ -18,7 +18,7 @@ export interface SimulationLaunchConfig {
 
 const GST_LAUNCH_SUBMODULES = new Set([
     "trn-generation",
-    "gst-registartion",
+    "gst-registration",
     "nil-return-filing-3b",
     "gstr1-filing",
 ]);

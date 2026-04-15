@@ -1,0 +1,310 @@
+export const GSTIN_SUBMODULE_ID = "42173d58-c1b7-41a1-a1fe-5deeafa19cf2";
+
+export const GSTIN_CONSTITUTION_OPTIONS = [
+    "Proprietorship",
+    "Partnership",
+    "Hindu Undivided Family",
+    "Private Limited Company",
+    "Public Limited Company",
+    "Society/Club/Trust/AOP",
+    "Government Department",
+    "Public Sector Undertaking",
+    "Unlimited Company",
+    "Foreign Company",
+    "Others",
+] as const;
+
+export const GSTIN_REASON_OPTIONS = [
+    "Voluntary basis",
+    "Crossing Threshold",
+    "Transfer of Business",
+    "Death of Proprietor",
+    "Succession",
+    "Change in constitution of business",
+    "Merger",
+    "E-Commerce Operations",
+    "Selling through E-Commerce",
+    "Others",
+] as const;
+
+export const GSTIN_DESIGNATION_OPTIONS = [
+    "Proprietor",
+    "Partner",
+    "Managing Director",
+    "Director",
+    "Manager",
+    "Authorized Signatory",
+    "Company Secretary",
+    "Chief Executive Officer",
+    "Others",
+] as const;
+
+export const GSTIN_NATURE_OF_POSSESSION_OPTIONS = [
+    "Own",
+    "Rented",
+    "Leased",
+    "Consent",
+] as const;
+
+export const GSTIN_DOCUMENT_TYPE_OPTIONS = [
+    "Rent Agreement",
+    "Consent Letter",
+    "Copy of possession issued by RDCS/Managing Committee",
+    "Property Tax Payment Receipt",
+    "Electricity Bill",
+] as const;
+
+export const GSTIN_BUSINESS_NATURE_OPTIONS = [
+    "Service/Wholesale",
+    "Manufacturing",
+    "Import",
+    "Export",
+    "Supplier of Services",
+    "Recipient of Goods or Services",
+    "Warehouse/Depot",
+    "Retail Business",
+    "Others (Please Specify)",
+    "Media Content",
+    "Wholesale Business",
+] as const;
+
+export type GstinFieldPath =
+    | "trn"
+    | "captcha"
+    | "otp"
+    | "legalBusinessName"
+    | "tradeName"
+    | "registeredState"
+    | "registeredDistrict"
+    | "constitutionOfBusiness"
+    | "dateOfCommencement"
+    | "reasonForRegistration"
+    | "ward"
+    | "commissionerate"
+    | "division"
+    | "range"
+    | "proprietorFirstName"
+    | "proprietorFatherFirstName"
+    | "proprietorDob"
+    | "proprietorMobile"
+    | "proprietorEmail"
+    | "proprietorPan"
+    | "proprietorAadhaar"
+    | "proprietorDesignation"
+    | "residentialFlatNo"
+    | "residentialFloor"
+    | "residentialBuilding"
+    | "residentialStreet"
+    | "residentialCity"
+    | "residentialDistrict"
+    | "residentialState"
+    | "residentialPin"
+    | "businessFlatNo"
+    | "businessBuilding"
+    | "businessFloor"
+    | "businessStreet"
+    | "businessCity"
+    | "businessDistrict"
+    | "businessState"
+    | "businessPin"
+    | "businessEmail"
+    | "hsn"
+    | "verificationName"
+    | "verificationPlace";
+
+export interface GstinRegistrationData {
+    // Step 1 — TRN entry
+    trn: string;
+    captcha: string;
+    // Step 2 — OTP
+    otp: string;
+    // TRN-derived readonly fields
+    legalBusinessName: string;
+    registeredState: string;
+    registeredDistrict: string;
+    // Tab 1 — Business Details
+    constitutionOfBusiness: string;
+    dateOfCommencement: string;
+    reasonForRegistration: string;
+    ward: string;
+    commissionerate: string;
+    division: string;
+    range: string;
+    // Tab 2 — Promoters
+    proprietorFirstName: string;
+    proprietorFatherFirstName: string;
+    proprietorDob: string;
+    proprietorMobile: string;
+    proprietorEmail: string;
+    proprietorPan: string;
+    proprietorAadhaar: string;
+    proprietorDesignation: string;
+    residentialFlatNo: string;
+    residentialFloor: string;
+    residentialBuilding: string;
+    residentialStreet: string;
+    residentialCity: string;
+    residentialDistrict: string;
+    residentialState: string;
+    residentialPin: string;
+    // Tab 4 — Principal Place of Business
+    businessFlatNo: string;
+    businessBuilding: string;
+    businessFloor: string;
+    businessStreet: string;
+    businessCity: string;
+    businessDistrict: string;
+    businessState: string;
+    businessPin: string;
+    businessEmail: string;
+    // Tab 6 — Goods and Services
+    hsn: string;
+    // Tab 9 — Verification
+    verificationName: string;
+    verificationPlace: string;
+    // Non-evaluated UI-only state
+    tradeName: string;
+    residentialCountry: string;
+    gender: string;
+    businessNature: string[];
+    natureOfPossession: string;
+    aadhaarAuthEnabled: boolean;
+}
+
+export const EMPTY_GSTIN_REGISTRATION_DATA: GstinRegistrationData = {
+    trn: "",
+    captcha: "",
+    otp: "",
+    legalBusinessName: "",
+    registeredState: "",
+    registeredDistrict: "",
+    constitutionOfBusiness: "",
+    dateOfCommencement: "",
+    reasonForRegistration: "",
+    ward: "",
+    commissionerate: "",
+    division: "",
+    range: "",
+    proprietorFirstName: "",
+    proprietorFatherFirstName: "",
+    proprietorDob: "",
+    proprietorMobile: "",
+    proprietorEmail: "",
+    proprietorPan: "",
+    proprietorAadhaar: "",
+    proprietorDesignation: "",
+    residentialFlatNo: "",
+    residentialFloor: "",
+    residentialBuilding: "",
+    residentialStreet: "",
+    residentialCity: "",
+    residentialDistrict: "",
+    residentialState: "",
+    residentialPin: "",
+    businessFlatNo: "",
+    businessBuilding: "",
+    businessFloor: "",
+    businessStreet: "",
+    businessCity: "",
+    businessDistrict: "",
+    businessState: "",
+    businessPin: "",
+    businessEmail: "",
+    hsn: "",
+    verificationName: "",
+    verificationPlace: "",
+    tradeName: "",
+    residentialCountry: "India",
+    gender: "Male",
+    businessNature: [],
+    natureOfPossession: "",
+    aadhaarAuthEnabled: false,
+};
+
+function normalizeLabel(label: string): string {
+    return label
+        .toLowerCase()
+        .replace(/\(.*?\)/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+}
+
+const GSTIN_FIELD_PATH_BY_LABEL = new Map<string, GstinFieldPath>([
+    ["temporary reference number", "trn"],
+    ["trn number", "trn"],
+    ["captcha code", "captcha"],
+    ["captcha", "captcha"],
+    ["otp", "otp"],
+    ["mobile email otp", "otp"],
+    ["mobile otp", "otp"],
+    ["email otp", "otp"],
+    ["legal name of the business", "legalBusinessName"],
+    ["legal name of the business as mentioned in pan", "legalBusinessName"],
+    ["trade name", "tradeName"],
+    ["name of the state", "registeredState"],
+    ["state", "registeredState"],
+    ["state ut", "registeredState"],
+    ["district", "registeredDistrict"],
+    ["registered district", "registeredDistrict"],
+    ["constitution of business", "constitutionOfBusiness"],
+    ["date of commencement of business", "dateOfCommencement"],
+    ["commencement date", "dateOfCommencement"],
+    ["reason to obtain registration", "reasonForRegistration"],
+    ["reason for registration", "reasonForRegistration"],
+    ["ward", "ward"],
+    ["ward circle charge unit", "ward"],
+    ["commissionerate", "commissionerate"],
+    ["division", "division"],
+    ["range", "range"],
+    ["promoter first name", "proprietorFirstName"],
+    ["first name", "proprietorFirstName"],
+    ["father first name", "proprietorFatherFirstName"],
+    ["date of birth", "proprietorDob"],
+    ["promoter mobile number", "proprietorMobile"],
+    ["mobile number", "proprietorMobile"],
+    ["promoter email address", "proprietorEmail"],
+    ["email address", "proprietorEmail"],
+    ["pan", "proprietorPan"],
+    ["pan number", "proprietorPan"],
+    ["permanent account number pan", "proprietorPan"],
+    ["aadhaar number", "proprietorAadhaar"],
+    ["designation status", "proprietorDesignation"],
+    ["residential flat no", "residentialFlatNo"],
+    ["residential floor no", "residentialFloor"],
+    ["residential building name", "residentialBuilding"],
+    ["residential street road", "residentialStreet"],
+    ["residential city", "residentialCity"],
+    ["residential district", "residentialDistrict"],
+    ["residential state", "residentialState"],
+    ["residential pin code", "residentialPin"],
+    ["business flat no", "businessFlatNo"],
+    ["business building name", "businessBuilding"],
+    ["business floor no", "businessFloor"],
+    ["business street road", "businessStreet"],
+    ["business city", "businessCity"],
+    ["business district", "businessDistrict"],
+    ["business state", "businessState"],
+    ["business pin code", "businessPin"],
+    ["business email address", "businessEmail"],
+    ["office email address", "businessEmail"],
+    ["hsn code", "hsn"],
+    ["products hsn", "hsn"],
+    ["verification signatory name", "verificationName"],
+    ["name of authorized signatory", "verificationName"],
+    ["verification place", "verificationPlace"],
+    ["place", "verificationPlace"],
+]);
+
+export function getGstinFieldPathFromLabel(
+    label: string | null | undefined,
+    index?: number,
+): string {
+    const normalized = normalizeLabel(label ?? "");
+    const matched = GSTIN_FIELD_PATH_BY_LABEL.get(normalized);
+
+    if (matched) {
+        return matched;
+    }
+
+    return `gstinField${typeof index === "number" ? index + 1 : ""}`;
+}

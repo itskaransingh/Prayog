@@ -554,12 +554,14 @@
   letter-spacing: 0.3px;
 }
 
-.gst-trn-profile-icon {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #ffffff;
-  font-size: 10px;
+.gst-trn-auth {
+  padding-right: 0;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.gst-trn-auth button {
+  min-width: 58px;
 }
 
 .gst-trn-nav-inner {
@@ -1038,5 +1040,654 @@
 
   .gst-trn-success-body {
     flex-direction: column;
+  }
+}
+
+.gstin-form-shell {
+  padding-bottom: 72px;
+}
+
+.gstin-form-header {
+  width: 949px;
+  margin: 0 auto;
+}
+
+.gstin-form-warn-banner {
+  min-height: 20px;
+  padding: 4px 10px;
+  background: #fff6cc;
+  color: #ef3c21;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+.gstin-form-meta-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 16px;
+  background: #ffec83;
+}
+
+.gstin-form-meta-item {
+  padding: 10px 16px 12px;
+}
+
+.gstin-form-meta-label {
+  display: block;
+  color: #222;
+  font-size: 10px;
+}
+
+.gstin-form-meta-value {
+  display: block;
+  margin-top: 8px;
+  color: #111;
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.gstin-form-meta-profile {
+  color: #1b1b1b;
+}
+
+.gstin-tab-nav {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  border-left: 1px solid #93b5d8;
+  border-top: 1px solid #93b5d8;
+}
+
+.gstin-tab-item {
+  min-height: 95px;
+  border-right: 1px solid #93b5d8;
+  border-bottom: 1px solid #93b5d8;
+  background: #f5fbff;
+  color: #505050;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  box-shadow: inset 0 0 0 0 transparent;
+}
+
+.gstin-tab-item.is-active {
+  background: #2d5c96;
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(28, 48, 82, 0.22);
+  position: relative;
+  z-index: 1;
+}
+
+.gstin-tab-item.is-done {
+  background: #355d95;
+  color: #fff;
+}
+
+.gstin-tab-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gstin-tab-label {
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: pre-line;
+}
+
+.gstin-tab-content {
+  width: 949px;
+  margin: 0 auto;
+  background: #fff;
+  border: 1px solid #e2e2e2;
+  border-top: 0;
+  padding: 18px 16px 28px;
+  box-sizing: border-box;
+}
+
+.gstin-tab-panel {
+  min-height: 420px;
+}
+
+.gstin-section-header {
+  color: #14356d;
+  font-size: 16px;
+  font-weight: 500;
+  padding: 6px 0 10px;
+  border-bottom: 1px solid #d7d7d7;
+}
+
+.gstin-note {
+  margin: 10px 0 18px;
+  color: #171717;
+  font-size: 10px;
+  text-align: right;
+}
+
+.gstin-note::before {
+  content: "•";
+  color: #e11818;
+  margin-right: 4px;
+}
+
+.gstin-two-col,
+.gstin-three-col,
+.gstin-jurisdiction-row,
+.gstin-address-grid,
+.gstin-business-nature-grid,
+.gstin-toggle-grid {
+  display: grid;
+  gap: 14px 24px;
+}
+
+.gstin-two-col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gstin-three-col {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gstin-jurisdiction-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.gstin-address-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gstin-toggle-grid {
+  grid-template-columns: 1fr;
+  margin: 10px 0 14px;
+}
+
+.gstin-readonly-input {
+  background: #f7f7f7;
+  border-color: #d6d6d6;
+}
+
+.gstin-readonly-input .gst-trn-input {
+  color: #111;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.gstin-sub-section-header {
+  margin: 16px 0 14px;
+  color: #14356d;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gstin-sub-section-icon {
+  width: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.gstin-gender-label {
+  margin: 0 0 8px;
+  color: #1b1b1b;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.gstin-gender-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 29px;
+}
+
+.gstin-simple-toggle-row,
+.gstin-aadhaar-auth-row {
+  min-height: 74px;
+  padding: 14px 14px 12px;
+  background: #f8f8f8;
+  border: 1px solid #ececec;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.gstin-toggle-off,
+.gstin-toggle-btn {
+  width: 38px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  background: #8e8e8e;
+  position: relative;
+}
+
+.gstin-toggle-btn {
+  cursor: pointer;
+}
+
+.gstin-toggle-knob,
+.gstin-toggle-off::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 120ms ease;
+}
+
+.gstin-toggle-btn.is-on {
+  background: #3b9d2f;
+}
+
+.gstin-toggle-btn.is-on .gstin-toggle-knob {
+  transform: translateX(16px);
+}
+
+.gstin-tab-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.gstin-bottom-toolbar,
+.gstin-mini-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.gstin-save-btn {
+  min-width: 148px;
+  height: 32px;
+  border: 0;
+  background: #2e5792;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.gstin-saved-apps-card {
+  width: 949px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 22px 18px 32px;
+}
+
+.gstin-saved-apps-title {
+  margin: 0 0 12px;
+  color: #14356d;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.gstin-saved-apps-table-wrap {
+  overflow-x: auto;
+}
+
+.gstin-saved-apps-table,
+.gstin-hsn-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: #1d1d1d;
+}
+
+.gstin-saved-apps-table th,
+.gstin-saved-apps-table td,
+.gstin-hsn-table th,
+.gstin-hsn-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e5e5e5;
+  font-size: 11px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.gstin-saved-apps-table th,
+.gstin-hsn-table th {
+  font-weight: 700;
+}
+
+.gstin-draft-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #2a558e;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.gstin-edit-btn {
+  width: 26px;
+  height: 24px;
+  border: 0;
+  background: #2e5792;
+  color: #fff;
+}
+
+.gstin-no-track {
+  margin: 0;
+  color: #666;
+  font-size: 12px;
+}
+
+.gstin-ppob-warn,
+.gstin-additional-info {
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  background: #fbf7dc;
+  color: #555;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.gstin-validation-note,
+.gstin-inline-warning {
+  padding: 11px 14px;
+  background: #fff7d9;
+  color: #b48734;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.gstin-inline-warning-row {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.gstin-inline-warning {
+  flex: 1;
+}
+
+.gstin-map-placeholder {
+  margin-bottom: 18px;
+  border: 1px solid #d8d8d8;
+  background: #f6f8fa;
+}
+
+.gstin-map-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px;
+}
+
+.gstin-map-svg {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  border: 1px solid #c9d7e2;
+}
+
+.gstin-map-label {
+  color: #5e5e5e;
+  font-size: 10px;
+}
+
+.gstin-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #1d1d1d;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.gstin-checkbox {
+  margin-top: 2px;
+}
+
+.gstin-checkbox-strip {
+  padding: 8px 0 4px;
+}
+
+.gstin-business-nature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 12px;
+  border: 1px solid #ececec;
+  background: #fafafa;
+}
+
+.gstin-hsn-search-row {
+  margin-top: 26px;
+}
+
+.gstin-hsn-search-wrap {
+  width: 430px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  border: 1px solid #98bee2;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(37, 104, 189, 0.08);
+}
+
+.gstin-hsn-search-icon {
+  margin-left: 10px;
+  color: #6e7a88;
+}
+
+.gstin-hsn-search-input {
+  flex: 1;
+  height: 30px;
+  border: 0;
+  padding: 0 10px 0 8px;
+  font-size: 11px;
+}
+
+.gstin-hsn-list {
+  margin-top: 20px;
+  border: 1px solid #e1e1e1;
+  padding: 14px 16px;
+}
+
+.gstin-hsn-list-title {
+  margin: 0 0 12px;
+  color: #14356d;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.gstin-hsn-remove {
+  border: 0;
+  background: #ec5b5b;
+  color: #fff;
+  min-width: 68px;
+  height: 26px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.gstin-verification-declaration,
+.gstin-verification-note,
+.gstin-aadhaar-auth-table {
+  margin-top: 16px;
+}
+
+.gstin-help-link {
+  margin: 10px 0 0;
+  color: #3f73be;
+  font-size: 11px;
+}
+
+.gstin-aadhaar-auth-label {
+  margin: 0;
+  color: #1d1d1d;
+  font-size: 11px;
+  line-height: 1.4;
+  max-width: 82%;
+}
+
+.gstin-toggle-card {
+  min-height: 70px;
+  padding: 14px 14px 12px;
+  background: #fafafa;
+  border: 1px solid #ececec;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.gstin-compact-card {
+  min-height: 54px;
+}
+
+.gstin-toggle-card-label {
+  margin: 0;
+  color: #1d1d1d;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.gstin-estimated-card,
+.gstin-existing-card {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #e7e7e7;
+  background: #fbfbfb;
+}
+
+.gstin-estimated-title,
+.gstin-subtle-title {
+  margin-bottom: 12px;
+  color: #14356d;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.gstin-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  font-size: 11px;
+}
+
+.gstin-upload-panel {
+  display: grid;
+  grid-template-columns: 1fr 40px 1fr;
+  gap: 16px;
+  padding: 16px 12px;
+  border: 1px solid #ececec;
+  background: #fafafa;
+}
+
+.gstin-upload-column p {
+  margin: 0 0 8px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.gstin-upload-note {
+  color: #444;
+}
+
+.gstin-upload-divider {
+  align-self: center;
+  justify-self: center;
+  color: #8a8a8a;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gstin-upload-camera {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.gstin-reset-row {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0 16px;
+}
+
+.gstin-goods-tabs {
+  display: flex;
+  gap: 0;
+  margin-top: 10px;
+}
+
+.gstin-goods-tab {
+  min-width: 84px;
+  height: 34px;
+  border: 1px solid #d9d9d9;
+  background: #ffffff;
+  color: #2f5a92;
+  font-size: 11px;
+}
+
+.gstin-goods-tab.is-active {
+  background: #f8fafc;
+  border-bottom-color: #f8fafc;
+}
+
+@media (max-width: 1100px) {
+  .gstin-form-header,
+  .gstin-tab-content,
+  .gstin-saved-apps-card {
+    width: calc(100% - 24px);
+  }
+
+  .gstin-tab-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .gstin-jurisdiction-row,
+  .gstin-address-grid,
+  .gstin-three-col,
+  .gstin-business-nature-grid,
+  .gstin-upload-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .gstin-form-meta-row,
+  .gstin-tab-nav,
+  .gstin-two-col,
+  .gstin-three-col,
+  .gstin-jurisdiction-row,
+  .gstin-address-grid,
+  .gstin-business-nature-grid,
+  .gstin-upload-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .gstin-tab-item {
+    min-height: 76px;
+  }
+
+  .gstin-simple-toggle-row,
+  .gstin-aadhaar-auth-row,
+  .gstin-tab-actions,
+  .gstin-bottom-toolbar,
+  .gstin-mini-actions,
+  .gstin-inline-warning-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .gstin-hsn-search-wrap {
+    width: 100%;
   }
 }

@@ -13,8 +13,10 @@ import {
 import {
     buildRegistrationEvaluationMappings,
     buildGstfEvaluationMappings,
+    buildGstinEvaluationMappings,
     type SimulationEvaluationConfig,
 } from "@/lib/simulation/runtime-evaluation";
+import { GSTIN_SUBMODULE_ID } from "@/lib/simulation/gst/gstin-registration";
 
 interface QuestionRecord {
     id: string;
@@ -138,6 +140,14 @@ export async function GET(
             throw taskError;
         }
 
+        const isGstinSubmodule = submodule.id === GSTIN_SUBMODULE_ID;
+
+        function buildGstfMappings(fieldRows: SimulationFieldRecord[]) {
+            return isGstinSubmodule
+                ? buildGstinEvaluationMappings(fieldRows)
+                : buildGstfEvaluationMappings(fieldRows);
+        }
+
         if (!task?.id) {
             if (simulatorType === "gstf-simulation") {
                 return NextResponse.json({
@@ -146,12 +156,14 @@ export async function GET(
                     showExpectedAnswersInEvaluation: false,
                     mappings: [],
                     questionTitle: question.title ?? null,
+                    submoduleId: submodule.id,
                 } satisfies SimulationEvaluationConfig);
             }
 
             return NextResponse.json({
                 ...buildEmptyConfig(simulatorType),
                 questionTitle: question.title ?? null,
+                submoduleId: submodule.id,
             } satisfies SimulationEvaluationConfig);
         }
 
@@ -175,13 +187,14 @@ export async function GET(
                     task.show_expected_answers_in_evaluation ?? false,
                 mappings:
                     simulatorType === "gstf-simulation"
-                        ? []
+                        ? buildGstfMappings([])
                         : buildRegistrationEvaluationMappings(
                               simulatorType,
                               [],
                               fieldDefinitions,
                           ),
                 questionTitle: question.title ?? null,
+                submoduleId: submodule.id,
             } satisfies SimulationEvaluationConfig);
         }
 
@@ -202,7 +215,7 @@ export async function GET(
                 task.show_expected_answers_in_evaluation ?? false,
             mappings:
                 simulatorType === "gstf-simulation"
-                    ? buildGstfEvaluationMappings(
+                    ? buildGstfMappings(
                           (fields ?? []) as SimulationFieldRecord[],
                       )
                     : buildRegistrationEvaluationMappings(
@@ -211,6 +224,7 @@ export async function GET(
                           fieldDefinitions,
                       ),
             questionTitle: question.title ?? null,
+            submoduleId: submodule.id,
         } satisfies SimulationEvaluationConfig);
     } catch (error) {
         console.error("Error fetching simulation evaluation config:", error);
