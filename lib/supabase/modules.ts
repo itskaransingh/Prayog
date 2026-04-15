@@ -29,6 +29,7 @@ export interface Submodule {
         | "ledger"
         | "trial_balance"
         | "financial_statement"
+        | "gstf-simulation"
         | "none"
         | null;
     is_active: boolean;

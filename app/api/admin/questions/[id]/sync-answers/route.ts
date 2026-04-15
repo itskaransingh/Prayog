@@ -15,6 +15,7 @@ import {
     normalizeSimulationFieldDefinitions,
     resolveRegistrationFieldDefinitions,
     type ClassificationPayload,
+    type GstfSimulationPayload,
     type FinancialStatementPayload,
     type FinancialStatementSectionKey,
     type GridPayload,
@@ -156,6 +157,8 @@ function expectedPayloadType(simulatorType: SimulatorType | null): SyncAnswersPa
             return "trial_balance";
         case "financial_statement":
             return "financial_statement";
+        case "gstf-simulation":
+            return "gstf-simulation";
         case "itr_registration":
         case "epan_registration":
             return "registration";
@@ -586,6 +589,41 @@ function parsePayload(body: unknown): SyncAnswersPayload | { error: string } {
             return {
                 type: "registration",
                 fields: parsedFields,
+            };
+        }
+        case "gstf-simulation": {
+            if (!Array.isArray(raw.fields)) {
+                return { error: "gstf-simulation fields must be an array" };
+            }
+
+            const fields = raw.fields.map((field) => {
+                if (!field || typeof field !== "object") {
+                    return null;
+                }
+
+                const next = field as Record<string, unknown>;
+                const label = trimString(next.label);
+                const value = trimString(next.value);
+
+                if (label === null || value === null) {
+                    return null;
+                }
+
+                return {
+                    label,
+                    value,
+                };
+            });
+
+            if (fields.some((field) => field === null)) {
+                return {
+                    error: "gstf-simulation fields must contain string label and value entries",
+                };
+            }
+
+            return {
+                type: "gstf-simulation",
+                fields: fields as GstfSimulationPayload["fields"],
             };
         }
         default:

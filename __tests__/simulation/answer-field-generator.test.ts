@@ -9,6 +9,7 @@ import {
     reverseParseFields,
     type ClassificationPayload,
     type FinancialStatementPayload,
+    type GstfSimulationPayload,
     type JournalEntryPayload,
     type LedgerPayload,
     type RegistrationPayload,
@@ -349,6 +350,40 @@ describe("answer-field-generator", () => {
                     fieldPath: "personalDetails.dob",
                     expectedValue: "2000-01-01",
                 },
+            ],
+        });
+    });
+
+    it("generates and round-trips gstf-simulation payloads", () => {
+        const payload: GstfSimulationPayload = {
+            type: "gstf-simulation",
+            fields: [
+                { label: "GSTIN", value: "29ABCDE1234F2Z5" },
+                { label: "Legal Name", value: "Prayog Pvt Ltd" },
+                { label: "", value: "" },
+            ],
+        };
+
+        const fields = generateFields("step-gstf", payload);
+
+        assert.equal(fields.length, 2);
+        assert.deepEqual(fields[0], {
+            step_id: "step-gstf",
+            field_name: "gstf_field_1",
+            field_type: "text",
+            field_label: "GSTIN",
+            expected_value: "29ABCDE1234F2Z5",
+            options: null,
+            order_index: 1,
+        });
+
+        const roundTrip = reverseParseFields(asRecords(fields), "gstf-simulation");
+
+        assert.deepEqual(roundTrip, {
+            type: "gstf-simulation",
+            fields: [
+                { label: "GSTIN", value: "29ABCDE1234F2Z5" },
+                { label: "Legal Name", value: "Prayog Pvt Ltd" },
             ],
         });
     });

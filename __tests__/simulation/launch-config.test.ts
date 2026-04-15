@@ -36,4 +36,30 @@ describe("simulation launch config", () => {
             gatewayPath: "/simulation/render",
         });
     });
+
+    it("routes the supported GST submodules to the GST landing page", () => {
+        const result = getSimulationLaunchConfig({
+            moduleSlug: "goods-and-service-tax",
+            submoduleSlug: "gstr1-filing",
+            simulatorType: "none",
+        });
+
+        assert.deepEqual(result, {
+            storageKey: null,
+            gatewayPath: "/gst-simulation",
+        });
+    });
+
+    it("routes explicit gstf-simulation submodules to the GST landing page", () => {
+        const result = getSimulationLaunchConfig({
+            moduleSlug: "goods-and-service-tax",
+            submoduleSlug: "gstr1-filing",
+            simulatorType: "gstf-simulation",
+        });
+
+        assert.deepEqual(result, {
+            storageKey: null,
+            gatewayPath: "/gst-simulation",
+        });
+    });
 });

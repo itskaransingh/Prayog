@@ -16,6 +16,7 @@ const VALID_SIMULATOR_TYPES = [
     "ledger",
     "trial_balance",
     "financial_statement",
+    "gstf-simulation",
 ] as const;
 
 async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {

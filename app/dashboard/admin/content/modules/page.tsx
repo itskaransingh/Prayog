@@ -71,6 +71,7 @@ interface Submodule {
         | "ledger"
         | "trial_balance"
         | "financial_statement"
+        | "gstf-simulation"
         | null;
     is_active: boolean;
     task_count: number;
@@ -99,7 +100,8 @@ interface SubmoduleFormData {
         | "journal_entry"
         | "ledger"
         | "trial_balance"
-        | "financial_statement";
+        | "financial_statement"
+        | "gstf-simulation";
     task_count: number;
     sort_order: number;
     is_active: boolean;
@@ -166,6 +168,7 @@ const SIMULATOR_TYPE_OPTIONS: Array<{
     { value: "ledger", label: "Ledger" },
     { value: "trial_balance", label: "Trial Balance" },
     { value: "financial_statement", label: "Financial Statement" },
+    { value: "gstf-simulation", label: "GSTF Simulation" },
 ];
 
 // ─── Main Component ──────────────────────────────────────────────────

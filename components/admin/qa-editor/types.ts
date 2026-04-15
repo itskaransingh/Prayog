@@ -10,6 +10,7 @@ export type SimulatorType =
     | "ledger"
     | "trial_balance"
     | "financial_statement"
+    | "gstf-simulation"
     | "none";
 
 export interface QAEditorProps {

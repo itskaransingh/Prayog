@@ -6,3 +6,4 @@ context/
 docs/
 supabase/
 .claude/
+__tests__/

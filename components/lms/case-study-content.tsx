@@ -38,6 +38,7 @@ interface CaseStudyContentProps {
         | "ledger"
         | "trial_balance"
         | "financial_statement"
+        | "gstf-simulation"
         | "none"
         | null;
 }
@@ -124,7 +125,11 @@ function RichQuestionContent({ html, variant }: { html: string; variant?: "task"
     );
 }
 
-function getQuestionContentHtml(question: Question) {
+function getQuestionUpperBodyHtml(question: Question) {
+    if (question.upper_body_html?.trim()) {
+        return question.upper_body_html;
+    }
+
     if (question.content_html?.trim()) {
         return question.content_html;
     }
@@ -135,6 +140,14 @@ function getQuestionContentHtml(question: Question) {
 
     if (question.resource_description?.trim()) {
         return question.resource_description;
+    }
+
+    return "";
+}
+
+function getQuestionLowerBodyHtml(question: Question) {
+    if (question.lower_body_html?.trim()) {
+        return question.lower_body_html;
     }
 
     return "";
@@ -340,7 +353,8 @@ export function CaseStudyContent({
     const hasCompletedActiveQuestion = Boolean(activeQuestionStatus?.completed);
     const isActiveTask = Boolean(activeQuestion && isTaskQuestionType(activeQuestion.type));
     const isActiveResource = Boolean(activeQuestion && !isTaskQuestionType(activeQuestion.type));
-    const activeQuestionContentHtml = activeQuestion ? getQuestionContentHtml(activeQuestion) : "";
+    const activeQuestionUpperBodyHtml = activeQuestion ? getQuestionUpperBodyHtml(activeQuestion) : "";
+    const activeQuestionLowerBodyHtml = activeQuestion ? getQuestionLowerBodyHtml(activeQuestion) : "";
     const activeCourseObjectives = activeQuestion?.course_objectives ?? [];
     const simulationLaunchConfig = React.useMemo(
         () => getSimulationLaunchConfig({ moduleSlug, submoduleSlug, simulatorType }),
@@ -428,15 +442,13 @@ export function CaseStudyContent({
                     id={`question-${activeQuestion.id}`}
                     className="container mx-auto flex flex-col gap-6 p-6"
                 >
-                    {activeQuestionContentHtml && (
-                       <div className="pt-6">
-                                <RichQuestionContent
-                                
-                                
-                                html={activeQuestionContentHtml}
+                    {activeQuestionUpperBodyHtml && (
+                        <div className="pt-6">
+                            <RichQuestionContent
+                                html={activeQuestionUpperBodyHtml}
                                 variant={isTaskQuestionType(activeQuestion.type) ? "task" : "resource"}
-                                /> 
-                                </div>
+                            />
+                        </div>
                     )}
 
                     {activeQuestion.has_table &&
@@ -480,6 +492,13 @@ export function CaseStudyContent({
                             </div>
                             <GDriveLink url={activeQuestion.link_url} title={activeQuestion.link_title} />
                         </div>
+                    )}
+
+                    {activeQuestionLowerBodyHtml && (
+                        <RichQuestionContent
+                            html={activeQuestionLowerBodyHtml}
+                            variant={isTaskQuestionType(activeQuestion.type) ? "task" : "resource"}
+                        />
                     )}
                 </div>
             ) : (

@@ -6,6 +6,7 @@ export type LaunchableSimulatorType =
     | "ledger"
     | "trial_balance"
     | "financial_statement"
+    | "gstf-simulation"
     | "none"
     | null
     | undefined;
@@ -14,6 +15,13 @@ export interface SimulationLaunchConfig {
     storageKey: string | null;
     gatewayPath: string;
 }
+
+const GST_LAUNCH_SUBMODULES = new Set([
+    "trn-generation",
+    "gst-registartion",
+    "nil-return-filing-3b",
+    "gstr1-filing",
+]);
 
 export function getSimulationLaunchConfig({
     moduleSlug,
@@ -60,10 +68,26 @@ export function getSimulationLaunchConfig({
                 storageKey: null,
                 gatewayPath: "/simulation/render",
             };
+        case "gstf-simulation":
+            return {
+                storageKey: null,
+                gatewayPath: "/gst-simulation",
+            };
         case "none":
         case null:
         case undefined:
         default:
+            if (
+                moduleSlug === "goods-and-service-tax" &&
+                submoduleSlug &&
+                GST_LAUNCH_SUBMODULES.has(submoduleSlug)
+            ) {
+                return {
+                    storageKey: null,
+                    gatewayPath: "/gst-simulation",
+                };
+            }
+
             if (submoduleSlug === "financial-statement") {
                 return {
                     storageKey: null,

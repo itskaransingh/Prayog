@@ -1,5 +1,6 @@
 import "./simulation.css";
 import "./epan-simulation.css";
+import "./gst-simulation.css";
 
 export default function SimulationLayout({
     children,

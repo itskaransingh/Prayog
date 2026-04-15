@@ -6,7 +6,8 @@ export type SimulatorType =
     | "journal_entry"
     | "ledger"
     | "trial_balance"
-    | "financial_statement";
+    | "financial_statement"
+    | "gstf-simulation";
 
 export interface QuestionTableData {
     headers?: string[];
@@ -117,6 +118,14 @@ export interface RegistrationPayload {
     }[];
 }
 
+export interface GstfSimulationPayload {
+    type: "gstf-simulation";
+    fields: {
+        label: string;
+        value: string;
+    }[];
+}
+
 export type RegistrationSimulatorType = "itr_registration" | "epan_registration";
 
 export interface SimulationFieldDefinition {
@@ -138,7 +147,8 @@ export type SyncAnswersPayload =
     | LedgerPayload
     | TrialBalancePayload
     | FinancialStatementPayload
-    | RegistrationPayload;
+    | RegistrationPayload
+    | GstfSimulationPayload;
 
 export type FinancialStatementSectionKey =
     | "pl_direct_expense"
@@ -833,6 +843,18 @@ export function generateFields(
                         order_index: index + 1,
                     };
                 });
+        case "gstf-simulation":
+            return payload.fields
+                .filter((field) => hasAnyValue([field.label, field.value]))
+                .map((field, index) => ({
+                    step_id: stepId,
+                    field_name: `gstf_field_${index + 1}`,
+                    field_type: "text",
+                    field_label: trimValue(field.label) || `Field ${index + 1}`,
+                    expected_value: trimValue(field.value),
+                    options: null,
+                    order_index: index + 1,
+                }));
     }
 }
 
@@ -930,6 +952,8 @@ export function reverseParseFields(
                 ),
                 simulatorType,
             );
+        case "gstf-simulation":
+            return reverseParseGstfSimulation(fields);
         case "none":
         default:
             return null;
@@ -1763,6 +1787,33 @@ function reverseParseRegistration(
 
     return {
         type: "registration",
+        fields: parsedFields,
+    };
+}
+
+function reverseParseGstfSimulation(
+    fields: SimulationFieldRecord[],
+): GstfSimulationPayload | null {
+    const parsedFields = fields
+        .filter((field) =>
+            hasAnyValue([field.field_label, field.expected_value, field.field_name]),
+        )
+        .sort(
+            (left, right) =>
+                (left.order_index ?? Number.MAX_SAFE_INTEGER) -
+                (right.order_index ?? Number.MAX_SAFE_INTEGER),
+        )
+        .map((field, index) => ({
+            label: trimValue(field.field_label) || `Field ${index + 1}`,
+            value: trimValue(field.expected_value),
+        }));
+
+    if (parsedFields.length === 0) {
+        return null;
+    }
+
+    return {
+        type: "gstf-simulation",
         fields: parsedFields,
     };
 }

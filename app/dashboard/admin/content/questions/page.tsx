@@ -279,6 +279,10 @@ export default function AdminQuestionsPage() {
                     );
                 case "registration":
                     return payload.fields.length === 0;
+                case "gstf-simulation":
+                    return payload.fields.every(
+                        (field) => !field.label.trim() && !field.value.trim(),
+                    );
                 default:
                     return type === "none";
             }

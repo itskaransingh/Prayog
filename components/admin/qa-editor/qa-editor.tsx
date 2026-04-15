@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 
 import { ClassificationEditor } from "./classification-editor";
 import { FinancialStatementEditor } from "./financial-statement-editor";
+import { GstfSimulationEditor } from "./gstf-simulation-editor";
 import { JournalEntryEditor } from "./journal-entry-editor";
 import { LedgerEditor } from "./ledger-editor";
 import { RegistrationEditor } from "./registration-editor";
@@ -70,6 +71,8 @@ export function QAEditor(props: QAEditorProps) {
             return <TrialBalanceEditor {...props} />;
         case "financial_statement":
             return <FinancialStatementEditor {...props} />;
+        case "gstf-simulation":
+            return <GstfSimulationEditor {...props} />;
         case "none":
         default:
             return <NoneNotice />;
