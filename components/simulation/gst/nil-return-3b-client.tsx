@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronUp } from "lucide-react";
+import { ChevronUp, Lock } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { EvaluationPopup } from "@/components/simulation/income-tax/shared/evaluation-results";
@@ -32,6 +32,13 @@ const GST_FOOTER_COLUMNS = [
     { title: "Website Policies", items: ["Website Policy", "Terms and Conditions", "Hyperlink Policy", "Disclaimer"] },
     { title: "Related Sites", items: ["Central Board of Indirect Taxes and Customs", "State Tax Websites", "National Portal"] },
     { title: "Help and Taxpayer Facilities", items: ["System Requirements", "GST Knowledge Portal", "GST Media", "Site Map", "Grievance Nodal Officers", "Free Accounting and Billing Services", "GST Suvidha Providers"] },
+] as const;
+
+const GST_SERVICE_CARDS = [
+    "Registration Services",
+    "Return Dashboard",
+    "Compliance Tools",
+    "Filing Support",
 ] as const;
 
 // ─── Per-question metadata ────────────────────────────────────────────────────
@@ -75,7 +82,19 @@ function getDueDates(period: string, financialYear: string) {
     return { gstr1Due, gstr3bDue };
 }
 
+function getOtpExpiryLabel() {
+    return new Date(Date.now() + 5 * 60000).toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+}
+
+function getAcknowledgementReference() {
+    return `AA${Math.floor(Math.random() * 9000000000000 + 1000000000000)}S`;
+}
+
 type Screen =
+    | "landing"
     | "login"
     | "dashboard"
     | "ledger"
@@ -98,6 +117,61 @@ function getCachedMappings(questionId: string | null) {
     } catch { return []; }
 }
 
+function GSTLanding({ registerHref }: { registerHref: string }) {
+    return (
+        <>
+            <section className="gst-sim-hero">
+                <Image
+                    src="/gst-simulation/gst-hero-reference.png"
+                    alt="GST portal banner"
+                    fill
+                    priority
+                    sizes="100vw"
+                />
+            </section>
+
+            <main id="main-content" className="gst-sim-main">
+                <section className="gst-sim-feature-row">
+                    <div className="gst-sim-video-panel" aria-hidden="true" />
+
+                    <div className="gst-sim-info-panel">
+                        <div className="gst-sim-info-line long" />
+                        <div className="gst-sim-info-line medium" />
+                        <div className="gst-sim-info-split">
+                            <div className="gst-sim-info-line short" />
+                            <div className="gst-sim-info-line short" />
+                        </div>
+                    </div>
+                </section>
+
+                <section className="gst-sim-lower-grid">
+                    <div className="gst-sim-cta-stack">
+                        <Link className="gst-sim-register-link" href={registerHref}>
+                            <Lock size={12} strokeWidth={2.25} />
+                            <span>Register Now</span>
+                        </Link>
+                        <div className="gst-sim-secondary-panel" aria-hidden="true" />
+                    </div>
+
+                    <div className="gst-sim-service-grid">
+                        {GST_SERVICE_CARDS.map((title) => (
+                            <article key={title} className="gst-sim-service-card">
+                                <div className="gst-sim-service-title">{title}</div>
+                                <div className="gst-sim-service-list">
+                                    <span />
+                                    <span />
+                                    <span />
+                                    <span />
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                </section>
+            </main>
+        </>
+    );
+}
+
 // ─── Portal chrome (header + nav + footer) ────────────────────────────────────
 
 function GSTPortalChrome({
@@ -107,6 +181,8 @@ function GSTPortalChrome({
     gstin,
     children,
     backHref,
+    onLoginClick,
+    registerHref,
 }: {
     questionBadge: string;
     loggedIn: boolean;
@@ -114,7 +190,11 @@ function GSTPortalChrome({
     gstin?: string;
     children: ReactNode;
     backHref: string;
+    onLoginClick?: () => void;
+    registerHref?: string;
 }) {
+    const resolvedRegisterHref = registerHref ?? "#";
+
     return (
         <div className="gst-sim-page gst-trn-page">
             {/* Top banner */}
@@ -158,8 +238,19 @@ function GSTPortalChrome({
                         </div>
                     ) : (
                         <div className="gst-sim-auth gst-trn-auth" aria-hidden="true">
-                            <button type="button">REGISTER</button>
-                            <button type="button" style={{ background: "#fff", color: "#1a2d72", fontWeight: 700 }}>LOGIN</button>
+                            <Link className="gst-sim-auth-link" href={resolvedRegisterHref}>REGISTER</Link>
+                            <button
+                                type="button"
+                                onClick={onLoginClick}
+                                style={{
+                                    background: "#fff",
+                                    color: "#1a2d72",
+                                    fontWeight: 700,
+                                    cursor: onLoginClick ? "pointer" : "default",
+                                }}
+                            >
+                                LOGIN
+                            </button>
                         </div>
                     )}
                 </div>
@@ -230,7 +321,8 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
 
     // ── Simulation data ───────────────────────────────────────────────────────
     const [data, setData] = useState<NilReturn3bData>(EMPTY_NIL_RETURN_3B_DATA);
-    const [screen, setScreen] = useState<Screen>("login");
+    const startScreen: Screen = initialMode === "login" ? "login" : "landing";
+    const [screen, setScreen] = useState<Screen>(startScreen);
 
     // ── Login form state ──────────────────────────────────────────────────────
     const [captchaInput, setCaptchaInput] = useState("");
@@ -250,6 +342,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     const [gstr1OtpInput, setGstr1OtpInput] = useState("");
     const [gstr1OtpError, setGstr1OtpError] = useState("");
     const [gstr1SuccessBanner, setGstr1SuccessBanner] = useState(false);
+    const [gstr1OtpValidUntil, setGstr1OtpValidUntil] = useState("");
 
     // ── GSTR-3B state ─────────────────────────────────────────────────────────
     const [nilReturn3bYes, setNilReturn3bYes] = useState(true);
@@ -259,15 +352,21 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     const [gstr3bOtpInput, setGstr3bOtpInput] = useState("");
     const [gstr3bOtpError, setGstr3bOtpError] = useState("");
     const [showFilingSuccess, setShowFilingSuccess] = useState(false);
+    const [gstr3bOtpValidUntil, setGstr3bOtpValidUntil] = useState("");
+    const [filingSuccessMeta, setFilingSuccessMeta] = useState<{
+        date: string;
+        time: string;
+        arn: string;
+    } | null>(null);
 
     // ── Evaluation ────────────────────────────────────────────────────────────
     const [evaluationResults, setEvaluationResults] = useState<EvaluationResult | null>(null);
     const [showEvaluationPopup, setShowEvaluationPopup] = useState(false);
-    const [saveError, setSaveError] = useState<string | null>(null);
     const [startTime] = useState<number>(() => Date.now());
     const hasSavedRef = useRef(false);
 
     const backHref = questionId ? `?questionId=${questionId}` : "#";
+    const registerHref = questionId ? `/gst-simulation?questionId=${questionId}` : "/gst-simulation";
 
     // ── Load evaluation config ────────────────────────────────────────────────
     useEffect(() => {
@@ -303,7 +402,6 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     useEffect(() => {
         if (!evaluationResults || hasSavedRef.current || !questionId) return;
         hasSavedRef.current = true;
-        setSaveError(null);
 
         saveSimulationAttempt({
             questionId,
@@ -313,7 +411,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
             answers: buildAttemptAnswers(data, mappings),
         }).catch((err) => {
             hasSavedRef.current = false;
-            setSaveError(err instanceof Error ? err.message : "Failed to save attempt.");
+            console.error(err instanceof Error ? err.message : "Failed to save attempt.");
         });
     }, [data, evaluationResults, mappings, questionId, startTime, taskId]);
 
@@ -366,6 +464,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
         setShowGstr1OtpModal(true);
         setGstr1OtpInput("");
         setGstr1OtpError("");
+        setGstr1OtpValidUntil(getOtpExpiryLabel());
     }
 
     function handleVerifyGstr1Otp() {
@@ -392,6 +491,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
         setShowGstr3bOtpModal(true);
         setGstr3bOtpInput("");
         setGstr3bOtpError("");
+        setGstr3bOtpValidUntil(getOtpExpiryLabel());
     }
 
     function handleVerifyGstr3bOtp() {
@@ -400,6 +500,18 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
             return;
         }
         setShowGstr3bOtpModal(false);
+        setFilingSuccessMeta({
+            date: new Date().toLocaleDateString("en-IN", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            }),
+            time: new Date().toLocaleTimeString("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+            }),
+            arn: getAcknowledgementReference(),
+        });
         setShowFilingSuccess(true);
     }
 
@@ -420,6 +532,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                 legalName={meta.legalName}
                 gstin={meta.gstin}
                 backHref={backHref}
+                onLoginClick={() => setScreen("login")}
             >
                 <div className="gst-nil-inner">
                     <EvaluationPopup
@@ -433,10 +546,31 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
         );
     }
 
+    // ── LANDING SCREEN ───────────────────────────────────────────────────────
+    if (screen === "landing") {
+        return (
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn={false}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+                registerHref={registerHref}
+            >
+                <GSTLanding registerHref={registerHref} />
+            </GSTPortalChrome>
+        );
+    }
+
     // ── LOGIN SCREEN ──────────────────────────────────────────────────────────
     if (screen === "login") {
         return (
-            <GSTPortalChrome questionBadge={questionBadge} loggedIn={false} backHref={backHref}>
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn={false}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+                registerHref={registerHref}
+            >
                 <div className="gst-nil-inner">
                     <div className="gst-nil-breadcrumb">
                         <span>Home</span>
@@ -446,9 +580,11 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                     </div>
 
                     <div className="gst-nil-login-wrap">
-                        <h2 className="gst-nil-login-title">Login</h2>
-                        <div className="gst-nil-mandatory-hint">
-                            <span>●</span> indicates mandatory fields
+                        <div className="gst-nil-login-head">
+                            <h2 className="gst-nil-login-title">Login</h2>
+                            <div className="gst-nil-mandatory-hint">
+                                <span>●</span> indicates mandatory fields
+                            </div>
                         </div>
 
                         {loginError ? (
@@ -491,8 +627,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                             </label>
                             <div className="gst-nil-captcha-row">
                                 <input
-                                    className="gst-nil-input"
-                                    style={{ maxWidth: 210 }}
+                                    className="gst-nil-input gst-nil-captcha-input"
                                     type="text"
                                     placeholder="Enter characters as displayed in the CAPTCHA image"
                                     value={captchaInput}
@@ -527,7 +662,14 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     // ── DASHBOARD SCREEN ──────────────────────────────────────────────────────
     if (screen === "dashboard") {
         return (
-            <GSTPortalChrome questionBadge={questionBadge} loggedIn legalName={meta.legalName} gstin={meta.gstin} backHref={backHref}>
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn
+                legalName={meta.legalName}
+                gstin={meta.gstin}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+            >
                 <div className="gst-nil-inner">
                     <div className="gst-nil-breadcrumb">
                         <span style={{ color: "#2d5da8" }}>Dashboard</span>
@@ -553,8 +695,8 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                                     VIEW NOTICE(S) AND ORDER(S) &gt;
                                 </button>
                             </div>
-                            <div style={{ marginTop: 10 }}>
-                                <button className="gst-nil-dash-btn" type="button">
+                            <div className="gst-nil-dash-annual-row">
+                                <button className="gst-nil-dash-btn gst-nil-dash-annual-btn" type="button">
                                     ANNUAL RETURN &gt;
                                 </button>
                             </div>
@@ -585,10 +727,30 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     // ── LEDGER SCREEN ─────────────────────────────────────────────────────────
     if (screen === "ledger") {
         return (
-            <GSTPortalChrome questionBadge={questionBadge} loggedIn legalName={meta.legalName} gstin={meta.gstin} backHref={backHref}>
-                <div className="gst-nil-inner" style={{ padding: "0 20px 48px" }}>
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn
+                legalName={meta.legalName}
+                gstin={meta.gstin}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+            >
+                <div className="gst-nil-inner gst-nil-ledger-page">
                     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-                        <div style={{ background: "#fff", padding: "18px 22px", marginBottom: 14 }}>
+                        <div className="gst-nil-ledger-breadcrumb">
+                            <button
+                                type="button"
+                                className="gst-nil-breadcrumb-link"
+                                onClick={() => setScreen("dashboard")}
+                            >
+                                Dashboard
+                            </button>
+                            <span className="gst-nil-breadcrumb-sep">›</span>
+                            <span>Ledger</span>
+                            <span className="gst-nil-language">🌐 English</span>
+                        </div>
+
+                        <div className="gst-nil-ledger-card">
                             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
                                 <span style={{ fontSize: 13, fontWeight: 600 }}>Ledger Balance</span>
                                 <span style={{ fontSize: 9, color: "#888", borderLeft: "1px solid #ccc", paddingLeft: 10 }}>
@@ -621,7 +783,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                             </div>
                         </div>
 
-                        <div style={{ background: "#fff", padding: "12px 16px" }}>
+                        <div className="gst-nil-ledger-card gst-nil-ledger-card-secondary">
                             <p style={{ fontSize: 9, fontWeight: 600, color: "#333", margin: "0 0 8px" }}>
                                 Annual Aggregate Turnover <span style={{ color: "#2d5da8", fontWeight: 400 }}>(includes all GSTINs of the related PAN)</span>
                             </p>
@@ -652,7 +814,14 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     // ── FILE RETURNS SCREEN ───────────────────────────────────────────────────
     if (screen === "file-returns") {
         return (
-            <GSTPortalChrome questionBadge={questionBadge} loggedIn legalName={meta.legalName} gstin={meta.gstin} backHref={backHref}>
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn
+                legalName={meta.legalName}
+                gstin={meta.gstin}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+            >
                 <div className="gst-nil-inner">
                     <div className="gst-nil-breadcrumb">
                         <span style={{ color: "#2d5da8", cursor: "pointer" }} onClick={() => setScreen("dashboard")}>Dashboard</span>
@@ -803,7 +972,14 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     // ── GSTR-1 FORM SCREEN ────────────────────────────────────────────────────
     if (screen === "gstr1-form") {
         return (
-            <GSTPortalChrome questionBadge={questionBadge} loggedIn legalName={meta.legalName} gstin={meta.gstin} backHref={backHref}>
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn
+                legalName={meta.legalName}
+                gstin={meta.gstin}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+            >
                 <div className="gst-nil-inner">
                     <div className="gst-nil-breadcrumb">
                         <span style={{ color: "#2d5da8", cursor: "pointer" }} onClick={() => setScreen("dashboard")}>Dashboard</span>
@@ -904,7 +1080,14 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     // ── GSTR-1 FILING SCREEN ──────────────────────────────────────────────────
     if (screen === "gstr1-filing") {
         return (
-            <GSTPortalChrome questionBadge={questionBadge} loggedIn legalName={meta.legalName} gstin={meta.gstin} backHref={backHref}>
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn
+                legalName={meta.legalName}
+                gstin={meta.gstin}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+            >
                 <div className="gst-nil-inner">
                     <div className="gst-nil-breadcrumb">
                         <span style={{ color: "#2d5da8", cursor: "pointer" }} onClick={() => setScreen("dashboard")}>Dashboard</span>
@@ -996,7 +1179,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                         <div className="gst-nil-otp-modal">
                             <div className="gst-nil-otp-modal-title">Validate One Time Password (OTP)</div>
                             <div className="gst-nil-otp-info-box">
-                                One-Time Password (OTP) has been sent to your registered email ID exxxxxxxxxx@gmail.com and mobile no. 93xxxxxx22. OTP is valid Till {new Date(Date.now() + 5 * 60000).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                                One-Time Password (OTP) has been sent to your registered email ID exxxxxxxxxx@gmail.com and mobile no. 93xxxxxx22. OTP is valid Till {gstr1OtpValidUntil || "—"}
                             </div>
                             <label className="gst-nil-otp-input-label">
                                 Enter One Time Password (OTP:{FIXED_OTP})
@@ -1046,7 +1229,14 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     // ── GSTR-3B FORM SCREEN ───────────────────────────────────────────────────
     if (screen === "gstr3b-form") {
         return (
-            <GSTPortalChrome questionBadge={questionBadge} loggedIn legalName={meta.legalName} gstin={meta.gstin} backHref={backHref}>
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn
+                legalName={meta.legalName}
+                gstin={meta.gstin}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+            >
                 <div className="gst-nil-inner">
                     <div className="gst-nil-breadcrumb">
                         <span style={{ color: "#2d5da8", cursor: "pointer" }} onClick={() => setScreen("dashboard")}>Dashboard</span>
@@ -1119,7 +1309,14 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     // ── GSTR-3B FILING SCREEN ─────────────────────────────────────────────────
     if (screen === "gstr3b-filing") {
         return (
-            <GSTPortalChrome questionBadge={questionBadge} loggedIn legalName={meta.legalName} gstin={meta.gstin} backHref={backHref}>
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn
+                legalName={meta.legalName}
+                gstin={meta.gstin}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+            >
                 <div className="gst-nil-inner">
                     <div className="gst-nil-breadcrumb">
                         <span style={{ color: "#2d5da8", cursor: "pointer" }} onClick={() => setScreen("dashboard")}>Dashboard</span>
@@ -1188,7 +1385,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                         <div className="gst-nil-otp-modal">
                             <div className="gst-nil-otp-modal-title">Validate One Time Password (OTP)</div>
                             <div className="gst-nil-otp-info-box">
-                                One-Time Password (OTP) has been sent to your registered email ID exxxxxxxxxx@gmail.com and mobile no. 93xxxxxx22. OTP is valid Till {new Date(Date.now() + 5 * 60000).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                                One-Time Password (OTP) has been sent to your registered email ID exxxxxxxxxx@gmail.com and mobile no. 93xxxxxx22. OTP is valid Till {gstr3bOtpValidUntil || "—"}
                             </div>
                             <label className="gst-nil-otp-input-label">
                                 Enter One Time Password (OTP:{FIXED_OTP})
@@ -1222,7 +1419,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                             <div className="gst-nil-filing-success-body">
                                 <h3 className="gst-nil-filing-success-title">Filing Successful</h3>
                                 <p className="gst-nil-filing-success-text">
-                                    GSTR-3B of GSTIN {meta.gstin} for the period {data.period} - {data.financialYear} has been successfully filed on {new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "numeric" })} at {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}. The Acknowledgment Reference Number : is AA{Math.floor(Math.random() * 9000000000000 + 1000000000000)}S. The GSTR-3B can be viewed on your Dashboard Login=&gt;Taxpayer Dashboard=&gt;Returns=&gt;View e-filed return. This message is sent to your registered Email ID and Mobile Number.
+                                    GSTR-3B of GSTIN {meta.gstin} for the period {data.period} - {data.financialYear} has been successfully filed on {filingSuccessMeta?.date ?? "—"} at {filingSuccessMeta?.time ?? "—"}. The Acknowledgment Reference Number : is {filingSuccessMeta?.arn ?? "—"}. The GSTR-3B can be viewed on your Dashboard Login=&gt;Taxpayer Dashboard=&gt;Returns=&gt;View e-filed return. This message is sent to your registered Email ID and Mobile Number.
                                 </p>
                                 <button className="gst-nil-well-done-btn" type="button" onClick={handleWellDone}>
                                     Well Done
