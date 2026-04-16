@@ -1,0 +1,24 @@
+<svg id="round-arrow_drop_down-24px" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="12" height="12" viewBox="0 0 12 12">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+      }
+
+      .cls-2 {
+        clip-path: url(#clip-path);
+      }
+
+      .cls-3 {
+        fill: #fff;
+      }
+    </style>
+    <clipPath id="clip-path">
+      <rect id="Rectangle_2" data-name="Rectangle 2" class="cls-1" width="12" height="12"/>
+    </clipPath>
+  </defs>
+  <g id="round-arrow_drop_down-24px-2" data-name="round-arrow_drop_down-24px" class="cls-2">
+    <path id="Path_2135" data-name="Path 2135" class="cls-1" d="M0,0H11.867V11.867H0Z"/>
+    <path id="round-keyboard_arrow_down-24px" class="cls-3" d="M7.537,9.171,10.1,11.729l2.558-2.558a.659.659,0,1,1,.93.93l-3.026,3.026a.659.659,0,0,1-.93,0L6.6,10.1a.659.659,0,0,1,0-.93.67.67,0,0,1,.936,0Z" transform="translate(-4.43 -5.022)"/>
+  </g>
+</svg>
