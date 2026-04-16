@@ -231,7 +231,14 @@ function GSTPortalChrome({
             <header className="gst-sim-header">
                 <div className="gst-sim-header-inner gst-trn-header-inner">
                     <div className="gst-trn-brand-strip">
-                        <div className="gst-trn-nergy-logo">Nergy Vidya</div>
+                        <Image
+                            className="gst-trn-brand-logo"
+                            src="/prayog-logo.png"
+                            alt="Prayog"
+                            width={122}
+                            height={34}
+                            priority
+                        />
                         <div className="gst-sim-brand">
                             <h1>Goods and Services Tax</h1>
                             <p>Government of India, States and Union Territories</p>
@@ -239,7 +246,7 @@ function GSTPortalChrome({
                     </div>
 
                     <div className="gst-sim-auth gst-trn-auth" aria-hidden="true">
-                        <button type="button">REGISTER</button>
+                        <Link className="gst-sim-auth-link" href={registerHref}>REGISTER</Link>
                         <button type="button">LOGIN</button>
                     </div>
                 </div>

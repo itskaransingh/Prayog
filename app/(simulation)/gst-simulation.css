@@ -48,6 +48,13 @@
   gap: 24px;
 }
 
+.gst-trn-brand-logo {
+  display: block;
+  width: 122px;
+  height: auto;
+  flex-shrink: 0;
+}
+
 .gst-sim-brand h1 {
   margin: 0;
   color: #ffffff;
@@ -78,6 +85,21 @@
   padding: 0 10px;
   font-size: 9px;
   cursor: default;
+}
+
+.gst-sim-auth-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 55px;
+  height: 22px;
+  padding: 0 10px;
+  border: 1px solid #dbdbdb;
+  background: #f7f7f7;
+  color: #4b4b4b;
+  font-size: 9px;
+  font-weight: 400;
+  text-decoration: none;
 }
 
 .gst-sim-nav {
@@ -1099,6 +1121,9 @@
 }
 
 .gstin-tab-item {
+  appearance: none;
+  width: 100%;
+  padding: 0;
   min-height: 95px;
   border-right: 1px solid #93b5d8;
   border-bottom: 1px solid #93b5d8;
@@ -1111,6 +1136,8 @@
   gap: 8px;
   text-align: center;
   box-shadow: inset 0 0 0 0 transparent;
+  cursor: pointer;
+  font: inherit;
 }
 
 .gstin-tab-item.is-active {
@@ -1212,6 +1239,37 @@
   margin-bottom: 14px;
 }
 
+.gstin-composition-card {
+  margin: 12px 0 16px;
+  padding: 16px 18px 18px;
+  background: #f8f8f8;
+  border: 1px solid #ececec;
+}
+
+.gstin-composition-title {
+  margin-bottom: 12px;
+  color: #1e1e1e;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.gstin-composition-options {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.gstin-composition-option {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.gstin-composition-declaration {
+  padding-top: 4px;
+  border-top: 1px solid #e7e7e7;
+  font-size: 11px;
+}
+
 .gstin-display-value {
   font-size: 13px;
   font-weight: 600;
@@ -1220,6 +1278,14 @@
   min-height: 32px;
   display: flex;
   align-items: center;
+}
+
+.gstin-jurisdiction-value {
+  padding: 0;
+  min-height: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .gstin-toggle-grid {
@@ -1275,9 +1341,69 @@
   background: #f8f8f8;
   border: 1px solid #ececec;
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.gstin-simple-toggle-label {
+  margin: 0;
+  color: #1d1d1d;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.gstin-ar-form {
+  margin-top: 14px;
+  display: grid;
+  gap: 14px;
+}
+
+.gstin-ar-type-block {
+  min-width: 0;
+}
+
+.gstin-ar-label {
+  margin: 0 0 8px;
+  color: #1d1d1d;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.gstin-ar-radio-row {
+  display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 18px;
+  min-height: 30px;
+}
+
+.gstin-enrolment-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.gstin-enrolment-row .gst-trn-input-wrap {
+  flex: 1;
+}
+
+.gstin-enrolment-search-btn {
+  min-width: 88px;
+  border: 0;
+  background: #7b8fb4;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.gstin-aadhaar-helper {
+  margin: 6px 0 0;
+  color: #5e5e5e;
+  font-size: 10px;
+  line-height: 1.35;
 }
 
 .gstin-toggle-off,
@@ -1292,6 +1418,11 @@
 
 .gstin-toggle-btn {
   cursor: pointer;
+}
+
+.gstin-toggle-off:disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
 }
 
 .gstin-toggle-knob,
@@ -1443,14 +1574,18 @@
   margin-bottom: 18px;
   border: 1px solid #d8d8d8;
   background: #f6f8fa;
+  overflow: hidden;
 }
 
 .gstin-map-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 14px;
+  display: block;
+  padding: 0;
+}
+
+.gstin-map-image {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .gstin-map-svg {
@@ -1463,6 +1598,30 @@
 .gstin-map-label {
   color: #5e5e5e;
   font-size: 10px;
+}
+
+.gstin-map-embed {
+  height: 240px;
+}
+
+.gstin-map-iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+.gstin-textarea-wrap {
+  min-height: 58px;
+}
+
+.gstin-textarea {
+  min-height: 58px;
+  resize: vertical;
+  line-height: 1.35;
+  padding-top: 9px;
+  padding-bottom: 9px;
 }
 
 .gstin-checkbox-label {
@@ -1623,14 +1782,27 @@
   background: #fafafa;
 }
 
+.gstin-upload-panel-auth {
+  margin-top: 12px;
+}
+
 .gstin-upload-column p {
   margin: 0 0 8px;
   font-size: 11px;
   line-height: 1.45;
 }
 
+.gstin-upload-title {
+  color: #1e1e1e;
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .gstin-upload-note {
   color: #444;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .gstin-upload-divider {
@@ -1645,6 +1817,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+}
+
+.gstin-camera-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   justify-content: center;
 }
 

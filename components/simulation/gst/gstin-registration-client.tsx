@@ -1,8 +1,10 @@
 "use client";
 
-import { ChevronUp, Mail, Lock } from "lucide-react";
+import Image from "next/image";
+import { Camera, ChevronUp, Info, Lock, Mail } from "lucide-react";
 import Link from "next/link";
 import {
+    useCallback,
     useEffect,
     useRef,
     useState,
@@ -30,10 +32,6 @@ import {
     GSTIN_EXISTING_REG_TYPE_OPTIONS,
     type GstinRegistrationData,
 } from "@/lib/simulation/gst/gstin-registration";
-import {
-    TRN_STATE_OPTIONS,
-    getDistrictOptions,
-} from "@/lib/simulation/gst/trn-registration";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -45,6 +43,56 @@ const GST_FOOTER_COLUMNS = [
 ] as const;
 
 const GSTIN_MAPPING_CACHE_PREFIX = "gst-gstin-simulation-mappings:";
+
+type PersonDetails = {
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    fatherFirstName: string;
+    fatherMiddleName: string;
+    fatherLastName: string;
+    dob: string;
+    mobile: string;
+    email: string;
+    designation: string;
+    pan: string;
+    aadhaar: string;
+    country: string;
+    state: string;
+    district: string;
+    flatNo: string;
+    floor: string;
+    building: string;
+    street: string;
+    city: string;
+    locality: string;
+    pin: string;
+};
+
+const EMPTY_PERSON_DETAILS: PersonDetails = {
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    fatherFirstName: "",
+    fatherMiddleName: "",
+    fatherLastName: "",
+    dob: "",
+    mobile: "",
+    email: "",
+    designation: "Proprietor",
+    pan: "",
+    aadhaar: "",
+    country: "India",
+    state: "",
+    district: "",
+    flatNo: "",
+    floor: "",
+    building: "",
+    street: "",
+    city: "",
+    locality: "",
+    pin: "",
+};
 
 const TABS = [
     { id: 1,  label: "Business Details" },
@@ -70,6 +118,7 @@ interface ValidationErrors {
     trn?: string;
     captcha?: string;
     otp?: string;
+    proprietorPan?: string;
     constitutionOfBusiness?: string;
     dateOfCommencement?: string;
     reasonForRegistration?: string;
@@ -89,6 +138,7 @@ interface ValidationErrors {
     residentialBuilding?: string;
     residentialStreet?: string;
     residentialCity?: string;
+    residentialCountry?: string;
     residentialDistrict?: string;
     residentialState?: string;
     residentialPin?: string;
@@ -132,11 +182,20 @@ function GSTSelect({
     value, placeholder, options, hasError, onChange,
 }: {
     value: string; placeholder: string; options: readonly string[];
-    hasError: boolean; onChange: (v: string) => void;
+    hasError: boolean; onChange?: (v: string) => void;
 }) {
     return (
         <div className={`gst-trn-select-wrap${hasError ? " has-error" : ""}`}>
-            <select className="gst-trn-select" value={value} onChange={(e) => onChange(e.target.value)}>
+            <select
+                className="gst-trn-select"
+                value={onChange ? value : undefined}
+                defaultValue={onChange ? undefined : value}
+                onChange={(e) => {
+                    if (onChange) {
+                        onChange(e.target.value);
+                    }
+                }}
+            >
                 <option value="">{placeholder}</option>
                 {options.map((o) => <option key={o} value={o}>{o}</option>)}
             </select>
@@ -195,26 +254,81 @@ function GSTReadonlyField({ value }: { value: string }) {
     );
 }
 
-function GSTDisplayField({ value }: { value: string }) {
+function GSTDisplayField({ value, className = "" }: { value: string; className?: string }) {
     return (
-        <div className="gstin-display-value">{value || "—"}</div>
+        <div className={`gstin-display-value${className ? ` ${className}` : ""}`}>{value || "—"}</div>
     );
 }
 
 function GSTStaticInput({
     value,
     placeholder,
+    type = "text",
+    maxLength,
+    inputMode,
+    onChange,
 }: {
     value?: string;
     placeholder?: string;
+    type?: string;
+    maxLength?: number;
+    inputMode?: InputHTMLAttributes<HTMLInputElement>["inputMode"];
+    onChange?: (value: string) => void;
 }) {
     return (
         <div className="gst-trn-input-wrap">
             <input
                 className="gst-trn-input"
+                value={onChange ? value ?? "" : undefined}
+                defaultValue={onChange ? undefined : value ?? ""}
+                placeholder={placeholder ?? ""}
+                type={type}
+                maxLength={maxLength}
+                inputMode={inputMode}
+                onChange={(e) => {
+                    onChange?.(e.target.value);
+                }}
+            />
+        </div>
+    );
+}
+
+function GSTTextArea({
+    value,
+    placeholder,
+    rows = 2,
+    hasError,
+    onChange,
+}: {
+    value?: string;
+    placeholder?: string;
+    rows?: number;
+    hasError: boolean;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div className={`gst-trn-input-wrap gstin-textarea-wrap${hasError ? " has-error" : ""}`}>
+            <textarea
+                className="gst-trn-input gstin-textarea"
                 value={value ?? ""}
                 placeholder={placeholder ?? ""}
-                readOnly
+                rows={rows}
+                onChange={(event) => onChange(event.target.value)}
+            />
+        </div>
+    );
+}
+
+function GSTLeafletEmbedMap() {
+    return (
+        <div className="gstin-map-placeholder gstin-map-embed" aria-hidden="true">
+            <iframe
+                className="gstin-map-iframe"
+                title="GST map"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=68.0%2C6.0%2C98.5%2C36.5&layer=mapnik"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                tabIndex={-1}
             />
         </div>
     );
@@ -242,14 +356,21 @@ function GSTPortalChrome({ questionBadge, registerHref, children }: {
             <header className="gst-sim-header">
                 <div className="gst-sim-header-inner gst-trn-header-inner">
                     <div className="gst-trn-brand-strip">
-                        <div className="gst-trn-nergy-logo">Nergy Vidya</div>
+                        <Image
+                            className="gst-trn-brand-logo"
+                            src="/prayog-logo.png"
+                            alt="Prayog"
+                            width={122}
+                            height={34}
+                            priority
+                        />
                         <div className="gst-sim-brand">
                             <h1>Goods and Services Tax</h1>
                             <p>Government of India, States and Union Territories</p>
                         </div>
                     </div>
                     <div className="gst-sim-auth gst-trn-auth" aria-hidden="true">
-                        <button type="button">REGISTER</button>
+                        <Link className="gst-sim-auth-link" href={registerHref}>REGISTER</Link>
                         <button type="button">LOGIN</button>
                     </div>
                 </div>
@@ -300,7 +421,15 @@ function GSTPortalChrome({ questionBadge, registerHref, children }: {
 function GSTGstinLanding({ registerHref }: { registerHref: string }) {
     return (
         <>
-            <section className="gst-sim-hero" aria-hidden="true" />
+            <section className="gst-sim-hero">
+                <Image
+                    src="/gst-simulation/gst-hero-reference.png"
+                    alt="GST portal banner"
+                    fill
+                    priority
+                    sizes="100vw"
+                />
+            </section>
             <main id="main-content" className="gst-sim-main">
                 <section className="gst-sim-lower-grid">
                     <div className="gst-sim-cta-stack">
@@ -375,8 +504,12 @@ function TabIcon({ id }: { id: number }) {
 
 // ─── Tab header for multi-tab form ───────────────────────────────────────────
 
-function GstinFormHeader({ activeTab, completedTabs, applicationDate, expiryDate }: {
-    activeTab: number; completedTabs: Set<number>; applicationDate: string; expiryDate: string;
+function GstinFormHeader({ activeTab, completedTabs, applicationDate, expiryDate, onSelectTab }: {
+    activeTab: number;
+    completedTabs: Set<number>;
+    applicationDate: string;
+    expiryDate: string;
+    onSelectTab: (tabId: number) => void;
 }) {
     const profile = Math.round((completedTabs.size / TABS.length) * 100);
 
@@ -408,10 +541,12 @@ function GstinFormHeader({ activeTab, completedTabs, applicationDate, expiryDate
                     const isDone   = completedTabs.has(tab.id);
                     const isActive = activeTab === tab.id;
                     return (
-                        <div
+                        <button
+                            type="button"
                             key={tab.id}
                             role="tab"
                             className={`gstin-tab-item${isActive ? " is-active" : ""}${isDone ? " is-done" : ""}`}
+                            onClick={() => onSelectTab(tab.id)}
                         >
                             <div className="gstin-tab-icon">
                                 {isDone
@@ -419,7 +554,7 @@ function GstinFormHeader({ activeTab, completedTabs, applicationDate, expiryDate
                                     : <TabIcon id={tab.id} />}
                             </div>
                             <span className="gstin-tab-label">{tab.label}</span>
-                        </div>
+                        </button>
                     );
                 })}
             </div>
@@ -537,12 +672,16 @@ function GSTGstinSimulator({
     const [goodsMode, setGoodsMode] = useState<"goods" | "services">("goods");
     const [casualTaxable, setCasualTaxable] = useState(false);
     const [compositionOpt, setCompositionOpt] = useState(false);
+    const [citizenOfIndia, setCitizenOfIndia] = useState(true);
+    const [authorizedRepresentativeEnabled, setAuthorizedRepresentativeEnabled] = useState(false);
+    const [authorizedRepresentativeType, setAuthorizedRepresentativeType] = useState<"gst-practitioner" | "others">("others");
+    const [alsoAuthorizedSignatory, setAlsoAuthorizedSignatory] = useState(false);
+    const [promoterDetails, setPromoterDetails] = useState<PersonDetails>(EMPTY_PERSON_DETAILS);
+    const [authorizedSignatoryDetails, setAuthorizedSignatoryDetails] = useState<PersonDetails>(EMPTY_PERSON_DETAILS);
     const hasSavedAttemptRef = useRef(false);
 
     const applicationDate = new Date().toLocaleDateString("en-GB");
     const expiryDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB");
-    const residentialDistrictOptions = getDistrictOptions(data.residentialState);
-    const businessDistrictOptions = getDistrictOptions(data.businessState);
     const currentBreadcrumb =
         stage === "form"
             ? (TABS.find((tab) => tab.id === activeTab)?.label ?? "Registration").replace(/\n/g, " ")
@@ -569,15 +708,17 @@ function GSTGstinSimulator({
         void loadConfig();
     }, [onQuestionTitleChange, questionId]);
 
-    useEffect(() => {
-        if (mappings.length === 0) return;
-        const byPath = new Map(mappings.map((m) => [m.fieldPath, m.expectedValue]));
-        setData((prev) => ({
-            ...prev,
-            registeredState: prev.registeredState || byPath.get("businessState") || "",
-            registeredDistrict: prev.registeredDistrict || byPath.get("businessDistrict") || "",
-        }));
-    }, [mappings]);
+    const getSubmissionData = useCallback(() => {
+        const byPath = new Map(mappings.map((mapping) => [mapping.fieldPath, mapping.expectedValue]));
+
+        return {
+            ...data,
+            registeredState: data.registeredState || byPath.get("businessState") || "",
+            registeredDistrict: data.registeredDistrict || byPath.get("businessDistrict") || "",
+            legalBusinessName: data.legalBusinessName || byPath.get("legalBusinessName") || "",
+            proprietorPan: data.proprietorPan || byPath.get("proprietorPan") || byPath.get("pan") || "",
+        };
+    }, [data, mappings]);
 
     // Persist attempt
     useEffect(() => {
@@ -586,12 +727,13 @@ function GSTGstinSimulator({
             hasSavedAttemptRef.current = true;
             setSaveError(null);
             try {
+                const submissionData = getSubmissionData();
                 await saveSimulationAttempt({
                     questionId,
                     taskId,
                     startTime,
                     endTime: startTime + evaluationResults.timeTakenSeconds * 1000,
-                    answers: buildAttemptAnswers(data, mappings),
+                    answers: buildAttemptAnswers(submissionData, mappings),
                 });
             } catch (err) {
                 hasSavedAttemptRef.current = false;
@@ -599,7 +741,7 @@ function GSTGstinSimulator({
             }
         }
         void persist();
-    }, [data, evaluationResults, isCompleted, mappings, questionId, startTime, taskId]);
+    }, [evaluationResults, getSubmissionData, isCompleted, mappings, questionId, startTime, taskId]);
 
     // ── Derived values from mappings ─────────────────────────────────────────
     const captchaCode = mappings.find((m) => m.fieldPath === "captcha")?.expectedValue ?? "GST40";
@@ -610,6 +752,77 @@ function GSTGstinSimulator({
     function updateField<K extends keyof GstinRegistrationData>(key: K, value: GstinRegistrationData[K]) {
         setData((prev) => ({ ...prev, [key]: value }));
         setErrors((prev) => ({ ...prev, [key]: undefined }));
+    }
+
+    function updatePromoterField<K extends keyof PersonDetails>(key: K, value: PersonDetails[K]) {
+        setPromoterDetails((prev) => {
+            const next = { ...prev, [key]: value };
+            if (alsoAuthorizedSignatory) {
+                setAuthorizedSignatoryDetails(next);
+            }
+            return next;
+        });
+
+        switch (key) {
+            case "firstName":
+                updateField("proprietorFirstName", value as string);
+                break;
+            case "fatherFirstName":
+                updateField("proprietorFatherFirstName", value as string);
+                break;
+            case "dob":
+                updateField("proprietorDob", value as string);
+                break;
+            case "mobile":
+                updateField("proprietorMobile", value as string);
+                break;
+            case "email":
+                updateField("proprietorEmail", value as string);
+                break;
+            case "designation":
+                updateField("proprietorDesignation", value as string);
+                break;
+            case "pan":
+                updateField("proprietorPan", value as string);
+                setErrors((prev) => ({ ...prev, proprietorPan: undefined }));
+                break;
+            case "aadhaar":
+                updateField("proprietorAadhaar", value as string);
+                break;
+            case "flatNo":
+                updateField("residentialFlatNo", value as string);
+                break;
+            case "floor":
+                updateField("residentialFloor", value as string);
+                break;
+            case "building":
+                updateField("residentialBuilding", value as string);
+                break;
+            case "street":
+                updateField("residentialStreet", value as string);
+                break;
+            case "city":
+                updateField("residentialCity", value as string);
+                break;
+            case "country":
+                updateField("residentialCountry", value as string);
+                break;
+            case "state":
+                updateField("residentialState", value as string);
+                break;
+            case "district":
+                updateField("residentialDistrict", value as string);
+                break;
+            case "pin":
+                updateField("residentialPin", value as string);
+                break;
+            default:
+                break;
+        }
+    }
+
+    function updateAuthorizedSignatoryField<K extends keyof PersonDetails>(key: K, value: PersonDetails[K]) {
+        setAuthorizedSignatoryDetails((prev) => ({ ...prev, [key]: value }));
     }
 
     // ── Step 1 validation ─────────────────────────────────────────────────────
@@ -662,12 +875,16 @@ function GSTGstinSimulator({
             req("proprietorDob", "Date of Birth");
             req("proprietorMobile", "Mobile Number");
             req("proprietorEmail", "Email Address");
-            req("proprietorAadhaar", "Aadhaar Number");
+            if (citizenOfIndia) {
+                req("proprietorPan", "Permanent Account Number (PAN)");
+            }
             req("proprietorDesignation", "Designation");
             req("residentialFlatNo", "Building No. / Flat No.");
             req("residentialStreet", "Road / Street");
             req("residentialCity", "City / Town / Village");
+            req("residentialCountry", "Country");
             req("residentialState", "State");
+            req("residentialDistrict", "District");
             req("residentialPin", "Pin Code");
         }
         if (tabId === 5) {
@@ -701,7 +918,8 @@ function GSTGstinSimulator({
     // ── Final submit ──────────────────────────────────────────────────────────
     function handleFinalSubmit() {
         const endTime = Date.now();
-        const results = evaluateRegistration(data, startTime, endTime, mappings);
+        const submissionData = getSubmissionData();
+        const results = evaluateRegistration(submissionData, startTime, endTime, mappings);
         setEvaluationResults(results);
         setIsCompleted(true);
         setStage("done");
@@ -798,6 +1016,7 @@ function GSTGstinSimulator({
             "Recipient of Goods or Services",
             "Wholesale Business",
         ];
+        const submissionData = getSubmissionData();
 
         return (
             <main className="gst-trn-main-shell gstin-form-shell">
@@ -813,6 +1032,7 @@ function GSTGstinSimulator({
                     completedTabs={completedTabs}
                     applicationDate={applicationDate}
                     expiryDate={expiryDate}
+                    onSelectTab={(tabId) => setActiveTab(tabId)}
                 />
 
                 <div className="gstin-tab-content">
@@ -822,10 +1042,10 @@ function GSTGstinSimulator({
                             <p className="gstin-note">* indicates mandatory fields</p>
                             <div className="gstin-display-row">
                                 <FieldBlock label="Legal Name of the Business">
-                                    <GSTDisplayField value={data.legalBusinessName} />
+                                    <GSTDisplayField value={submissionData.legalBusinessName} />
                                 </FieldBlock>
                                 <FieldBlock label="Permanent Account Number (PAN)">
-                                    <GSTDisplayField value={data.proprietorPan} />
+                                    <GSTDisplayField value={submissionData.proprietorPan} />
                                 </FieldBlock>
                             </div>
                             <div className="gstin-two-col">
@@ -838,10 +1058,10 @@ function GSTGstinSimulator({
                             </div>
                             <div className="gstin-display-row">
                                 <FieldBlock label="Name of the State">
-                                    <GSTDisplayField value={data.registeredState} />
+                                    <GSTDisplayField value={submissionData.registeredState} />
                                 </FieldBlock>
                                 <FieldBlock label="District">
-                                    <GSTDisplayField value={data.registeredDistrict} />
+                                    <GSTDisplayField value={submissionData.registeredDistrict} />
                                 </FieldBlock>
                             </div>
                             <div className="gstin-toggle-grid">
@@ -899,6 +1119,27 @@ function GSTGstinSimulator({
                                     <span className="gstin-toggle-knob" />
                                 </button>
                             </div>
+                            {compositionOpt ? (
+                                <div className="gstin-composition-card">
+                                    <div className="gstin-composition-title">Category of Registered Person *</div>
+                                    <div className="gstin-composition-options">
+                                        {[
+                                            "Manufacturers, other than manufacturers of such goods as may be notified by the Government for which option is not available",
+                                            "Suppliers making supplies referred to in clause (b) of paragraph 6 of Schedule II",
+                                            "Any other supplier eligible for composition levy",
+                                        ].map((label) => (
+                                            <label key={label} className="gstin-checkbox-label gstin-composition-option">
+                                                <input type="checkbox" className="gstin-checkbox" />
+                                                <span>{label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <label className="gstin-checkbox-label gstin-composition-declaration">
+                                        <input type="checkbox" className="gstin-checkbox" />
+                                        <span>I hereby declare that the aforesaid business shall abide by the conditions and restrictions specified in the Act or Rules for opting to pay tax under the composition levy.</span>
+                                    </label>
+                                </div>
+                            ) : null}
                             <div className="gstin-three-col">
                                 <FieldBlock label="Reason to obtain registration" required error={errors.reasonForRegistration}>
                                     <GSTSelect value={data.reasonForRegistration} placeholder="Select" options={GSTIN_REASON_OPTIONS} hasError={Boolean(errors.reasonForRegistration)} onChange={(v) => updateField("reasonForRegistration", v)} />
@@ -913,7 +1154,7 @@ function GSTGstinSimulator({
                             <div className="gstin-existing-card">
                                 <div className="gstin-subtle-title">Indicate Existing Registrations</div>
                                 <div className="gstin-three-col">
-                                    <FieldBlock label="Type of Registration"><GSTSelect value="" placeholder="Select" options={GSTIN_EXISTING_REG_TYPE_OPTIONS} hasError={false} onChange={() => {}} /></FieldBlock>
+                                    <FieldBlock label="Type of Registration"><GSTSelect value="" placeholder="Select" options={GSTIN_EXISTING_REG_TYPE_OPTIONS} hasError={false} /></FieldBlock>
                                     <FieldBlock label="Registration No."><GSTStaticInput /></FieldBlock>
                                     <FieldBlock label="Date of Registration"><GSTStaticInput placeholder="--/--/----" /></FieldBlock>
                                 </div>
@@ -932,19 +1173,19 @@ function GSTGstinSimulator({
                             <p className="gstin-note">* indicates mandatory fields</p>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">👤</span>Personal Information</div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="First Name *" error={errors.proprietorFirstName}><GSTInput value={data.proprietorFirstName} placeholder="First Name" hasError={Boolean(errors.proprietorFirstName)} onChange={(v) => updateField("proprietorFirstName", v)} /></FieldBlock>
-                                <FieldBlock label="Middle Name"><GSTStaticInput placeholder="Middle Name" /></FieldBlock>
-                                <FieldBlock label="Last Name"><GSTStaticInput placeholder="Last Name" /></FieldBlock>
+                                <FieldBlock label="First Name *" error={errors.proprietorFirstName}><GSTInput value={promoterDetails.firstName} placeholder="First Name" hasError={Boolean(errors.proprietorFirstName)} onChange={(v) => updatePromoterField("firstName", v)} /></FieldBlock>
+                                <FieldBlock label="Middle Name"><GSTInput value={promoterDetails.middleName} placeholder="Middle Name" hasError={false} onChange={(v) => updatePromoterField("middleName", v)} /></FieldBlock>
+                                <FieldBlock label="Last Name"><GSTInput value={promoterDetails.lastName} placeholder="Last Name" hasError={false} onChange={(v) => updatePromoterField("lastName", v)} /></FieldBlock>
                             </div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="Father's First Name *" error={errors.proprietorFatherFirstName}><GSTInput value={data.proprietorFatherFirstName} placeholder="First Name" hasError={Boolean(errors.proprietorFatherFirstName)} onChange={(v) => updateField("proprietorFatherFirstName", v)} /></FieldBlock>
-                                <FieldBlock label="Middle Name"><GSTStaticInput placeholder="Middle Name" /></FieldBlock>
-                                <FieldBlock label="Last Name"><GSTStaticInput placeholder="Last Name" /></FieldBlock>
+                                <FieldBlock label="Father's First Name *" error={errors.proprietorFatherFirstName}><GSTInput value={promoterDetails.fatherFirstName} placeholder="First Name" hasError={Boolean(errors.proprietorFatherFirstName)} onChange={(v) => updatePromoterField("fatherFirstName", v)} /></FieldBlock>
+                                <FieldBlock label="Middle Name"><GSTInput value={promoterDetails.fatherMiddleName} placeholder="Middle Name" hasError={false} onChange={(v) => updatePromoterField("fatherMiddleName", v)} /></FieldBlock>
+                                <FieldBlock label="Last Name"><GSTInput value={promoterDetails.fatherLastName} placeholder="Last Name" hasError={false} onChange={(v) => updatePromoterField("fatherLastName", v)} /></FieldBlock>
                             </div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="Date of Birth *" error={errors.proprietorDob}><GSTInput value={data.proprietorDob} placeholder="--/--/----" type="date" hasError={Boolean(errors.proprietorDob)} onChange={(v) => updateField("proprietorDob", v)} /></FieldBlock>
-                                <FieldBlock label="Mobile Number *" error={errors.proprietorMobile}><GSTInput value={data.proprietorMobile} placeholder="Enter mobile" hasError={Boolean(errors.proprietorMobile)} prefix="+91" onChange={(v) => updateField("proprietorMobile", v.replace(/\D/g, "").slice(0, 10))} /></FieldBlock>
-                                <FieldBlock label="Email Address *" error={errors.proprietorEmail}><GSTInput value={data.proprietorEmail} placeholder="Email Address" hasError={Boolean(errors.proprietorEmail)} icon={<Mail size={14} strokeWidth={2.4} />} onChange={(v) => updateField("proprietorEmail", v)} /></FieldBlock>
+                                <FieldBlock label="Date of Birth *" error={errors.proprietorDob}><GSTInput value={promoterDetails.dob} placeholder="--/--/----" type="date" hasError={Boolean(errors.proprietorDob)} onChange={(v) => updatePromoterField("dob", v)} /></FieldBlock>
+                                <FieldBlock label="Mobile Number *" error={errors.proprietorMobile}><GSTInput value={promoterDetails.mobile} placeholder="Enter mobile" hasError={Boolean(errors.proprietorMobile)} prefix="+91" onChange={(v) => updatePromoterField("mobile", v.replace(/\D/g, "").slice(0, 10))} /></FieldBlock>
+                                <FieldBlock label="Email Address *" error={errors.proprietorEmail}><GSTInput value={promoterDetails.email} placeholder="Email Address" hasError={Boolean(errors.proprietorEmail)} icon={<Mail size={14} strokeWidth={2.4} />} onChange={(v) => updatePromoterField("email", v)} /></FieldBlock>
                             </div>
                             <div className="gstin-two-col">
                                 <div>
@@ -962,43 +1203,81 @@ function GSTGstinSimulator({
                             </div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">🪪</span>Identity Information</div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="Designation / Status *" error={errors.proprietorDesignation}><GSTSelect value={data.proprietorDesignation} placeholder="Enter Designation" options={GSTIN_DESIGNATION_OPTIONS} hasError={Boolean(errors.proprietorDesignation)} onChange={(v) => updateField("proprietorDesignation", v)} /></FieldBlock>
+                                <FieldBlock label="Designation / Status *" error={errors.proprietorDesignation}><GSTSelect value={promoterDetails.designation} placeholder="Enter Designation" options={GSTIN_DESIGNATION_OPTIONS} hasError={Boolean(errors.proprietorDesignation)} onChange={(v) => updatePromoterField("designation", v)} /></FieldBlock>
                                 <FieldBlock label="Director Identification Number"><GSTStaticInput placeholder="Enter DIN Number" /></FieldBlock>
-                                <div className="gstin-toggle-card gstin-compact-card"><p className="gstin-toggle-card-label">Are you citizen of india?</p><button type="button" className="gstin-toggle-btn is-on"><span className="gstin-toggle-knob" /></button></div>
+                                <div className="gstin-toggle-card gstin-compact-card">
+                                    <p className="gstin-toggle-card-label">Are you citizen of india?</p>
+                                    <button
+                                        type="button"
+                                        className={`gstin-toggle-btn${citizenOfIndia ? " is-on" : ""}`}
+                                        onClick={() => setCitizenOfIndia((value) => !value)}
+                                    >
+                                        <span className="gstin-toggle-knob" />
+                                    </button>
+                                </div>
                             </div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="Permanent Account Number (PAN) *"><GSTInput value={data.proprietorPan} placeholder="Enter PAN" hasError={false} onChange={(v) => updateField("proprietorPan", v.toUpperCase().slice(0, 10))} /></FieldBlock>
+                                <FieldBlock label={`Permanent Account Number (PAN)${citizenOfIndia ? " *" : ""}`} error={errors.proprietorPan}>
+                                    <GSTInput
+                                        value={promoterDetails.pan}
+                                        placeholder="Enter PAN"
+                                        hasError={Boolean(errors.proprietorPan)}
+                                        onChange={(v) => updatePromoterField("pan", v.toUpperCase().slice(0, 10))}
+                                    />
+                                </FieldBlock>
                                 <FieldBlock label="Passport Number (In case of Foreigner)"><GSTStaticInput placeholder="Enter Passport Number" /></FieldBlock>
-                                <FieldBlock label="Aadhaar Number"><GSTInput value={data.proprietorAadhaar} placeholder="Enter Aadhaar Number" hasError={false} onChange={(v) => updateField("proprietorAadhaar", v.replace(/\D/g, "").slice(0, 12))} /></FieldBlock>
+                                <FieldBlock label="Aadhaar Number"><GSTInput value={promoterDetails.aadhaar} placeholder="Enter Aadhaar Number" hasError={false} onChange={(v) => updatePromoterField("aadhaar", v.replace(/\D/g, "").slice(0, 12))} /></FieldBlock>
                             </div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">✉</span>Residential Address</div>
+                            <div className="gstin-validation-note">i. Please be aware that the GST system incorporates mandatory address validations for accuracy and uniformity.</div>
+                            <GSTLeafletEmbedMap />
                             <div className="gstin-address-grid">
-                                <FieldBlock label="Building No. / Flat No. *" error={errors.residentialFlatNo}><GSTInput value={data.residentialFlatNo} placeholder="Enter Building No. / Flat No. / Door No." hasError={Boolean(errors.residentialFlatNo)} onChange={(v) => updateField("residentialFlatNo", v)} /></FieldBlock>
-                                <FieldBlock label="Floor Number" error={errors.residentialFloor}><GSTInput value={data.residentialFloor} placeholder="Enter Floor Number" hasError={Boolean(errors.residentialFloor)} onChange={(v) => updateField("residentialFloor", v)} /></FieldBlock>
-                                <FieldBlock label="Name of the Premises / Building" error={errors.residentialBuilding}><GSTInput value={data.residentialBuilding} placeholder="Enter Premises / Building" hasError={Boolean(errors.residentialBuilding)} onChange={(v) => updateField("residentialBuilding", v)} /></FieldBlock>
-                                <FieldBlock label="Road / Street. *" error={errors.residentialStreet}><GSTInput value={data.residentialStreet} placeholder="Enter Road / Street / Lane" hasError={Boolean(errors.residentialStreet)} onChange={(v) => updateField("residentialStreet", v)} /></FieldBlock>
-                                <FieldBlock label="City / Town / Locality / Village *" error={errors.residentialCity}><GSTInput value={data.residentialCity} placeholder="Enter Locality / Area / Village" hasError={Boolean(errors.residentialCity)} onChange={(v) => updateField("residentialCity", v)} /></FieldBlock>
-                                <FieldBlock label="Country *"><GSTSelect value={data.residentialCountry} placeholder="Select" options={["India"]} hasError={false} onChange={(v) => updateField("residentialCountry", v)} /></FieldBlock>
-                                <FieldBlock label="State *" error={errors.residentialState}><GSTSelect value={data.residentialState} placeholder="Enter State Name" options={TRN_STATE_OPTIONS} hasError={Boolean(errors.residentialState)} onChange={(v) => { updateField("residentialState", v); updateField("residentialDistrict", ""); }} /></FieldBlock>
-                                <FieldBlock label="District *" error={errors.residentialDistrict}><GSTSelect value={data.residentialDistrict} placeholder="Enter District Name" options={residentialDistrictOptions} hasError={Boolean(errors.residentialDistrict)} onChange={(v) => updateField("residentialDistrict", v)} /></FieldBlock>
-                                <FieldBlock label="Pin Code *" error={errors.residentialPin}><GSTInput value={data.residentialPin} placeholder="Enter Pin Code" hasError={Boolean(errors.residentialPin)} onChange={(v) => updateField("residentialPin", v.replace(/\D/g, "").slice(0, 6))} /></FieldBlock>
+                                <FieldBlock label="Building No. / Flat No. *" error={errors.residentialFlatNo}><GSTInput value={promoterDetails.flatNo} placeholder="Enter Building No. / Flat No. / Door No." hasError={Boolean(errors.residentialFlatNo)} onChange={(v) => updatePromoterField("flatNo", v)} /></FieldBlock>
+                                <FieldBlock label="Floor Number" error={errors.residentialFloor}><GSTInput value={promoterDetails.floor} placeholder="Enter Floor Number" hasError={Boolean(errors.residentialFloor)} onChange={(v) => updatePromoterField("floor", v)} /></FieldBlock>
+                                <FieldBlock label="Name of the Premises / Building" error={errors.residentialBuilding}><GSTInput value={promoterDetails.building} placeholder="Enter Premises / Building" hasError={Boolean(errors.residentialBuilding)} onChange={(v) => updatePromoterField("building", v)} /></FieldBlock>
+                                <FieldBlock label="Road / Street. *" error={errors.residentialStreet}><GSTInput value={promoterDetails.street} placeholder="Enter Road / Street / Lane" hasError={Boolean(errors.residentialStreet)} onChange={(v) => updatePromoterField("street", v)} /></FieldBlock>
+                                <FieldBlock label="City / Town / Locality / Village *" error={errors.residentialCity}><GSTInput value={promoterDetails.city} placeholder="Enter Locality / Area / Village" hasError={Boolean(errors.residentialCity)} onChange={(v) => updatePromoterField("city", v)} /></FieldBlock>
+                                <FieldBlock label="Country *"><GSTInput value={promoterDetails.country} placeholder="Enter Country" hasError={false} onChange={(v) => updatePromoterField("country", v)} /></FieldBlock>
+                                <FieldBlock label="State *" error={errors.residentialState}><GSTInput value={promoterDetails.state} placeholder="Enter State Name" hasError={Boolean(errors.residentialState)} onChange={(v) => updatePromoterField("state", v)} /></FieldBlock>
+                                <FieldBlock label="District *" error={errors.residentialDistrict}><GSTInput value={promoterDetails.district} placeholder="Enter District Name" hasError={Boolean(errors.residentialDistrict)} onChange={(v) => updatePromoterField("district", v)} /></FieldBlock>
+                                <FieldBlock label="Pin Code *" error={errors.residentialPin}><GSTInput value={promoterDetails.pin} placeholder="Enter Pin Code" hasError={Boolean(errors.residentialPin)} onChange={(v) => updatePromoterField("pin", v.replace(/\D/g, "").slice(0, 6))} /></FieldBlock>
                             </div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">☁</span>Document Upload</div>
                             <div className="gstin-upload-panel">
                                 <div className="gstin-upload-column">
-                                    <p>Upload Photograph (of person whose information has been given above) *</p>
-                                    <p className="gstin-upload-note">Only JPEG file format is allowed</p>
-                                    <p className="gstin-upload-note">Maximum file size for upload 100 KB</p>
-                                    <div className="gstin-file-row"><button type="button" className="gst-trn-secondary-button">Choose File</button><span>No file chosen</span></div>
+                                    <p className="gstin-upload-title">Upload Photograph (of person whose information has been given above) *</p>
+                                    <p className="gstin-upload-note"><Info size={12} strokeWidth={2.4} /> Only JPEG file format is allowed</p>
+                                    <p className="gstin-upload-note"><Info size={12} strokeWidth={2.4} /> Maximum file size for upload 100 KB</p>
+                                    <div className="gstin-file-row">
+                                        <button type="button" className="gst-trn-secondary-button">Choose File</button>
+                                        <span>No file chosen</span>
+                                    </div>
                                 </div>
                                 <div className="gstin-upload-divider">OR</div>
                                 <div className="gstin-upload-column gstin-upload-camera">
-                                    <button type="button" className="gstin-save-btn">TAKE PICTURE</button>
+                                    <button type="button" className="gstin-save-btn gstin-camera-btn"><Camera size={14} strokeWidth={2.4} /> TAKE PICTURE</button>
                                     <p className="gstin-upload-note">You can use your device camera to take selfie Photograph</p>
                                 </div>
                             </div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">i</span>Other Information</div>
-                            <div className="gstin-toggle-card"><p className="gstin-toggle-card-label">Also Authorized Signatory</p><button type="button" className="gstin-toggle-btn"><span className="gstin-toggle-knob" /></button></div>
+                            <div className="gstin-toggle-card">
+                                <p className="gstin-toggle-card-label">Also Authorized Signatory</p>
+                                <button
+                                    type="button"
+                                    className={`gstin-toggle-btn${alsoAuthorizedSignatory ? " is-on" : ""}`}
+                                    onClick={() => {
+                                        setAlsoAuthorizedSignatory((value) => {
+                                            const next = !value;
+                                            if (next) {
+                                                setAuthorizedSignatoryDetails(promoterDetails);
+                                            }
+                                            return next;
+                                        });
+                                    }}
+                                >
+                                    <span className="gstin-toggle-knob" />
+                                </button>
+                            </div>
                             <div className="gstin-bottom-toolbar">
                                 <button type="button" className="gst-trn-secondary-button" onClick={() => setActiveTab(1)}>BACK</button>
                                 <button type="button" className="gst-trn-secondary-button">SHOW LIST</button>
@@ -1013,56 +1292,79 @@ function GSTGstinSimulator({
                             <div className="gstin-section-header">Details of Authorized Signatory</div>
                             <p className="gstin-note">* indicates mandatory fields</p>
                             <div className="gstin-checkbox-strip">
-                                <label className="gstin-checkbox-label"><input type="checkbox" className="gstin-checkbox" /><span>Primary Authorized Signatory</span></label>
+                                <label className="gstin-checkbox-label">
+                                    <input type="checkbox" className="gstin-checkbox" checked readOnly />
+                                    <span>Primary Authorized Signatory</span>
+                                </label>
                             </div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">👤</span>Personal Information</div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="First Name *"><GSTStaticInput placeholder="First Name" /></FieldBlock>
-                                <FieldBlock label="Middle Name"><GSTStaticInput placeholder="Middle Name" /></FieldBlock>
-                                <FieldBlock label="Last Name"><GSTStaticInput placeholder="Last Name" /></FieldBlock>
+                                <FieldBlock label="First Name *"><GSTInput value={authorizedSignatoryDetails.firstName} placeholder="First Name" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("firstName", v)} /></FieldBlock>
+                                <FieldBlock label="Middle Name"><GSTInput value={authorizedSignatoryDetails.middleName} placeholder="Middle Name" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("middleName", v)} /></FieldBlock>
+                                <FieldBlock label="Last Name"><GSTInput value={authorizedSignatoryDetails.lastName} placeholder="Last Name" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("lastName", v)} /></FieldBlock>
                             </div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="Father's First Name *"><GSTStaticInput placeholder="First Name" /></FieldBlock>
-                                <FieldBlock label="Middle Name"><GSTStaticInput placeholder="Middle Name" /></FieldBlock>
-                                <FieldBlock label="Last Name"><GSTStaticInput placeholder="Last Name" /></FieldBlock>
+                                <FieldBlock label="Father's First Name *"><GSTInput value={authorizedSignatoryDetails.fatherFirstName} placeholder="First Name" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("fatherFirstName", v)} /></FieldBlock>
+                                <FieldBlock label="Middle Name"><GSTInput value={authorizedSignatoryDetails.fatherMiddleName} placeholder="Middle Name" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("fatherMiddleName", v)} /></FieldBlock>
+                                <FieldBlock label="Last Name"><GSTInput value={authorizedSignatoryDetails.fatherLastName} placeholder="Last Name" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("fatherLastName", v)} /></FieldBlock>
                             </div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="Date of Birth *"><GSTStaticInput placeholder="--/--/----" /></FieldBlock>
-                                <FieldBlock label="Mobile Number *"><GSTStaticInput placeholder="+91" /></FieldBlock>
-                                <FieldBlock label="Email Address *"><GSTStaticInput placeholder="Email Address" /></FieldBlock>
+                                <FieldBlock label="Date of Birth *"><GSTInput value={authorizedSignatoryDetails.dob} placeholder="--/--/----" type="date" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("dob", v)} /></FieldBlock>
+                                <FieldBlock label="Mobile Number *"><GSTInput value={authorizedSignatoryDetails.mobile} placeholder="+91" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("mobile", v.replace(/\D/g, "").slice(0, 10))} /></FieldBlock>
+                                <FieldBlock label="Email Address *"><GSTInput value={authorizedSignatoryDetails.email} placeholder="Email Address" hasError={false} icon={<Mail size={14} strokeWidth={2.4} />} onChange={(v) => updateAuthorizedSignatoryField("email", v)} /></FieldBlock>
                             </div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">🪪</span>Identity Information</div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="Designation / Status *"><GSTStaticInput placeholder="Enter Designation" /></FieldBlock>
+                                <FieldBlock label="Designation / Status *"><GSTInput value={authorizedSignatoryDetails.designation} placeholder="Enter Designation" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("designation", v)} /></FieldBlock>
                                 <FieldBlock label="Director Identification Number"><GSTStaticInput placeholder="Enter DIN Number" /></FieldBlock>
-                                <div className="gstin-toggle-card gstin-compact-card"><p className="gstin-toggle-card-label">Are you citizen of india?</p><button type="button" className="gstin-toggle-btn is-on"><span className="gstin-toggle-knob" /></button></div>
+                                <div className="gstin-toggle-card gstin-compact-card">
+                                    <p className="gstin-toggle-card-label">Are you citizen of india?</p>
+                                    <button type="button" className={`gstin-toggle-btn${citizenOfIndia ? " is-on" : ""}`} onClick={() => setCitizenOfIndia((value) => !value)}>
+                                        <span className="gstin-toggle-knob" />
+                                    </button>
+                                </div>
                             </div>
                             <div className="gstin-three-col">
-                                <FieldBlock label="Permanent Account Number (PAN) *"><GSTReadonlyField value={data.proprietorPan} /></FieldBlock>
+                                <FieldBlock label={`Permanent Account Number (PAN)${citizenOfIndia ? " *" : ""}`}><GSTInput value={authorizedSignatoryDetails.pan} placeholder="Enter PAN" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("pan", v.toUpperCase().slice(0, 10))} /></FieldBlock>
                                 <FieldBlock label="Passport Number (In case of Foreigner)"><GSTStaticInput placeholder="Enter Passport Number" /></FieldBlock>
-                                <FieldBlock label="Aadhaar Number"><GSTReadonlyField value={data.proprietorAadhaar} /></FieldBlock>
+                                <FieldBlock label="Aadhaar Number"><GSTInput value={authorizedSignatoryDetails.aadhaar} placeholder="Enter Aadhaar Number" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("aadhaar", v.replace(/\D/g, "").slice(0, 12))} /></FieldBlock>
                             </div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">✉</span>Residential Address</div>
                             <div className="gstin-validation-note">i. Please be aware that the GST system incorporates mandatory address validations for accuracy and uniformity.</div>
-                            <div className="gstin-map-placeholder" aria-hidden="true"><div className="gstin-map-inner"><svg viewBox="0 0 320 180" className="gstin-map-svg"><rect width="320" height="180" fill="#dce8f0" /><ellipse cx="160" cy="90" rx="110" ry="70" fill="#c5d8e8" /><ellipse cx="160" cy="90" rx="70" ry="45" fill="#b0ccde" /><circle cx="160" cy="90" r="5" fill="#e04a4a" /><circle cx="160" cy="90" r="10" fill="none" stroke="#e04a4a" strokeWidth="2" /></svg></div></div>
+                            <GSTLeafletEmbedMap />
                             <div className="gstin-address-grid">
-                                <FieldBlock label="Country *"><GSTSelect value={data.residentialCountry} placeholder="Select" options={["India"]} hasError={false} onChange={() => {}} /></FieldBlock>
-                                <FieldBlock label="Pin Code *"><GSTInput value={data.residentialPin} placeholder="Enter Pin Code" hasError={false} onChange={(v) => updateField("residentialPin", v.replace(/\D/g, "").slice(0, 6))} /></FieldBlock>
-                                <FieldBlock label="State *"><GSTSelect value={data.residentialState} placeholder="Enter State Name" options={TRN_STATE_OPTIONS} hasError={false} onChange={(v) => updateField("residentialState", v)} /></FieldBlock>
-                                <FieldBlock label="District *"><GSTSelect value={data.residentialDistrict} placeholder="Enter District Name" options={residentialDistrictOptions} hasError={false} onChange={(v) => updateField("residentialDistrict", v)} /></FieldBlock>
-                                <FieldBlock label="City / Town / Village *"><GSTInput value={data.residentialCity} placeholder="Enter City / Town / Village" hasError={false} onChange={(v) => updateField("residentialCity", v)} /></FieldBlock>
-                                <FieldBlock label="Locality / Sub Locality"><GSTStaticInput placeholder="Enter Locality / Sub Locality" /></FieldBlock>
-                                <FieldBlock label="Road / Street *"><GSTInput value={data.residentialStreet} placeholder="Enter Road / Street / Lane" hasError={false} onChange={(v) => updateField("residentialStreet", v)} /></FieldBlock>
-                                <FieldBlock label="Name of the Premises / Building"><GSTInput value={data.residentialBuilding} placeholder="Enter Premises / Building" hasError={false} onChange={(v) => updateField("residentialBuilding", v)} /></FieldBlock>
-                                <FieldBlock label="Building No. / Flat No. *"><GSTInput value={data.residentialFlatNo} placeholder="Enter Building No. / Flat No. / Door No." hasError={false} onChange={(v) => updateField("residentialFlatNo", v)} /></FieldBlock>
-                                <FieldBlock label="Floor Number"><GSTInput value={data.residentialFloor} placeholder="Enter Floor Number" hasError={false} onChange={(v) => updateField("residentialFloor", v)} /></FieldBlock>
+                                <FieldBlock label="Country *"><GSTInput value={authorizedSignatoryDetails.country} placeholder="Enter Country" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("country", v)} /></FieldBlock>
+                                <FieldBlock label="Pin Code *"><GSTInput value={authorizedSignatoryDetails.pin} placeholder="Enter Pin Code" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("pin", v.replace(/\D/g, "").slice(0, 6))} /></FieldBlock>
+                                <FieldBlock label="State *"><GSTInput value={authorizedSignatoryDetails.state} placeholder="Enter State Name" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("state", v)} /></FieldBlock>
+                                <FieldBlock label="District *"><GSTInput value={authorizedSignatoryDetails.district} placeholder="Enter District Name" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("district", v)} /></FieldBlock>
+                                <FieldBlock label="City / Town / Village *"><GSTInput value={authorizedSignatoryDetails.city} placeholder="Enter City / Town / Village" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("city", v)} /></FieldBlock>
+                                <FieldBlock label="Locality / Sub Locality"><GSTInput value={authorizedSignatoryDetails.locality} placeholder="Enter Locality / Sub Locality" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("locality", v)} /></FieldBlock>
+                                <FieldBlock label="Road / Street *"><GSTInput value={authorizedSignatoryDetails.street} placeholder="Enter Road / Street / Lane" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("street", v)} /></FieldBlock>
+                                <FieldBlock label="Name of the Premises / Building"><GSTInput value={authorizedSignatoryDetails.building} placeholder="Enter Premises / Building" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("building", v)} /></FieldBlock>
+                                <FieldBlock label="Building No. / Flat No. *"><GSTInput value={authorizedSignatoryDetails.flatNo} placeholder="Enter Building No. / Flat No. / Door No." hasError={false} onChange={(v) => updateAuthorizedSignatoryField("flatNo", v)} /></FieldBlock>
+                                <FieldBlock label="Floor Number"><GSTInput value={authorizedSignatoryDetails.floor} placeholder="Enter Floor Number" hasError={false} onChange={(v) => updateAuthorizedSignatoryField("floor", v)} /></FieldBlock>
                                 <FieldBlock label="Nearby Landmark"><GSTStaticInput placeholder="Nearby Landmark" /></FieldBlock>
                             </div>
                             <div className="gstin-reset-row"><button type="button" className="gstin-save-btn">RESET ADDRESS</button></div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">☁</span>Document Upload</div>
-                            <div className="gstin-two-col">
-                                <FieldBlock label="Proof of details of authorized signatory *"><GSTSelect value="" placeholder="Select" options={GSTIN_SIGNATORY_DOCUMENT_OPTIONS} hasError={false} onChange={() => {}} /></FieldBlock>
-                                <FieldBlock label="Upload Photograph (of person whose information has been given above) *"><div className="gstin-file-row"><button type="button" className="gst-trn-secondary-button">Choose File</button><span>No file chosen</span></div></FieldBlock>
+                            <div className="gstin-three-col">
+                                <FieldBlock label="Proof of details of authorized signatory *"><GSTSelect value="" placeholder="Select" options={GSTIN_SIGNATORY_DOCUMENT_OPTIONS} hasError={false} /></FieldBlock>
+                            </div>
+                            <div className="gstin-upload-panel gstin-upload-panel-auth">
+                                <div className="gstin-upload-column">
+                                    <p className="gstin-upload-title">Upload Photograph (of person whose information has been given above) *</p>
+                                    <p className="gstin-upload-note"><Info size={12} strokeWidth={2.4} /> Only JPEG file format is allowed</p>
+                                    <p className="gstin-upload-note"><Info size={12} strokeWidth={2.4} /> Maximum file size for upload 100 KB</p>
+                                    <div className="gstin-file-row">
+                                        <button type="button" className="gst-trn-secondary-button">Choose File</button>
+                                        <span>No file chosen</span>
+                                    </div>
+                                </div>
+                                <div className="gstin-upload-divider">OR</div>
+                                <div className="gstin-upload-column gstin-upload-camera">
+                                    <button type="button" className="gstin-save-btn gstin-camera-btn"><Camera size={14} strokeWidth={2.4} /> TAKE PICTURE</button>
+                                    <p className="gstin-upload-note">You can use your device camera to take selfie Photograph</p>
+                                </div>
                             </div>
                             <div className="gstin-bottom-toolbar">
                                 <button type="button" className="gst-trn-secondary-button" onClick={() => setActiveTab(2)}>BACK</button>
@@ -1078,9 +1380,66 @@ function GSTGstinSimulator({
                             <div className="gstin-section-header">Details of Authorized Representative</div>
                             <p className="gstin-note">* indicates mandatory fields</p>
                             <div className="gstin-simple-toggle-row">
-                                <label className="gstin-checkbox-label"><input type="checkbox" className="gstin-checkbox" /><span>Do you have any Authorized Representative?</span></label>
-                                <div className="gstin-toggle-off" />
+                                <p className="gstin-toggle-card-label gstin-simple-toggle-label">Do you have any Authorized Representative?</p>
+                                <button
+                                    type="button"
+                                    className={`gstin-toggle-btn${authorizedRepresentativeEnabled ? " is-on" : ""}`}
+                                    onClick={() => setAuthorizedRepresentativeEnabled((value) => !value)}
+                                    aria-label="Toggle authorized representative details"
+                                >
+                                    <span className="gstin-toggle-knob" />
+                                </button>
                             </div>
+                            {authorizedRepresentativeEnabled ? (
+                                <div className="gstin-ar-form">
+                                    <div className="gstin-two-col">
+                                        <div className="gstin-ar-type-block">
+                                            <p className="gstin-ar-label">Type of Authorized Representative</p>
+                                            <div className="gstin-ar-radio-row">
+                                                {[
+                                                    ["gst-practitioner", "GST Practitioner"],
+                                                    ["others", "Others"],
+                                                ].map(([value, label]) => (
+                                                    <label key={value} className="gst-trn-radio" onClick={() => setAuthorizedRepresentativeType(value as "gst-practitioner" | "others")}>
+                                                        <span className={`gst-trn-radio-mark${authorizedRepresentativeType === value ? " is-checked" : ""}`} aria-hidden="true" />
+                                                        <span>{label}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <FieldBlock label="Enrolment ID">
+                                            <div className="gstin-enrolment-row">
+                                                <GSTStaticInput placeholder="Enter Enrolment ID" />
+                                                <button type="button" className="gstin-enrolment-search-btn">SEARCH</button>
+                                            </div>
+                                        </FieldBlock>
+                                    </div>
+                                    <div className="gstin-three-col">
+                                        <FieldBlock label="First Name"><GSTStaticInput placeholder="First Name" /></FieldBlock>
+                                        <FieldBlock label="Middle Name"><GSTStaticInput placeholder="Middle Name" /></FieldBlock>
+                                        <FieldBlock label="Last Name"><GSTStaticInput placeholder="Last Name" /></FieldBlock>
+                                    </div>
+                                    <div className="gstin-three-col">
+                                        <FieldBlock label="Designation / Status *"><GSTStaticInput placeholder="Select" /></FieldBlock>
+                                        <FieldBlock label="Mobile Number *"><GSTStaticInput placeholder="+91" type="tel" /></FieldBlock>
+                                        <FieldBlock label="Email Address *"><GSTStaticInput placeholder="Enter Email Address" /></FieldBlock>
+                                    </div>
+                                    <div className="gstin-three-col">
+                                        <FieldBlock label="Permanent Account Number (PAN) *"><GSTStaticInput placeholder="Enter PAN Number" /></FieldBlock>
+                                        <FieldBlock label="Aadhaar Number">
+                                            <div>
+                                                <GSTStaticInput placeholder="Enter Aadhaar Number" />
+                                                <p className="gstin-aadhaar-helper">If you provide your Aadhaar here, you can sign using e-Sign without a Digital Signature.</p>
+                                            </div>
+                                        </FieldBlock>
+                                        <div />
+                                    </div>
+                                    <div className="gstin-two-col">
+                                        <FieldBlock label="Telephone Number (with STD Code)"><GSTStaticInput placeholder="STD   Enter Telephone Number" /></FieldBlock>
+                                        <FieldBlock label="Fax Number (with STD Code)"><GSTStaticInput placeholder="STD   Enter Telephone Number" /></FieldBlock>
+                                    </div>
+                                </div>
+                            ) : null}
                             <GstinTabActions onBack={() => setActiveTab(3)} onSave={() => completeTab(4)} />
                         </div>
                     )}
@@ -1091,11 +1450,28 @@ function GSTGstinSimulator({
                             <p className="gstin-note">* indicates mandatory fields</p>
                             <div className="gstin-validation-note">i. Please be aware that the GST system incorporates mandatory address validations for accuracy and uniformity.</div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">✉</span>Address</div>
-                            <div className="gstin-map-placeholder" aria-hidden="true"><div className="gstin-map-inner"><svg viewBox="0 0 320 180" className="gstin-map-svg"><rect width="320" height="180" fill="#dce8f0" /><ellipse cx="160" cy="90" rx="110" ry="70" fill="#c5d8e8" /><ellipse cx="160" cy="90" rx="70" ry="45" fill="#b0ccde" /><circle cx="160" cy="90" r="5" fill="#e04a4a" /><circle cx="160" cy="90" r="10" fill="none" stroke="#e04a4a" strokeWidth="2" /></svg></div></div>
+                            <GSTLeafletEmbedMap />
                             <div className="gstin-address-grid">
                                 <FieldBlock label="Pin Code *" error={errors.businessPin}><GSTInput value={data.businessPin} placeholder="Enter Pin Code" hasError={Boolean(errors.businessPin)} onChange={(v) => updateField("businessPin", v.replace(/\D/g, "").slice(0, 6))} /></FieldBlock>
-                                <FieldBlock label="State *" error={errors.businessState}><GSTSelect value={data.businessState} placeholder="Enter State Name" options={TRN_STATE_OPTIONS} hasError={Boolean(errors.businessState)} onChange={(v) => { updateField("businessState", v); updateField("businessDistrict", ""); }} /></FieldBlock>
-                                <FieldBlock label="District" error={errors.businessDistrict}><GSTSelect value={data.businessDistrict} placeholder="Enter District Name" options={businessDistrictOptions} hasError={Boolean(errors.businessDistrict)} onChange={(v) => updateField("businessDistrict", v)} /></FieldBlock>
+                                <FieldBlock label="State *" error={errors.businessState}>
+                                    <GSTTextArea
+                                        value={data.businessState}
+                                        placeholder="Enter State Name"
+                                        hasError={Boolean(errors.businessState)}
+                                        onChange={(v) => {
+                                            updateField("businessState", v);
+                                            updateField("businessDistrict", "");
+                                        }}
+                                    />
+                                </FieldBlock>
+                                <FieldBlock label="District" error={errors.businessDistrict}>
+                                    <GSTTextArea
+                                        value={data.businessDistrict}
+                                        placeholder="Enter District Name"
+                                        hasError={Boolean(errors.businessDistrict)}
+                                        onChange={(v) => updateField("businessDistrict", v)}
+                                    />
+                                </FieldBlock>
                                 <FieldBlock label="City / Town / Village *" error={errors.businessCity}><GSTInput value={data.businessCity} placeholder="Enter City / Town / Village" hasError={Boolean(errors.businessCity)} onChange={(v) => updateField("businessCity", v)} /></FieldBlock>
                                 <FieldBlock label="Locality/Sub Locality"><GSTStaticInput placeholder="Enter Locality/Sub Locality" /></FieldBlock>
                                 <FieldBlock label="Road / Street. *" error={errors.businessStreet}><GSTInput value={data.businessStreet} placeholder="Enter Road / Street / Lane" hasError={Boolean(errors.businessStreet)} onChange={(v) => updateField("businessStreet", v)} /></FieldBlock>
@@ -1108,7 +1484,7 @@ function GSTGstinSimulator({
                             </div>
                             <div className="gstin-reset-row"><button type="button" className="gstin-save-btn">RESET ADDRESS</button></div>
                             <div className="gstin-two-col">
-                                <FieldBlock label="State Jurisdiction"><GSTStaticInput placeholder="Circle" /></FieldBlock>
+                                <FieldBlock label="State Jurisdiction"><GSTDisplayField value="Circle" className="gstin-jurisdiction-value" /></FieldBlock>
                                 <FieldBlock label="Sector / Circle / Ward / Charge / Unit *" error={errors.ward}><GSTInput value={data.ward} placeholder="Sector / Circle / Ward / Charge / Unit" hasError={Boolean(errors.ward)} onChange={(v) => updateField("ward", v)} /></FieldBlock>
                             </div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">◧</span>Center Jurisdiction</div>
@@ -1126,7 +1502,7 @@ function GSTGstinSimulator({
                             </div>
                             <div className="gstin-two-col">
                                 <FieldBlock label="Nature of possession of premises *"><GSTSelect value={data.natureOfPossession} placeholder="Select" options={GSTIN_NATURE_OF_POSSESSION_OPTIONS} hasError={false} onChange={(v) => updateField("natureOfPossession", v)} /></FieldBlock>
-                                <FieldBlock label="Document Upload *"><GSTSelect value="" placeholder="Select" options={GSTIN_PPOB_DOCUMENT_OPTIONS} hasError={false} onChange={() => {}} /></FieldBlock>
+                                <FieldBlock label="Document Upload *"><GSTSelect value="" placeholder="Select" options={GSTIN_PPOB_DOCUMENT_OPTIONS} hasError={false} /></FieldBlock>
                             </div>
                             <div className="gstin-file-row"><button type="button" className="gst-trn-secondary-button">Choose File</button><span>No file chosen</span></div>
                             <div className="gstin-sub-section-header"><span className="gstin-sub-section-icon">🏭</span>Nature of Business Activity being carried out at above mentioned premises</div>
@@ -1281,8 +1657,7 @@ function GSTGstinSimulator({
                             {saveError ? <div className="gst-trn-save-error">{saveError}</div> : null}
                             <div className="gstin-bottom-toolbar">
                                 <button type="button" className="gst-trn-secondary-button" onClick={() => setActiveTab(9)}>BACK</button>
-                                <button type="button" className="gstin-save-btn" onClick={() => handleTabSave(10)}>SUBMIT WITH DSC</button>
-                                <button type="button" className="gstin-save-btn">SUBMIT WITH EVC</button>
+                                <button type="button" className="gstin-save-btn" onClick={() => handleTabSave(10)}>SUBMIT WITH EVC</button>
                             </div>
                         </div>
                     )}

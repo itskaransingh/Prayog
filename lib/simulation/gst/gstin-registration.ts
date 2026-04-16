@@ -218,7 +218,7 @@ export const EMPTY_GSTIN_REGISTRATION_DATA: GstinRegistrationData = {
     proprietorEmail: "",
     proprietorPan: "",
     proprietorAadhaar: "",
-    proprietorDesignation: "",
+    proprietorDesignation: "Proprietor",
     residentialFlatNo: "",
     residentialFloor: "",
     residentialBuilding: "",

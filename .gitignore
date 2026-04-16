@@ -7,3 +7,4 @@ docs/
 supabase/
 .claude/
 __tests__/
+resources/
