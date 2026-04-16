@@ -14,9 +14,11 @@ import {
     buildRegistrationEvaluationMappings,
     buildGstfEvaluationMappings,
     buildGstinEvaluationMappings,
+    buildNilReturn3bEvaluationMappings,
     type SimulationEvaluationConfig,
 } from "@/lib/simulation/runtime-evaluation";
 import { GSTIN_SUBMODULE_ID } from "@/lib/simulation/gst/gstin-registration";
+import { NIL_RETURN_3B_SUBMODULE_ID } from "@/lib/simulation/gst/nil-return-3b";
 
 interface QuestionRecord {
     id: string;
@@ -141,11 +143,12 @@ export async function GET(
         }
 
         const isGstinSubmodule = submodule.id === GSTIN_SUBMODULE_ID;
+        const isNilReturn3bSubmodule = submodule.id === NIL_RETURN_3B_SUBMODULE_ID;
 
         function buildGstfMappings(fieldRows: SimulationFieldRecord[]) {
-            return isGstinSubmodule
-                ? buildGstinEvaluationMappings(fieldRows)
-                : buildGstfEvaluationMappings(fieldRows);
+            if (isGstinSubmodule) return buildGstinEvaluationMappings(fieldRows);
+            if (isNilReturn3bSubmodule) return buildNilReturn3bEvaluationMappings(fieldRows);
+            return buildGstfEvaluationMappings(fieldRows);
         }
 
         if (!task?.id) {

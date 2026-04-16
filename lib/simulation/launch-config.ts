@@ -19,7 +19,6 @@ export interface SimulationLaunchConfig {
 const GST_LAUNCH_SUBMODULES = new Set([
     "trn-generation",
     "gst-registration",
-    "nil-return-filing-3b",
     "gstr1-filing",
 ]);
 
@@ -69,6 +68,12 @@ export function getSimulationLaunchConfig({
                 gatewayPath: "/simulation/render",
             };
         case "gstf-simulation":
+            if (submoduleSlug === "nil-return-filing-3b") {
+                return {
+                    storageKey: null,
+                    gatewayPath: "/nil-return-3b-simulation",
+                };
+            }
             return {
                 storageKey: null,
                 gatewayPath: "/gst-simulation",

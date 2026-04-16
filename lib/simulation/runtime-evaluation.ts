@@ -7,6 +7,7 @@ import {
 } from "@/lib/simulation/answer-field-generator";
 import { getTrnFieldPathFromLabel } from "@/lib/simulation/gst/trn-registration";
 import { getGstinFieldPathFromLabel } from "@/lib/simulation/gst/gstin-registration";
+import { getNilReturn3bFieldPathFromLabel } from "@/lib/simulation/gst/nil-return-3b";
 import type { PersistableEvaluationMapping } from "@/lib/simulation/attempts";
 
 export interface SimulationEvaluationConfig {
@@ -100,6 +101,29 @@ export function buildGstinEvaluationMappings(
                 fieldId: trimValue(field.id) || undefined,
                 fieldName: trimValue(field.field_name) || undefined,
                 fieldPath: getGstinFieldPathFromLabel(label, index),
+                expectedValue: trimValue(field.expected_value),
+                label,
+                weight: 1,
+            };
+        });
+}
+
+export function buildNilReturn3bEvaluationMappings(
+    fields: SimulationFieldRecord[],
+): PersistableEvaluationMapping[] {
+    return [...fields]
+        .sort(
+            (left, right) =>
+                (left.order_index ?? Number.MAX_SAFE_INTEGER) -
+                (right.order_index ?? Number.MAX_SAFE_INTEGER),
+        )
+        .map((field, index) => {
+            const label = trimValue(field.field_label) || `Field ${index + 1}`;
+
+            return {
+                fieldId: trimValue(field.id) || undefined,
+                fieldName: trimValue(field.field_name) || undefined,
+                fieldPath: getNilReturn3bFieldPathFromLabel(label, index),
                 expectedValue: trimValue(field.expected_value),
                 label,
                 weight: 1,
