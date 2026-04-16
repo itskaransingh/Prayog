@@ -1,9 +1,17 @@
 "use client";
-
-import { useEffect, useRef, useState } from "react";
+// #comment
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 export default function GatewayPage() {
+    return (
+        <Suspense fallback={<GatewayFallback />}>
+            <GatewayPageContent />
+        </Suspense>
+    );
+}
+
+function GatewayPageContent() {
     const frameRef = useRef<HTMLIFrameElement | null>(null);
     const [frameHeight, setFrameHeight] = useState(1000);
     const searchParams = useSearchParams();
@@ -92,6 +100,22 @@ export default function GatewayPage() {
                 style={{ height: `${frameHeight}px` }}
                 title="Income Tax Portal Landing Page"
             />
+        </main>
+    );
+}
+
+function GatewayFallback() {
+    return (
+        <main
+            className="sim-portal-embed-shell"
+            style={{
+                minHeight: "100vh",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+            }}
+        >
+            Loading portal...
         </main>
     );
 }
