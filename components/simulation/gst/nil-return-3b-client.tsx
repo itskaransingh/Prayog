@@ -41,6 +41,22 @@ const GST_SERVICE_CARDS = [
     "Filing Support",
 ] as const;
 
+const GSTR1_RECORD_DETAIL_CARDS = [
+    "4A, 4B, 6B, 6C - B2B, SEZ, DE Invoices",
+    "5A - B2C (Large) Invoices",
+    "6A - Exports Invoices",
+    "7 - B2C (Others)",
+    "8A, 8B, 8C, 8D - Nil Rated Supplies",
+    "9B - Credit / Debit Notes (Registered)",
+    "9B - Credit / Debit Notes (Unregistered)",
+    "11A(1), 11A(2) - Tax Liability (Advance Received)",
+    "11B(1), 11B(2) - Adjustment of Advances",
+    "12 - HSN-wise summary of outward supplies",
+    "13 - Documents Issued",
+    "14 - Supplies made through ECO",
+    "15 - Supplies U/s 9(5)",
+] as const;
+
 // ─── Per-question metadata ────────────────────────────────────────────────────
 
 interface QuestionMeta {
@@ -332,8 +348,10 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     const [searched, setSearched] = useState(false);
 
     // ── GSTR-1 state ──────────────────────────────────────────────────────────
-    const [nilGstr1Checked, setNilGstr1Checked] = useState(true);
+    const [nilGstr1Checked, setNilGstr1Checked] = useState(false);
     const [accordionOpen, setAccordionOpen] = useState(false);
+    const [gstr1AddRecordOpen, setGstr1AddRecordOpen] = useState(true);
+    const [gstr1AmendRecordOpen, setGstr1AmendRecordOpen] = useState(false);
     const [showSummaryBanner, setShowSummaryBanner] = useState(false);
     const [gstr1Signatory, setGstr1Signatory] = useState("");
     const [gstr1Filed, setGstr1Filed] = useState(false);
@@ -457,7 +475,11 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
     }
 
     function handleGstr1FileStatement() {
-        setShowSummaryBanner(true);
+        if (!showSummaryBanner) {
+            setShowSummaryBanner(true);
+            return;
+        }
+        setScreen("gstr1-filing");
     }
 
     function handleFileGstr1WithEvc() {
@@ -1027,21 +1049,62 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                                 type="checkbox"
                                 className="gst-nil-checkbox"
                                 checked={nilGstr1Checked}
-                                onChange={e => setNilGstr1Checked(e.target.checked)}
+                                onChange={e => {
+                                    setNilGstr1Checked(e.target.checked);
+                                    setShowSummaryBanner(false);
+                                }}
                             />
                             <label htmlFor="nil-gstr1-check" style={{ cursor: "pointer" }}>File Nil GSTR-1</label>
                         </div>
 
-                        {/* Note box */}
-                        <div className="gst-nil-note-box">
-                            <p className="gst-nil-note-title">Note: NIL Form GSTR-1 can be filed by you if you have:</p>
-                            <ol className="gst-nil-note-list" type="a">
-                                <li>a. No Outward Supplies (including supplies on which tax is to be charged on reverse charge basis, zero rated supplies and deemed exports) during the month or quarter for which the form is being filed for</li>
-                                <li>b. No Amendments to be made to any of the supplies declared in an earlier form</li>
-                                <li>c. No Credit or Debit Notes to be declared / amended</li>
-                                <li>d. No details of advances received for services is to be declared or adjusted</li>
-                            </ol>
-                        </div>
+                        {nilGstr1Checked ? (
+                            <>
+                                {/* Note box */}
+                                <div className="gst-nil-note-box">
+                                    <p className="gst-nil-note-title">Note: NIL Form GSTR-1 can be filed by you if you have:</p>
+                                    <ol className="gst-nil-note-list" type="a">
+                                        <li>a. No Outward Supplies (including supplies on which tax is to be charged on reverse charge basis, zero rated supplies and deemed exports) during the month or quarter for which the form is being filed for</li>
+                                        <li>b. No Amendments to be made to any of the supplies declared in an earlier form</li>
+                                        <li>c. No Credit or Debit Notes to be declared / amended</li>
+                                        <li>d. No details of advances received for services is to be declared or adjusted</li>
+                                    </ol>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="gst-nil-record-section">
+                                    <div
+                                        className="gst-nil-record-header"
+                                        onClick={() => setGstr1AddRecordOpen((open) => !open)}
+                                    >
+                                        <span>ADD RECORD DETAILS</span>
+                                        <span>{gstr1AddRecordOpen ? "˄" : "˅"}</span>
+                                    </div>
+                                    {gstr1AddRecordOpen ? (
+                                        <div className="gst-nil-record-grid">
+                                            {GSTR1_RECORD_DETAIL_CARDS.map((title) => (
+                                                <div key={title} className="gst-nil-record-card">
+                                                    <div className="gst-nil-record-card-head">{title}</div>
+                                                    <div className="gst-nil-record-card-body">
+                                                        <span className="gst-nil-record-card-count">0</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                <div className="gst-nil-record-section">
+                                    <div
+                                        className="gst-nil-record-header"
+                                        onClick={() => setGstr1AmendRecordOpen((open) => !open)}
+                                    >
+                                        <span>AMEND RECORD DETAILS</span>
+                                        <span>{gstr1AmendRecordOpen ? "˄" : "˅"}</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
 
                         {/* E-invoicing info box */}
                         <div className="gst-nil-info-box-blue">
@@ -1067,9 +1130,11 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                         <div className="gst-nil-bottom-btns">
                             <button className="gst-nil-btn outline" type="button" onClick={() => setScreen("returns-list")}>BACK</button>
                             <button className="gst-nil-btn" type="button">DOWNLOAD DETAILS FROM E-INVOICES (EXCEL)</button>
-                            <button className="gst-nil-btn" type="button" onClick={handleGstr1FileStatement}>PREVIEW</button>
+                            <button className="gst-nil-btn" type="button">PREVIEW</button>
                             <button className="gst-nil-btn outline" type="button">RESET</button>
-                            <button className="gst-nil-btn" type="button" onClick={() => setScreen("gstr1-filing")}>FILE STATEMENT</button>
+                            <button className="gst-nil-btn" type="button" onClick={handleGstr1FileStatement}>
+                                {nilGstr1Checked || showSummaryBanner ? "FILE STATEMENT" : "GENERATE SUMMARY"}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1128,7 +1193,6 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                                 <input
                                     type="checkbox"
                                     className="gst-nil-checkbox"
-                                    defaultChecked
                                     readOnly
                                 />
                                 <span>
@@ -1333,7 +1397,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                         <div className="gst-nil-filing-body" style={{ border: "1px solid #ddd" }}>
                             {/* Declaration */}
                             <div className="gst-nil-declaration-row">
-                                <input type="checkbox" className="gst-nil-checkbox" defaultChecked readOnly />
+                                <input type="checkbox" className="gst-nil-checkbox" readOnly />
                                 <span>
                                     I/We hereby solemnly affirm and declare that the information given herein above is true and correct to the best of my/our knowledge and belief and nothing has been concealed therefrom.
                                 </span>
