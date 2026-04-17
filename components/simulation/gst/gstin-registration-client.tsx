@@ -679,6 +679,9 @@ function GSTGstinSimulator({
     const [promoterDetails, setPromoterDetails] = useState<PersonDetails>(EMPTY_PERSON_DETAILS);
     const [authorizedSignatoryDetails, setAuthorizedSignatoryDetails] = useState<PersonDetails>(EMPTY_PERSON_DETAILS);
     const hasSavedAttemptRef = useRef(false);
+    const landingHref = questionId
+        ? `/gst-simulation?questionId=${questionId}`
+        : "/gst-simulation";
 
     const applicationDate = new Date().toLocaleDateString("en-GB");
     const expiryDate = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB");
@@ -926,6 +929,14 @@ function GSTGstinSimulator({
         setShowSuccessModal(true);
     }
 
+    function handleViewEvaluation() {
+        setShowEvaluationPopup(true);
+    }
+
+    function handleProceedToLanding() {
+        window.location.href = landingHref;
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // DONE state
     // ─────────────────────────────────────────────────────────────────────────
@@ -948,7 +959,22 @@ function GSTGstinSimulator({
                             <p>
                                 You have successfully completed the GST Registration (Part B). The application is now pending verification by the GST Officer. You will receive a confirmation on your registered mobile and email.
                             </p>
-                            <button type="button" className="gst-trn-success-proceed">PROCEED</button>
+                            <div style={{ display: "flex", gap: 10 }}>
+                                <button
+                                    type="button"
+                                    className="gst-trn-success-proceed"
+                                    onClick={handleViewEvaluation}
+                                >
+                                    VIEW EVALUATION
+                                </button>
+                                <button
+                                    type="button"
+                                    className="gst-trn-success-proceed"
+                                    onClick={handleProceedToLanding}
+                                >
+                                    PROCEED
+                                </button>
+                            </div>
                         </div>
                     </section>
                 </main>

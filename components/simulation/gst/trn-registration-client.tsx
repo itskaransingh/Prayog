@@ -496,6 +496,9 @@ function GSTTrnSimulator({
     const [trnNumber, setTrnNumber] = useState("");
     const [startTime] = useState<number>(() => Date.now());
     const hasSavedAttemptRef = useRef(false);
+    const landingHref = questionId
+        ? `/gst-simulation?questionId=${questionId}`
+        : "/gst-simulation";
 
     useEffect(() => {
         async function loadConfig() {
@@ -621,6 +624,14 @@ function GSTTrnSimulator({
         setShowSuccessModal(true);
     }
 
+    function handleViewEvaluation() {
+        setShowEvaluationPopup(true);
+    }
+
+    function handleProceedToLanding() {
+        window.location.href = landingHref;
+    }
+
     if (isCompleted && evaluationResults) {
         return (
             <>
@@ -648,9 +659,22 @@ function GSTTrnSimulator({
                                 application form needs to be completed within 15 days,
                                 using this TRN.
                             </p>
-                            <button type="button" className="gst-trn-success-proceed">
-                                PROCEED
-                            </button>
+                            <div style={{ display: "flex", gap: 10 }}>
+                                <button
+                                    type="button"
+                                    className="gst-trn-success-proceed"
+                                    onClick={handleViewEvaluation}
+                                >
+                                    VIEW EVALUATION
+                                </button>
+                                <button
+                                    type="button"
+                                    className="gst-trn-success-proceed"
+                                    onClick={handleProceedToLanding}
+                                >
+                                    PROCEED
+                                </button>
+                            </div>
                         </div>
                     </section>
                 </main>

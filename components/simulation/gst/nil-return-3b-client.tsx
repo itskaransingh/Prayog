@@ -119,7 +119,8 @@ type Screen =
     | "gstr1-form"
     | "gstr1-filing"
     | "gstr3b-form"
-    | "gstr3b-filing";
+    | "gstr3b-filing"
+    | "completed";
 
 // ─── Cache helpers ────────────────────────────────────────────────────────────
 
@@ -542,7 +543,17 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
         const endTime = Date.now();
         const results = evaluateRegistration(data, startTime, endTime, mappings);
         setEvaluationResults(results);
+        setScreen("completed");
         setShowEvaluationPopup(true);
+    }
+
+    function handleViewEvaluation() {
+        if (!evaluationResults) return;
+        setShowEvaluationPopup(true);
+    }
+
+    function handleProceedToLanding() {
+        setScreen("landing");
     }
 
     // ── Render evaluation popup ───────────────────────────────────────────────
@@ -563,6 +574,37 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                         showExpectedValues={showExpectedAnswers}
                         onClose={() => setShowEvaluationPopup(false)}
                     />
+                </div>
+            </GSTPortalChrome>
+        );
+    }
+
+    if (screen === "completed" && evaluationResults) {
+        return (
+            <GSTPortalChrome
+                questionBadge={questionBadge}
+                loggedIn
+                legalName={meta.legalName}
+                gstin={meta.gstin}
+                backHref={backHref}
+                onLoginClick={() => setScreen("login")}
+            >
+                <div className="gst-nil-inner">
+                    <div className="gst-nil-form-wrap">
+                        <div className="gst-nil-success-banner" style={{ marginTop: 10 }}>
+                            <span className="gst-nil-success-banner-check">✔</span>
+                            GSTR-3B filing has been completed successfully.
+                        </div>
+
+                        <div className="gst-nil-bottom-btns" style={{ marginTop: 18 }}>
+                            <button className="gst-nil-btn" type="button" onClick={handleViewEvaluation}>
+                                VIEW EVALUATION
+                            </button>
+                            <button className="gst-nil-btn" type="button" onClick={handleProceedToLanding}>
+                                PROCEED
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </GSTPortalChrome>
         );
