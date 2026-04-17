@@ -126,6 +126,13 @@
   gap: 12px;
 }
 
+.sim-prayog-logo {
+  display: block;
+  width: 170px;
+  height: auto;
+  object-fit: contain;
+}
+
 .sim-logo-icon {
   font-size: 32px;
 }
