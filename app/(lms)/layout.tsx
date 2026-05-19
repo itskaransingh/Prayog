@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CourseTopicsSidebar } from "@/components/lms/course-topics-sidebar";
-import { Bell, LogOut, LayoutDashboard, User } from "lucide-react";
+import { Bell, LogOut, LayoutDashboard, User, BookOpen, BarChart3, Award, Bookmark, ChevronRight, PanelLeftClose, PanelLeft } from "lucide-react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,15 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { PrayogLogo } from "@/components/branding/prayog-logo";
 import { LmsBreadcrumbs } from "@/components/lms/lms-breadcrumbs";
 import { LmsBreadcrumbProvider, useLmsBreadcrumbs } from "@/components/lms/lms-breadcrumb-context";
+import { RightSidebar } from "@/components/lms/right-sidebar";
+
+const NAV_ITEMS = [
+    { label: "All Offerings", href: "/", icon: "✦" },
+    { label: "Learning Contents", href: "/learning-contents", icon: BookOpen },
+    { label: "My Progress", href: "/my-progress", icon: BarChart3 },
+    { label: "Achievements", href: "/achievements", icon: Award },
+    { label: "Saved", href: "/saved", icon: Bookmark },
+];
 
 function LmsLayoutShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -20,6 +29,8 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
     const supabase = useMemo(() => createClient(), []);
     const [role, setRole] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
+    const [userName, setUserName] = useState("");
+    const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const { breadcrumbs } = useLmsBreadcrumbs();
 
     useEffect(() => {
@@ -34,6 +45,10 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
 
                 if (profile) {
                     setRole(profile.role);
+                }
+                if (user.email) {
+                    const name = user.email.split("@")[0];
+                    setUserName(name.charAt(0).toUpperCase() + name.slice(1));
                 }
             }
             setLoading(false);
@@ -50,6 +65,14 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
 
     const isCoursePage = pathname.startsWith("/course");
     const hasCourseBreadcrumbs = isCoursePage && breadcrumbs.length > 0;
+    const isLmsHomePage = pathname === "/";
+
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return "Good morning";
+        if (hour < 17) return "Good afternoon";
+        return "Good evening";
+    };
 
     return (
         <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -111,11 +134,119 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                     </div>
                 )}
 
-                {/* Main content area */}
-                <div className="flex flex-1 flex-col bg-muted/30">
-                    <main className="flex-1 overflow-y-auto w-full">
-                        {children}
-                    </main>
+                {/* Progress Strip - Only on home page */}
+                {isLmsHomePage && (
+                    <div className="h-10 bg-muted/50 dark:bg-slate-900/50 border-b border-border dark:border-slate-800 flex items-center px-5 gap-4 text-sm">
+                        {/* Sidebar Toggle */}
+                        <button
+                            onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+                            className="p-1.5 text-muted-foreground dark:text-slate-400 hover:bg-muted dark:hover:bg-slate-800 rounded transition-colors"
+                            aria-label={leftSidebarOpen ? "Close sidebar" : "Open sidebar"}
+                        >
+                            {leftSidebarOpen ? (
+                                <PanelLeftClose className="h-4 w-4" />
+                            ) : (
+                                <PanelLeft className="h-4 w-4" />
+                            )}
+                        </button>
+                        <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-semibold">
+                            🔥 14 day streak
+                        </div>
+                        <div className="flex-1" />
+                        <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2 text-muted-foreground dark:text-slate-400">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-600 dark:text-blue-400">
+                                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                                    <path d="M6 12v5c0 1.1 2.7 2 6 2s6-.9 6-2v-5"/>
+                                </svg>
+                                <span>Programs Enrolled</span>
+                                <strong className="text-foreground dark:text-slate-200">3</strong>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className="bg-blue-100 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-full px-2.5 py-0.5 text-xs font-bold text-blue-700 dark:text-blue-300">Lv 7</span>
+                                <div className="w-24 h-1.5 bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
+                                    <div className="h-full w-[63%] bg-gradient-to-r from-blue-600 to-blue-400 rounded-full" />
+                                </div>
+                                <span className="text-muted-foreground dark:text-slate-400 text-xs">1,260 / 2,000 XP</span>
+                            </div>
+                        </div>
+                        <div className="ml-8 text-muted-foreground dark:text-slate-400">
+                            {getGreeting()}, <strong className="text-foreground dark:text-slate-200">{userName || "Learner"}</strong> 👋
+                        </div>
+                    </div>
+                )}
+
+                {/* Main content area with sidebars */}
+                <div className="flex flex-1">
+                    {/* Left Sidebar - Only on home page, starts below progress strip */}
+                    {isLmsHomePage && (
+                        <aside className={`${leftSidebarOpen ? 'w-48' : 'w-0'} flex-shrink-0 bg-muted/30 dark:bg-slate-900/30 border-r border-border dark:border-slate-800 transition-all duration-300 overflow-hidden`}>
+                            {leftSidebarOpen && (
+                                <div className="w-48 p-3 flex flex-col h-full">
+                                    {/* Breadcrumb */}
+                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground dark:text-slate-500 mb-2 px-1.5">
+                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                                            <polyline points="9 22 9 12 15 12 15 22" />
+                                        </svg>
+                                        <span className="opacity-50">›</span>
+                                        <span>Prayog Offerings</span>
+                                    </div>
+
+                                    {/* Navigation - Compact */}
+                                    <nav className="flex flex-col gap-0.5 flex-1">
+                                        {NAV_ITEMS.map((item) => {
+                                            const isActive = item.href === pathname;
+                                            const IconComponent = typeof item.icon === "string" ? null : item.icon;
+
+                                            return (
+                                                <Link
+                                                    key={item.href}
+                                                    href={item.href}
+                                                    className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition-colors ${
+                                                        isActive
+                                                            ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold border-r-2 border-blue-600"
+                                                            : "text-muted-foreground dark:text-slate-400 hover:bg-muted dark:hover:bg-slate-800"
+                                                    }`}
+                                                >
+                                                    {typeof item.icon === "string" ? (
+                                                        <span className="w-4 text-center text-base">{item.icon}</span>
+                                                    ) : (
+                                                        <IconComponent className="w-4 h-4" />
+                                                    )}
+                                                    {item.label}
+                                                </Link>
+                                            );
+                                        })}
+                                    </nav>
+
+                                    {/* Promo Card - Compact */}
+                                    <div className="mt-auto p-2.5 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/50 border border-blue-200/50 dark:border-blue-800/50 rounded-lg">
+                                        <div className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 mb-0.5">Keep going!</div>
+                                        <div className="text-[9px] text-muted-foreground dark:text-slate-400 mb-1.5">Top 15% this week.</div>
+                                        <div className="text-2xl text-center mb-1.5">🏆</div>
+                                        <Link
+                                            href="/leaderboard"
+                                            className="w-full flex items-center justify-between px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold rounded-md transition-colors"
+                                        >
+                                            View Leaderboard
+                                            <ChevronRight className="w-3 h-3" />
+                                        </Link>
+                                    </div>
+                                </div>
+                            )}
+                        </aside>
+                    )}
+
+                    {/* Center Content */}
+                    <div className="flex-1 flex flex-col bg-muted/30 dark:bg-slate-950/30">
+                        <main className="flex-1 overflow-y-auto w-full">
+                            {children}
+                        </main>
+                    </div>
+
+                    {/* Right Sidebar - Only on home page, always visible */}
+                    {isLmsHomePage && <RightSidebar />}
                 </div>
             </SidebarInset>
         </div>
