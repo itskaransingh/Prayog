@@ -257,7 +257,7 @@ export function CaseStudyContent({
         const fetchQuestionStatus = async () => {
             try {
                 const response = await fetch(
-                    `/api/lms/submodules/${submoduleSlug}/question-status`,
+                    `/api/lms/chapters/${submoduleSlug}/question-status`,
                     { cache: "no-store", credentials: "include" },
                 );
                 const payload = await response.json();
@@ -502,7 +502,7 @@ export function CaseStudyContent({
             ) : (
                 <Card className="container mx-auto border-dashed border-border bg-muted/20">
                     <CardContent className="pt-6 text-sm text-muted-foreground text-center">
-                        No case study content is available for this submodule yet.
+                        No case study content is available for this chapter yet.
                     </CardContent>
                 </Card>
             )}

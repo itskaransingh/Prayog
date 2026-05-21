@@ -76,7 +76,7 @@ export function CourseTopicsSidebar() {
         const fetchSidebarData = async () => {
             try {
                 const response = await fetch(
-                    `/api/lms/submodules/${submoduleSlug}/question-status`,
+                    `/api/lms/chapters/${submoduleSlug}/question-status`,
                     { cache: "no-store", credentials: "include" },
                 );
                 const payload = await response.json();
@@ -85,7 +85,7 @@ export function CourseTopicsSidebar() {
                     throw new Error(payload.error || "Failed to load sidebar data");
                 }
 
-                const nextTitle = payload.submodule?.title || "Module Not Found";
+                const nextTitle = payload.chapter?.title || "Chapter Not Found";
                 const nextTopics: Topic[] = (payload.questions ?? []).map((question: {
                     id: string;
                     order: number;

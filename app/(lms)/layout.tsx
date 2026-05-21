@@ -79,49 +79,47 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
             {isCoursePage && <CourseTopicsSidebar />}
             <SidebarInset className="flex flex-col">
                 {/* Top header */}
-                <header className="sticky top-0 z-40 flex h-20 shrink-0 items-center justify-between border-b bg-background px-4">
-                    <div className="container mx-auto flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2">
-                            <Link href={"/"} className="flex items-center gap-2 group transition-all duration-200">
-                                <PrayogLogo className="h-16 w-[264px] transition-transform duration-200 group-hover:scale-[1.02]" priority />
-                            </Link>
-                        </div>
-                        <div className="flex items-center gap-2 sm:gap-4">
-                            {!loading && role === "admin" && (
-                                <Link href="/dashboard">
-                                    <Button variant="ghost" size="sm" className="hidden sm:flex items-center gap-2 text-muted-foreground hover:text-blue-600 hover:bg-accent/50">
-                                        <LayoutDashboard className="h-4 w-4" />
-                                        <span>Dashboard</span>
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="sm:hidden text-muted-foreground">
-                                        <LayoutDashboard className="h-4 w-4" />
-                                    </Button>
-                                </Link>
-                            )}
-
-                            <ThemeToggle />
-
-                            <button className="relative p-2 text-muted-foreground hover:bg-accent rounded-full transition-colors flex items-center justify-center">
-                                <Bell className="h-5 w-5" />
-                                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border-2 border-background"></span>
-                            </button>
-
-                            <Separator orientation="vertical" className="h-6" />
-
-                            <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-sm">
-                                    <User className="h-4 w-4" />
-                                </div>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleLogout}
-                                    className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 gap-2 font-medium"
-                                >
-                                    <LogOut className="h-4 w-4" />
-                                    <span className="hidden sm:inline">Logout</span>
+                <header className="sticky top-0 z-40 flex h-20 shrink-0 items-center justify-between border-b bg-background px-5">
+                    <div className="flex items-center gap-2">
+                        <Link href={"/"} className="flex items-center gap-2 group transition-all duration-200">
+                            <PrayogLogo className="h-16 w-[264px] transition-transform duration-200 group-hover:scale-[1.02]" priority />
+                        </Link>
+                    </div>
+                    <div className="flex items-center gap-2 sm:gap-4 ml-auto">
+                        {!loading && (role === "admin" || role === "super_admin") && (
+                            <Link href="/dashboard">
+                                <Button variant="ghost" size="sm" className="hidden sm:flex items-center gap-2 text-muted-foreground hover:text-blue-600 hover:bg-accent/50">
+                                    <LayoutDashboard className="h-4 w-4" />
+                                    <span>Dashboard</span>
                                 </Button>
+                                <Button variant="ghost" size="icon" className="sm:hidden text-muted-foreground">
+                                    <LayoutDashboard className="h-4 w-4" />
+                                </Button>
+                            </Link>
+                        )}
+
+                        <ThemeToggle />
+
+                        <button className="relative p-2 text-muted-foreground hover:bg-accent rounded-full transition-colors flex items-center justify-center">
+                            <Bell className="h-5 w-5" />
+                            <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border-2 border-background"></span>
+                        </button>
+
+                        <Separator orientation="vertical" className="h-6" />
+
+                        <div className="flex items-center gap-2">
+                            <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 flex items-center justify-center border border-blue-200 dark:border-blue-800 shadow-sm">
+                                <User className="h-4 w-4" />
                             </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleLogout}
+                                className="text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 gap-2 font-medium"
+                            >
+                                <LogOut className="h-4 w-4" />
+                                <span className="hidden sm:inline">Logout</span>
+                            </Button>
                         </div>
                     </div>
                 </header>
@@ -136,24 +134,30 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
 
                 {/* Progress Strip - Only on home page */}
                 {isLmsHomePage && (
-                    <div className="h-10 bg-muted/50 dark:bg-slate-900/50 border-b border-border dark:border-slate-800 flex items-center px-5 gap-4 text-sm">
-                        {/* Sidebar Toggle */}
-                        <button
-                            onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
-                            className="p-1.5 text-muted-foreground dark:text-slate-400 hover:bg-muted dark:hover:bg-slate-800 rounded transition-colors"
-                            aria-label={leftSidebarOpen ? "Close sidebar" : "Open sidebar"}
-                        >
-                            {leftSidebarOpen ? (
-                                <PanelLeftClose className="h-4 w-4" />
-                            ) : (
-                                <PanelLeft className="h-4 w-4" />
-                            )}
-                        </button>
-                        <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-semibold">
-                            🔥 14 day streak
+                    <div className="h-10 bg-muted/50 dark:bg-slate-900/50 border-b border-border dark:border-slate-800 flex items-center px-5 gap-3 text-sm">
+                        {/* Left Group: Toggle + Streak */}
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
+                                className="p-1.5 text-muted-foreground dark:text-slate-400 hover:bg-muted dark:hover:bg-slate-800 rounded transition-colors"
+                                aria-label={leftSidebarOpen ? "Close sidebar" : "Open sidebar"}
+                            >
+                                {leftSidebarOpen ? (
+                                    <PanelLeftClose className="h-4 w-4" />
+                                ) : (
+                                    <PanelLeft className="h-4 w-4" />
+                                )}
+                            </button>
+                            <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-semibold">
+                                🔥 14 day streak
+                            </div>
                         </div>
-                        <div className="flex-1" />
-                        <div className="flex items-center gap-6">
+
+                        {/* Divider */}
+                        <div className="w-px h-5 bg-border dark:bg-slate-700" />
+
+                        {/* Center Group: Programs + Level/XP */}
+                        <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2 text-muted-foreground dark:text-slate-400">
                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-600 dark:text-blue-400">
                                     <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
@@ -170,7 +174,11 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                                 <span className="text-muted-foreground dark:text-slate-400 text-xs">1,260 / 2,000 XP</span>
                             </div>
                         </div>
-                        <div className="ml-8 text-muted-foreground dark:text-slate-400">
+
+                        <div className="flex-1" />
+
+                        {/* Right Group: Greeting */}
+                        <div className="text-muted-foreground dark:text-slate-400">
                             {getGreeting()}, <strong className="text-foreground dark:text-slate-200">{userName || "Learner"}</strong> 👋
                         </div>
                     </div>
@@ -180,9 +188,9 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                 <div className="flex flex-1">
                     {/* Left Sidebar - Only on home page, starts below progress strip */}
                     {isLmsHomePage && (
-                        <aside className={`${leftSidebarOpen ? 'w-48' : 'w-0'} flex-shrink-0 bg-muted/30 dark:bg-slate-900/30 border-r border-border dark:border-slate-800 transition-all duration-300 overflow-hidden`}>
+                        <aside className={`${leftSidebarOpen ? 'w-52' : 'w-0'} flex-shrink-0 bg-muted/30 dark:bg-slate-900/30 border-r border-border dark:border-slate-800 transition-all duration-300 overflow-hidden`}>
                             {leftSidebarOpen && (
-                                <div className="w-48 p-3 flex flex-col h-full">
+                                <div className="w-52 p-3 flex flex-col h-full">
                                     {/* Breadcrumb */}
                                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground dark:text-slate-500 mb-2 px-1.5">
                                         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -193,7 +201,7 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                                         <span>Prayog Offerings</span>
                                     </div>
 
-                                    {/* Navigation - Compact */}
+                                    {/* Navigation */}
                                     <nav className="flex flex-col gap-0.5 flex-1">
                                         {NAV_ITEMS.map((item) => {
                                             const isActive = item.href === pathname;
@@ -203,7 +211,7 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                                                 <Link
                                                     key={item.href}
                                                     href={item.href}
-                                                    className={`flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition-colors ${
+                                                    className={`flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-lg transition-colors ${
                                                         isActive
                                                             ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold border-r-2 border-blue-600"
                                                             : "text-muted-foreground dark:text-slate-400 hover:bg-muted dark:hover:bg-slate-800"
@@ -212,7 +220,7 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                                                     {typeof item.icon === "string" ? (
                                                         <span className="w-4 text-center text-base">{item.icon}</span>
                                                     ) : (
-                                                        <IconComponent className="w-4 h-4" />
+                                                        <item.icon className="w-4 h-4" />
                                                     )}
                                                     {item.label}
                                                 </Link>
@@ -220,17 +228,17 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                                         })}
                                     </nav>
 
-                                    {/* Promo Card - Compact */}
-                                    <div className="mt-auto p-2.5 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/50 border border-blue-200/50 dark:border-blue-800/50 rounded-lg">
-                                        <div className="text-[11px] font-semibold text-blue-700 dark:text-blue-300 mb-0.5">Keep going!</div>
-                                        <div className="text-[9px] text-muted-foreground dark:text-slate-400 mb-1.5">Top 15% this week.</div>
-                                        <div className="text-2xl text-center mb-1.5">🏆</div>
+                                    {/* Promo Card - Larger */}
+                                    <div className="mt-auto p-3.5 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/50 border border-blue-200/50 dark:border-blue-800/50 rounded-xl">
+                                        <div className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">Keep going!</div>
+                                        <div className="text-[11px] text-muted-foreground dark:text-slate-400 mb-2">You&apos;re in the top 15% of learners this week.</div>
+                                        <div className="text-3xl text-center mb-2.5">🏆</div>
                                         <Link
                                             href="/leaderboard"
-                                            className="w-full flex items-center justify-between px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-semibold rounded-md transition-colors"
+                                            className="w-full flex items-center justify-between px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
                                         >
                                             View Leaderboard
-                                            <ChevronRight className="w-3 h-3" />
+                                            <ChevronRight className="w-4 h-4" />
                                         </Link>
                                     </div>
                                 </div>

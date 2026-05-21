@@ -17,15 +17,15 @@ import Link from "next/link";
 
 type Tab = "overview" | "users" | "simulations" | "settings";
 
-interface ModuleOption {
+interface CourseOption {
     id: string;
     title: string;
     slug: string;
 }
 
-interface SubmoduleOption {
+interface ChapterOption {
     id: string;
-    module_id: string;
+    course_id: string;
     title: string;
     slug: string;
 }
@@ -36,10 +36,10 @@ interface SimulationAttempt {
     user_id: string;
     full_name: string;
     email: string;
-    module_id: string;
-    module_name: string;
-    submodule_id: string;
-    submodule_name: string;
+    course_id: string;
+    course_name: string;
+    chapter_id: string;
+    chapter_name: string;
     question_id: string;
     question_title: string;
     task_id: string;
@@ -67,23 +67,15 @@ interface GroupedUser {
     questions: GroupedQuestion[];
 }
 
-interface GroupedSubmodule {
-    module_id: string;
-    module_name: string;
-    submodule_id: string;
-    submodule_name: string;
+interface GroupedChapter {
+    course_id: string;
+    course_name: string;
+    chapter_id: string;
+    chapter_name: string;
     users: GroupedUser[];
 }
 
-interface AdminUserRecord {
-    id: string;
-    email: string;
-    full_name: string | null;
-    role: string;
-    created_at: string;
-}
-
-function getSubmoduleAttemptCount(group: GroupedSubmodule) {
+function getChapterAttemptCount(group: GroupedChapter) {
     return group.users.reduce(
         (userTotal, user) =>
             userTotal +
@@ -95,18 +87,27 @@ function getSubmoduleAttemptCount(group: GroupedSubmodule) {
     );
 }
 
+interface AdminUserRecord {
+    id: string;
+    email: string;
+    full_name: string | null;
+    role: string;
+    created_at: string;
+}
+
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState<Tab>("users");
+    const [userRole, setUserRole] = useState<string>("");
     const [users, setUsers] = useState<AdminUserRecord[]>([]);
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-    const [modules, setModules] = useState<ModuleOption[]>([]);
-    const [submodules, setSubmodules] = useState<SubmoduleOption[]>([]);
-    const [selectedModuleId, setSelectedModuleId] = useState("");
-    const [selectedSubmoduleId, setSelectedSubmoduleId] = useState("");
+    const [courses, setCourses] = useState<CourseOption[]>([]);
+    const [chapters, setChapters] = useState<ChapterOption[]>([]);
+    const [selectedCourseId, setSelectedCourseId] = useState("");
+    const [selectedChapterId, setSelectedChapterId] = useState("");
     const [simulations, setSimulations] = useState<SimulationAttempt[]>([]);
-    const [groupedSimulations, setGroupedSimulations] = useState<GroupedSubmodule[]>([]);
-    const [isLoadingModules, setIsLoadingModules] = useState(false);
-    const [isLoadingSubmodules, setIsLoadingSubmodules] = useState(false);
+    const [groupedSimulations, setGroupedSimulations] = useState<GroupedChapter[]>([]);
+    const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+    const [isLoadingChapters, setIsLoadingChapters] = useState(false);
     const [isLoadingSimulations, setIsLoadingSimulations] = useState(false);
     const [errorSimulations, setErrorSimulations] = useState<string | null>(null);
     const [isEmptySimulations, setIsEmptySimulations] = useState(false);
@@ -128,38 +129,52 @@ export default function AdminDashboard() {
         }
     }, []);
 
-    const fetchModules = useCallback(async () => {
-        setIsLoadingModules(true);
+    const fetchUserRole = useCallback(async () => {
         try {
-            const res = await fetch("/api/admin/modules");
-            const data = await res.json();
-            if (!res.ok) {
-                throw new Error(data.error || "Failed to fetch modules");
+            const res = await fetch("/api/admin/users");
+            if (res.ok) {
+                const data = await res.json();
+                if (data.currentUserRole) {
+                    setUserRole(data.currentUserRole);
+                }
             }
-
-            setModules(data.modules || []);
         } catch (error) {
-            console.error("Error fetching modules:", error);
-        } finally {
-            setIsLoadingModules(false);
+            console.error("Error fetching user role:", error);
         }
     }, []);
 
-    const fetchSubmodules = useCallback(async (moduleId: string) => {
-        setIsLoadingSubmodules(true);
+    const fetchCourses = useCallback(async () => {
+        setIsLoadingCourses(true);
         try {
-            const res = await fetch(`/api/admin/submodules?moduleId=${moduleId}`);
+            const res = await fetch("/api/admin/courses");
             const data = await res.json();
             if (!res.ok) {
-                throw new Error(data.error || "Failed to fetch submodules");
+                throw new Error(data.error || "Failed to fetch courses");
             }
 
-            setSubmodules(data.submodules || []);
+            setCourses(data.courses || []);
         } catch (error) {
-            console.error("Error fetching submodules:", error);
-            setSubmodules([]);
+            console.error("Error fetching courses:", error);
         } finally {
-            setIsLoadingSubmodules(false);
+            setIsLoadingCourses(false);
+        }
+    }, []);
+
+    const fetchChapters = useCallback(async (courseId: string) => {
+        setIsLoadingChapters(true);
+        try {
+            const res = await fetch(`/api/admin/chapters?courseId=${courseId}`);
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to fetch chapters");
+            }
+
+            setChapters(data.chapters || []);
+        } catch (error) {
+            console.error("Error fetching chapters:", error);
+            setChapters([]);
+        } finally {
+            setIsLoadingChapters(false);
         }
     }, []);
 
@@ -168,11 +183,11 @@ export default function AdminDashboard() {
         setErrorSimulations(null);
         try {
             const searchParams = new URLSearchParams();
-            if (selectedModuleId) {
-                searchParams.set("moduleId", selectedModuleId);
+            if (selectedCourseId) {
+                searchParams.set("courseId", selectedCourseId);
             }
-            if (selectedSubmoduleId) {
-                searchParams.set("submoduleId", selectedSubmoduleId);
+            if (selectedChapterId) {
+                searchParams.set("chapterId", selectedChapterId);
             }
 
             const queryString = searchParams.toString();
@@ -182,7 +197,7 @@ export default function AdminDashboard() {
             const data = await res.json();
             if (res.ok && data.attempts) {
                 setSimulations(data.attempts);
-                setGroupedSimulations(data.groupedBySubmodule || []);
+                setGroupedSimulations(data.groupedByChapter || []);
                 setIsEmptySimulations(Boolean(data._isEmpty));
             } else {
                 console.error("Failed to fetch simulations:", data.error);
@@ -198,30 +213,31 @@ export default function AdminDashboard() {
         } finally {
             setIsLoadingSimulations(false);
         }
-    }, [selectedModuleId, selectedSubmoduleId]);
+    }, [selectedCourseId, selectedChapterId]);
 
     useEffect(() => {
+        fetchUserRole();
         if (activeTab === "users") {
             fetchUsers();
         } else if (activeTab === "simulations") {
-            fetchModules();
+            fetchCourses();
             fetchSimulations();
         }
-    }, [activeTab, fetchUsers, fetchModules, fetchSimulations]);
+    }, [activeTab, fetchUsers, fetchCourses, fetchSimulations, fetchUserRole]);
 
     useEffect(() => {
         if (activeTab !== "simulations") {
             return;
         }
 
-        if (!selectedModuleId) {
-            setSubmodules([]);
-            setSelectedSubmoduleId("");
+        if (!selectedCourseId) {
+            setChapters([]);
+            setSelectedChapterId("");
             return;
         }
 
-        void fetchSubmodules(selectedModuleId);
-    }, [activeTab, fetchSubmodules, selectedModuleId]);
+        void fetchChapters(selectedCourseId);
+    }, [activeTab, fetchChapters, selectedCourseId]);
 
     const tabs = [
         { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -272,11 +288,11 @@ export default function AdminDashboard() {
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Content Management</p>
                     </div>
                     <Link
-                        href="/dashboard/admin/content/modules"
+                        href="/dashboard/admin/content/courses"
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                     >
                         <BookOpen className="h-4 w-4 text-slate-400" />
-                        Modules & Submodules
+                        Courses & Chapters
                     </Link>
                     <Link
                         href="/dashboard/admin/content/questions"
@@ -351,7 +367,7 @@ export default function AdminDashboard() {
                     {activeTab === "users" && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                             <div className="lg:col-span-1">
-                                <CreateUserForm onSuccess={fetchUsers} />
+                                <CreateUserForm onSuccess={fetchUsers} userRole={userRole} />
                             </div>
                             <div className="lg:col-span-2 space-y-6">
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -390,8 +406,16 @@ export default function AdminDashboard() {
                                                             </td>
                                                             <td className="px-6 py-3 font-medium text-slate-900">{user.email}</td>
                                                             <td className="px-6 py-3">
-                                                                <span className={`px-2.5 py-1 inline-flex text-[10px] leading-4 font-semibold rounded-full ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
-                                                                    {user.role}
+                                                                <span className={`px-2.5 py-1 inline-flex text-[10px] leading-4 font-semibold rounded-full ${
+                                                                    user.role === 'super_admin' ? 'bg-red-100 text-red-800' :
+                                                                    user.role === 'admin' ? 'bg-purple-100 text-purple-800' :
+                                                                    user.role === 'faculty' ? 'bg-blue-100 text-blue-800' :
+                                                                    'bg-green-100 text-green-800'
+                                                                }`}>
+                                                                    {user.role === 'super_admin' ? 'Super Admin' :
+                                                                     user.role === 'admin' ? 'Admin' :
+                                                                     user.role === 'faculty' ? 'Faculty' :
+                                                                     'Student'}
                                                                 </span>
                                                             </td>
                                                             <td className="px-6 py-3 text-slate-500">
@@ -416,7 +440,7 @@ export default function AdminDashboard() {
                                         <div>
                                             <h3 className="font-semibold text-slate-900">User Simulation Attempts</h3>
                                             <p className="text-sm text-slate-500 mt-1">
-                                                Filter by module and submodule, then review each learner&apos;s question-wise attempt history in chronological order.
+                                                Filter by course and chapter, then review each learner&apos;s question-wise attempt history in chronological order.
                                             </p>
                                         </div>
                                         <Button variant="outline" size="sm" onClick={fetchSimulations} disabled={isLoadingSimulations}>
@@ -426,45 +450,45 @@ export default function AdminDashboard() {
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <label className="space-y-2 text-sm">
-                                            <span className="font-medium text-slate-700">Module</span>
+                                            <span className="font-medium text-slate-700">Course</span>
                                             <select
                                                 className="w-full h-11 rounded-lg border border-slate-200 bg-white px-3 text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                                                value={selectedModuleId}
+                                                value={selectedCourseId}
                                                 onChange={(event) => {
-                                                    setSelectedModuleId(event.target.value);
-                                                    setSelectedSubmoduleId("");
+                                                    setSelectedCourseId(event.target.value);
+                                                    setSelectedChapterId("");
                                                 }}
-                                                disabled={isLoadingModules}
+                                                disabled={isLoadingCourses}
                                             >
                                                 <option value="">
-                                                    {isLoadingModules ? "Loading modules..." : "All modules"}
+                                                    {isLoadingCourses ? "Loading courses..." : "All courses"}
                                                 </option>
-                                                {modules.map((module) => (
-                                                    <option key={module.id} value={module.id}>
-                                                        {module.title}
+                                                {courses.map((course) => (
+                                                    <option key={course.id} value={course.id}>
+                                                        {course.title}
                                                     </option>
                                                 ))}
                                             </select>
                                         </label>
 
                                         <label className="space-y-2 text-sm">
-                                            <span className="font-medium text-slate-700">Submodule</span>
+                                            <span className="font-medium text-slate-700">Chapter</span>
                                             <select
                                                 className="w-full h-11 rounded-lg border border-slate-200 bg-white px-3 text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                                                value={selectedSubmoduleId}
-                                                onChange={(event) => setSelectedSubmoduleId(event.target.value)}
-                                                disabled={!selectedModuleId || isLoadingSubmodules}
+                                                value={selectedChapterId}
+                                                onChange={(event) => setSelectedChapterId(event.target.value)}
+                                                disabled={!selectedCourseId || isLoadingChapters}
                                             >
                                                 <option value="">
-                                                    {!selectedModuleId
-                                                        ? "Select a module first"
-                                                        : isLoadingSubmodules
-                                                        ? "Loading submodules..."
-                                                        : "All submodules"}
+                                                    {!selectedCourseId
+                                                        ? "Select a course first"
+                                                        : isLoadingChapters
+                                                        ? "Loading chapters..."
+                                                        : "All chapters"}
                                                 </option>
-                                                {submodules.map((submodule) => (
-                                                    <option key={submodule.id} value={submodule.id}>
-                                                        {submodule.title}
+                                                {chapters.map((chapter) => (
+                                                    <option key={chapter.id} value={chapter.id}>
+                                                        {chapter.title}
                                                     </option>
                                                 ))}
                                             </select>
@@ -500,30 +524,30 @@ export default function AdminDashboard() {
                                     </div>
                                 ) : (
                                     <div className="p-6 space-y-6 bg-slate-50/60">
-                                        {groupedSimulations.map((submoduleGroup) => (
+                                        {groupedSimulations.map((chapterGroup) => (
                                             <section
-                                                key={submoduleGroup.submodule_id}
+                                                key={chapterGroup.chapter_id}
                                                 className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden"
                                             >
                                                 <div className="border-b border-slate-100 px-6 py-5 bg-slate-50/80">
                                                     <div className="flex flex-wrap items-center gap-3">
                                                         <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                                                            {submoduleGroup.module_name}
+                                                            {chapterGroup.course_name}
                                                         </span>
                                                         <h4 className="text-lg font-semibold text-slate-900">
-                                                            {submoduleGroup.submodule_name}
+                                                            {chapterGroup.chapter_name}
                                                         </h4>
                                                         <span className="text-sm text-slate-500">
-                                                            {submoduleGroup.users.length} user{submoduleGroup.users.length === 1 ? "" : "s"}
+                                                            {chapterGroup.users.length} user{chapterGroup.users.length === 1 ? "" : "s"}
                                                         </span>
                                                         <span className="text-sm text-slate-500">
-                                                            {getSubmoduleAttemptCount(submoduleGroup)} total attempt{getSubmoduleAttemptCount(submoduleGroup) === 1 ? "" : "s"}
+                                                            {getChapterAttemptCount(chapterGroup)} total attempt{getChapterAttemptCount(chapterGroup) === 1 ? "" : "s"}
                                                         </span>
                                                     </div>
                                                 </div>
 
                                                 <div className="divide-y divide-slate-100">
-                                                    {submoduleGroup.users.map((groupedUser) => (
+                                                    {chapterGroup.users.map((groupedUser) => (
                                                         <div key={groupedUser.user_id} className="px-6 py-5 space-y-4">
                                                             <div className="flex flex-wrap items-center justify-between gap-3">
                                                                 <div>

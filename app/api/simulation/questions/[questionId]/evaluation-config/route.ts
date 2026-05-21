@@ -22,11 +22,11 @@ import { NIL_RETURN_3B_SUBMODULE_ID } from "@/lib/simulation/gst/nil-return-3b";
 
 interface QuestionRecord {
     id: string;
-    submodule_id: string;
+    chapter_id: string;
     title?: string | null;
 }
 
-interface SubmoduleRecord {
+interface ChapterRecord {
     id: string;
     simulator_type: SimulatorType | null;
 }
@@ -82,7 +82,7 @@ export async function GET(
 
         const { data: question, error: questionError } = await supabase
             .from("questions")
-            .select("id, submodule_id, title")
+            .select("id, chapter_id, title")
             .eq("id", questionId)
             .maybeSingle<QuestionRecord>();
 
@@ -94,17 +94,17 @@ export async function GET(
             return NextResponse.json({ error: "Question not found" }, { status: 404 });
         }
 
-        const { data: submodule, error: submoduleError } = await supabase
-            .from("submodules")
+        const { data: chapter, error: chapterError } = await supabase
+            .from("chapters")
             .select("id, simulator_type")
-            .eq("id", question.submodule_id)
-            .maybeSingle<SubmoduleRecord>();
+            .eq("id", question.chapter_id)
+            .maybeSingle<ChapterRecord>();
 
-        if (submoduleError) {
-            throw submoduleError;
+        if (chapterError) {
+            throw chapterError;
         }
 
-        if (!submodule) {
+        if (!chapter) {
             return NextResponse.json(
                 { error: "Question is not backed by a supported simulator" },
                 { status: 400 },
@@ -112,8 +112,8 @@ export async function GET(
         }
 
         if (
-            submodule.simulator_type !== "gstf-simulation" &&
-            !isRegistrationSimulatorType(submodule.simulator_type)
+            chapter.simulator_type !== "gstf-simulation" &&
+            !isRegistrationSimulatorType(chapter.simulator_type)
         ) {
             return NextResponse.json(
                 { error: "Question is not backed by a supported simulator" },
@@ -121,7 +121,7 @@ export async function GET(
             );
         }
 
-        const simulatorType = submodule.simulator_type;
+        const simulatorType = chapter.simulator_type;
         const fieldDefinitions =
             simulatorType === "gstf-simulation"
                 ? null
@@ -142,12 +142,12 @@ export async function GET(
             throw taskError;
         }
 
-        const isGstinSubmodule = submodule.id === GSTIN_SUBMODULE_ID;
-        const isNilReturn3bSubmodule = submodule.id === NIL_RETURN_3B_SUBMODULE_ID;
+        const isGstinChapter = chapter.id === GSTIN_SUBMODULE_ID;
+        const isNilReturn3bChapter = chapter.id === NIL_RETURN_3B_SUBMODULE_ID;
 
         function buildGstfMappings(fieldRows: SimulationFieldRecord[]) {
-            if (isGstinSubmodule) return buildGstinEvaluationMappings(fieldRows);
-            if (isNilReturn3bSubmodule) return buildNilReturn3bEvaluationMappings(fieldRows);
+            if (isGstinChapter) return buildGstinEvaluationMappings(fieldRows);
+            if (isNilReturn3bChapter) return buildNilReturn3bEvaluationMappings(fieldRows);
             return buildGstfEvaluationMappings(fieldRows);
         }
 
@@ -159,14 +159,14 @@ export async function GET(
                     showExpectedAnswersInEvaluation: false,
                     mappings: [],
                     questionTitle: question.title ?? null,
-                    submoduleId: submodule.id,
+                    chapterId: chapter.id,
                 } satisfies SimulationEvaluationConfig);
             }
 
             return NextResponse.json({
                 ...buildEmptyConfig(simulatorType),
                 questionTitle: question.title ?? null,
-                submoduleId: submodule.id,
+                chapterId: chapter.id,
             } satisfies SimulationEvaluationConfig);
         }
 
@@ -197,7 +197,7 @@ export async function GET(
                               fieldDefinitions,
                           ),
                 questionTitle: question.title ?? null,
-                submoduleId: submodule.id,
+                chapterId: chapter.id,
             } satisfies SimulationEvaluationConfig);
         }
 
@@ -227,7 +227,7 @@ export async function GET(
                           fieldDefinitions,
                       ),
             questionTitle: question.title ?? null,
-            submoduleId: submodule.id,
+            chapterId: chapter.id,
         } satisfies SimulationEvaluationConfig);
     } catch (error) {
         console.error("Error fetching simulation evaluation config:", error);

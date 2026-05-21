@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 
-import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
+import { verifyFacultyAccess, verifyAdminAccess, type AuthenticatedUser } from "@/lib/supabase/admin-auth";
 import { LMS_QUESTIONS_TAG } from "@/lib/supabase/lms-cache-tags";
 import { createClient } from "@/lib/supabase/server";
 
@@ -23,6 +23,27 @@ export async function requireAdmin() {
 
     return {
         supabase,
+        user: admin,
+    };
+}
+
+export async function requireFaculty() {
+    const supabase = await createClient();
+    const user = await verifyFacultyAccess(supabase);
+
+    if (!user) {
+        return {
+            errorResponse: NextResponse.json(
+                { error: "Forbidden" },
+                { status: 403 }
+            ),
+            supabase,
+        };
+    }
+
+    return {
+        supabase,
+        user,
     };
 }
 

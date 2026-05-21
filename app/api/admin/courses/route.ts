@@ -1,46 +1,33 @@
 import { createClient } from "@/lib/supabase/server";
+import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
 import {
-    LMS_MODULES_TAG,
+    LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
-    LMS_SUBMODULES_TAG,
+    LMS_CHAPTERS_TAG,
 } from "../../../../lib/supabase/lms-cache-tags";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
-async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return null;
-
-    const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-    if (!profile || profile.role !== "admin") return null;
-    return user;
-}
-
 export async function GET() {
     try {
         const supabase = await createClient();
-        const admin = await verifyAdmin(supabase);
+        const admin = await verifyAdminAccess(supabase);
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const { data, error } = await supabase
-            .from("modules")
-            .select("*, submodules(count)")
+            .from("courses")
+            .select("*, chapters(count)")
             .order("created_at", { ascending: true });
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        return NextResponse.json({ modules: data });
+        return NextResponse.json({ courses: data });
     } catch (error: unknown) {
-        console.error("Error fetching modules:", error);
+        console.error("Error fetching courses:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
@@ -48,7 +35,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const supabase = await createClient();
-        const admin = await verifyAdmin(supabase);
+        const admin = await verifyAdminAccess(supabase);
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
@@ -65,7 +52,7 @@ export async function POST(request: Request) {
         }
 
         const { data, error } = await supabase
-            .from("modules")
+            .from("courses")
             .insert({
                 title,
                 slug,
@@ -82,13 +69,13 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        revalidateTag(LMS_MODULES_TAG, "max");
-        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_COURSES_TAG, "max");
+        revalidateTag(LMS_CHAPTERS_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
 
-        return NextResponse.json({ module: data }, { status: 201 });
+        return NextResponse.json({ course: data }, { status: 201 });
     } catch (error: unknown) {
-        console.error("Error creating module:", error);
+        console.error("Error creating course:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

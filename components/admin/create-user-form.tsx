@@ -1,20 +1,83 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, UserPlus, CheckCircle2, AlertCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-export function CreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
+interface Course {
+    id: string;
+    title: string;
+}
+
+interface UserRole {
+    value: string;
+    label: string;
+}
+
+const ALL_ROLES: UserRole[] = [
+    { value: "super_admin", label: "Super Admin" },
+    { value: "admin", label: "Admin" },
+    { value: "faculty", label: "Faculty" },
+    { value: "student", label: "Student" },
+];
+
+const ADMIN_CREATABLE_ROLES: UserRole[] = [
+    { value: "faculty", label: "Faculty" },
+    { value: "student", label: "Student" },
+];
+
+export function CreateUserForm({ onSuccess, userRole }: { onSuccess?: () => void; userRole?: string }) {
     const [fullName, setFullName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
-    const [role, setRole] = useState("user");
+    const [role, setRole] = useState("student");
+    const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [availableRoles, setAvailableRoles] = useState<UserRole[]>(ALL_ROLES);
     const [isLoading, setIsLoading] = useState(false);
+    const [isFetchingCourses, setIsFetchingCourses] = useState(false);
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+    const isAdmin = userRole === "admin";
+    const showCourseAccess = role === "admin" || role === "faculty" || role === "student";
+
+    useEffect(() => {
+        if (isAdmin) {
+            setAvailableRoles(ADMIN_CREATABLE_ROLES);
+            if (role === "super_admin" || role === "admin") {
+                setRole("faculty");
+            }
+        } else {
+            setAvailableRoles(ALL_ROLES);
+        }
+    }, [isAdmin, role]);
+
+    useEffect(() => {
+        if (showCourseAccess) {
+            fetchCourses();
+        }
+    }, [showCourseAccess]);
+
+    const fetchCourses = async () => {
+        setIsFetchingCourses(true);
+        try {
+            const response = await fetch("/api/admin/courses");
+            const data = await response.json();
+            if (response.ok) {
+                setCourses(data.courses || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch courses:", error);
+        } finally {
+            setIsFetchingCourses(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,7 +90,13 @@ export function CreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ fullName, email, password, role }),
+                body: JSON.stringify({
+                    fullName,
+                    email,
+                    password,
+                    role,
+                    courseAccess: showCourseAccess ? selectedCourses : [],
+                }),
             });
 
             const data = await response.json();
@@ -40,7 +109,8 @@ export function CreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
             setFullName("");
             setEmail("");
             setPassword("");
-            setRole("user");
+            setRole(isAdmin ? "faculty" : "student");
+            setSelectedCourses([]);
             if (onSuccess) {
                 onSuccess();
             }
@@ -52,6 +122,14 @@ export function CreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const toggleCourse = (courseId: string) => {
+        setSelectedCourses((current) =>
+            current.includes(courseId)
+                ? current.filter((id) => id !== courseId)
+                : [...current, courseId]
+        );
     };
 
     return (
@@ -114,11 +192,64 @@ export function CreateUserForm({ onSuccess }: { onSuccess?: () => void }) {
                                 <SelectValue placeholder="Select a role" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="user">User / Student</SelectItem>
-                                <SelectItem value="admin">Administrator</SelectItem>
+                                {availableRoles.map((r) => (
+                                    <SelectItem key={r.value} value={r.value}>
+                                        {r.label}
+                                    </SelectItem>
+                                ))}
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {showCourseAccess && (
+                        <div className="space-y-2">
+                            <Label>Course Access</Label>
+                            <ScrollArea className="h-40 border rounded-md p-3">
+                                {isFetchingCourses ? (
+                                    <p className="text-sm text-muted-foreground">Loading courses...</p>
+                                ) : courses.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No courses available</p>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {courses.map((course) => (
+                                            <button
+                                                key={course.id}
+                                                type="button"
+                                                onClick={() => toggleCourse(course.id)}
+                                                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+                                                    selectedCourses.includes(course.id)
+                                                        ? "bg-primary/10 text-primary font-medium"
+                                                        : "hover:bg-muted"
+                                                }`}
+                                            >
+                                                <span className="mr-2">
+                                                    {selectedCourses.includes(course.id) ? "✓" : "○"}
+                                                </span>
+                                                {course.title}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </ScrollArea>
+                            {selectedCourses.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                    {selectedCourses.map((courseId) => {
+                                        const course = courses.find((c) => c.id === courseId);
+                                        return course ? (
+                                            <Badge
+                                                key={courseId}
+                                                variant="secondary"
+                                                className="cursor-pointer"
+                                                onClick={() => toggleCourse(courseId)}
+                                            >
+                                                {course.title} ×
+                                            </Badge>
+                                        ) : null;
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {message && (
                         <div className={`p-3 rounded-md flex items-center gap-2 text-sm ${message.type === "success"

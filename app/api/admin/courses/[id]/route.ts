@@ -1,25 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
 import {
-    LMS_MODULES_TAG,
+    LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
-    LMS_SUBMODULES_TAG,
+    LMS_CHAPTERS_TAG,
 } from "../../../../../lib/supabase/lms-cache-tags";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
-
-async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return null;
-
-    const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-    if (!profile || profile.role !== "admin") return null;
-    return user;
-}
 
 export async function PUT(
     request: Request,
@@ -28,7 +15,7 @@ export async function PUT(
     try {
         const { id } = await params;
         const supabase = await createClient();
-        const admin = await verifyAdmin(supabase);
+        const admin = await verifyAdminAccess(supabase);
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
@@ -66,7 +53,7 @@ export async function PUT(
         }
 
         const { data, error } = await supabase
-            .from("modules")
+            .from("courses")
             .update(updateData)
             .eq("id", id)
             .select()
@@ -76,13 +63,13 @@ export async function PUT(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        revalidateTag(LMS_MODULES_TAG, "max");
-        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_COURSES_TAG, "max");
+        revalidateTag(LMS_CHAPTERS_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
 
-        return NextResponse.json({ module: data });
+        return NextResponse.json({ course: data });
     } catch (error: unknown) {
-        console.error("Error updating module:", error);
+        console.error("Error updating course:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
@@ -94,13 +81,13 @@ export async function DELETE(
     try {
         const { id } = await params;
         const supabase = await createClient();
-        const admin = await verifyAdmin(supabase);
+        const admin = await verifyAdminAccess(supabase);
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const { error } = await supabase
-            .from("modules")
+            .from("courses")
             .delete()
             .eq("id", id);
 
@@ -108,13 +95,13 @@ export async function DELETE(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        revalidateTag(LMS_MODULES_TAG, "max");
-        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_COURSES_TAG, "max");
+        revalidateTag(LMS_CHAPTERS_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
 
-        return NextResponse.json({ message: "Module deleted" });
+        return NextResponse.json({ message: "Course deleted" });
     } catch (error: unknown) {
-        console.error("Error deleting module:", error);
+        console.error("Error deleting course:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

@@ -1,9 +1,9 @@
-import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
+import { verifyFacultyAccess, getUserCourseAccess } from "@/lib/supabase/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-    LMS_MODULES_TAG,
+    LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
-    LMS_SUBMODULES_TAG,
+    LMS_CHAPTERS_TAG,
 } from "../../../../../lib/supabase/lms-cache-tags";
 import { createClient } from "@/lib/supabase/server";
 import { isQuestionType } from "@/lib/questions/types";
@@ -38,10 +38,10 @@ export async function PUT(
     try {
         const { id } = await params;
         const supabase = await createClient();
-        const admin = await verifyAdminAccess(supabase);
+        const user = await verifyFacultyAccess(supabase);
         const adminDb = createAdminClient();
 
-        if (!admin) {
+        if (!user) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -144,6 +144,32 @@ export async function PUT(
             );
         }
 
+        const { data: existingQuestion } = await adminDb
+            .from("questions")
+            .select("chapter_id")
+            .eq("id", id)
+            .single();
+
+        if (user.role !== "super_admin" && existingQuestion) {
+            const courseAccess = await getUserCourseAccess(supabase, user.id);
+            const { data: chapter } = await adminDb
+                .from("chapters")
+                .select("course_id")
+                .eq("id", existingQuestion.chapter_id)
+                .single();
+
+            if (!chapter || !courseAccess.includes(chapter.course_id)) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+
+            if (user.role === "admin") {
+                return NextResponse.json(
+                    { error: "Only faculty can edit tasks" },
+                    { status: 403 }
+                );
+            }
+        }
+
         const { data, error } = await adminDb
             .from("questions")
             .update(updateData)
@@ -155,21 +181,20 @@ export async function PUT(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Recalculate task_count if type changed
-        if (data?.submodule_id && normalizedType !== undefined) {
+        if (data?.chapter_id && normalizedType !== undefined) {
             const { count: taskCount } = await adminDb
                 .from("questions")
                 .select("*", { count: "exact", head: true })
-                .eq("submodule_id", data.submodule_id);
+                .eq("chapter_id", data.chapter_id);
 
             await adminDb
-                .from("submodules")
+                .from("chapters")
                 .update({ task_count: taskCount ?? 0 })
-                .eq("id", data.submodule_id);
+                .eq("id", data.chapter_id);
         }
 
-        revalidateTag(LMS_MODULES_TAG, "max");
-        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_COURSES_TAG, "max");
+        revalidateTag(LMS_CHAPTERS_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
 
         return NextResponse.json({ question: data });
@@ -189,19 +214,38 @@ export async function DELETE(
     try {
         const { id } = await params;
         const supabase = await createClient();
-        const admin = await verifyAdminAccess(supabase);
+        const user = await verifyFacultyAccess(supabase);
         const adminDb = createAdminClient();
 
-        if (!admin) {
+        if (!user) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // Get submodule_id before deleting
         const { data: question } = await adminDb
             .from("questions")
-            .select("submodule_id")
+            .select("chapter_id")
             .eq("id", id)
             .single();
+
+        if (user.role !== "super_admin" && question) {
+            const courseAccess = await getUserCourseAccess(supabase, user.id);
+            const { data: chapter } = await adminDb
+                .from("chapters")
+                .select("course_id")
+                .eq("id", question.chapter_id)
+                .single();
+
+            if (!chapter || !courseAccess.includes(chapter.course_id)) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+
+            if (user.role === "admin") {
+                return NextResponse.json(
+                    { error: "Only faculty can delete tasks" },
+                    { status: 403 }
+                );
+            }
+        }
 
         const { error } = await adminDb.from("questions").delete().eq("id", id);
 
@@ -209,21 +253,20 @@ export async function DELETE(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Recalculate task_count for the submodule
-        if (question?.submodule_id) {
+        if (question?.chapter_id) {
             const { count: taskCount } = await adminDb
                 .from("questions")
                 .select("*", { count: "exact", head: true })
-                .eq("submodule_id", question.submodule_id);
+                .eq("chapter_id", question.chapter_id);
 
             await adminDb
-                .from("submodules")
+                .from("chapters")
                 .update({ task_count: taskCount ?? 0 })
-                .eq("id", question.submodule_id);
+                .eq("id", question.chapter_id);
         }
 
-        revalidateTag(LMS_MODULES_TAG, "max");
-        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_COURSES_TAG, "max");
+        revalidateTag(LMS_CHAPTERS_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
 
         return NextResponse.json({ message: "Question deleted" });
