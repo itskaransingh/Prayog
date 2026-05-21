@@ -39,11 +39,13 @@ _Avoid_: Enrollment, permission, assignment
 - A **Course** contains one or more **Chapters**
 - A **Chapter** contains one or more **Tasks**
 - A **Super Admin** has implicit access to all **Courses**
-- An **Admin** has explicit **Course Access** to a subset of Courses
+- An **Admin** has implicit access to all **Courses** (granted automatically at creation)
 - A **Faculty** has explicit **Course Access** to a subset of Courses
 - A **Student** has explicit **Course Access** to a subset of Courses
 - An **Admin** can only grant **Course Access** within their own assigned Courses
 - Removing a Course from an Admin's access cascades to remove it from all Faculty and Students they granted access to
+- A **Faculty** can access the Dashboard but is restricted to viewing Users and managing Tasks only
+- A **Faculty** cannot create new users from the Dashboard
 
 ## Example dialogue
 

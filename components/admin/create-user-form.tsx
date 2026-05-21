@@ -7,8 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, UserPlus, CheckCircle2, AlertCircle } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+    Combobox,
+    ComboboxInput,
+    ComboboxContent,
+    ComboboxList,
+    ComboboxItem,
+    ComboboxEmpty,
+    ComboboxChips,
+    ComboboxChip,
+    ComboboxCollection,
+} from "@/components/ui/combobox";
 
 interface Course {
     id: string;
@@ -45,7 +54,7 @@ export function CreateUserForm({ onSuccess, userRole }: { onSuccess?: () => void
     const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
     const isAdmin = userRole === "admin";
-    const showCourseAccess = role === "admin" || role === "faculty" || role === "student";
+    const showCourseAccess = role === "faculty" || role === "student";
 
     useEffect(() => {
         if (isAdmin) {
@@ -124,14 +133,6 @@ export function CreateUserForm({ onSuccess, userRole }: { onSuccess?: () => void
         }
     };
 
-    const toggleCourse = (courseId: string) => {
-        setSelectedCourses((current) =>
-            current.includes(courseId)
-                ? current.filter((id) => id !== courseId)
-                : [...current, courseId]
-        );
-    };
-
     return (
         <Card className="w-full max-w-md border-border/50 shadow-sm">
             <CardHeader>
@@ -150,7 +151,7 @@ export function CreateUserForm({ onSuccess, userRole }: { onSuccess?: () => void
                         <Input
                             id="full-name"
                             type="text"
-                            placeholder="Student Name"
+                            placeholder="Name"
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
                             required
@@ -204,50 +205,31 @@ export function CreateUserForm({ onSuccess, userRole }: { onSuccess?: () => void
                     {showCourseAccess && (
                         <div className="space-y-2">
                             <Label>Course Access</Label>
-                            <ScrollArea className="h-40 border rounded-md p-3">
-                                {isFetchingCourses ? (
-                                    <p className="text-sm text-muted-foreground">Loading courses...</p>
-                                ) : courses.length === 0 ? (
-                                    <p className="text-sm text-muted-foreground">No courses available</p>
-                                ) : (
-                                    <div className="space-y-1">
+                            <Combobox multiple value={selectedCourses} onValueChange={setSelectedCourses}>
+                                <ComboboxInput placeholder="Select courses..." disabled={isLoading || isFetchingCourses} />
+                                <ComboboxContent>
+                                    <ComboboxList>
                                         {courses.map((course) => (
-                                            <button
-                                                key={course.id}
-                                                type="button"
-                                                onClick={() => toggleCourse(course.id)}
-                                                className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
-                                                    selectedCourses.includes(course.id)
-                                                        ? "bg-primary/10 text-primary font-medium"
-                                                        : "hover:bg-muted"
-                                                }`}
-                                            >
-                                                <span className="mr-2">
-                                                    {selectedCourses.includes(course.id) ? "✓" : "○"}
-                                                </span>
+                                            <ComboboxItem key={course.id} value={course.id}>
                                                 {course.title}
-                                            </button>
+                                            </ComboboxItem>
                                         ))}
-                                    </div>
+                                        <ComboboxEmpty>No courses found</ComboboxEmpty>
+                                    </ComboboxList>
+                                </ComboboxContent>
+                                {selectedCourses.length > 0 && (
+                                    <ComboboxChips>
+                                        {selectedCourses.map((courseId) => {
+                                            const course = courses.find((c) => c.id === courseId);
+                                            return course ? (
+                                                <ComboboxChip key={courseId} value={courseId}>
+                                                    {course.title}
+                                                </ComboboxChip>
+                                            ) : null;
+                                        })}
+                                    </ComboboxChips>
                                 )}
-                            </ScrollArea>
-                            {selectedCourses.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                    {selectedCourses.map((courseId) => {
-                                        const course = courses.find((c) => c.id === courseId);
-                                        return course ? (
-                                            <Badge
-                                                key={courseId}
-                                                variant="secondary"
-                                                className="cursor-pointer"
-                                                onClick={() => toggleCourse(courseId)}
-                                            >
-                                                {course.title} ×
-                                            </Badge>
-                                        ) : null;
-                                    })}
-                                </div>
-                            )}
+                            </Combobox>
                         </div>
                     )}
 

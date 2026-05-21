@@ -48,7 +48,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
         <CaseStudyContent
             title={`Case Study: ${chapter.title}`}
             breadcrumbs={[
-                { label: "Prayog Offerings", href: "/offerings" },
+                { label: "Home", href: "/" },
                 { label: "Learning Contents", href: "/learning-contents" },
                 { label: courseTitle, href: `/learning-contents/${courseSlug}` },
                 { label: chapter.title },

@@ -103,7 +103,7 @@ export default async function CourseChaptersPage({ params }: CoursePageProps) {
         <div className="flex flex-1 flex-col gap-6 p-6 w-full max-w-4xl mx-auto">
             <LmsBreadcrumbs
                 items={[
-                    { label: "Prayog Offerings", href: "/offerings" },
+                    { label: "Home", href: "/" },
                     { label: "Learning Contents", href: "/learning-contents" },
                     { label: course.title },
                 ]}

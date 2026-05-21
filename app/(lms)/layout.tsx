@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CourseTopicsSidebar } from "@/components/lms/course-topics-sidebar";
-import { Bell, LogOut, LayoutDashboard, User, BookOpen, BarChart3, Award, Bookmark, ChevronRight, PanelLeftClose, PanelLeft } from "lucide-react";
+import { Bell, LogOut, LayoutDashboard, User } from "lucide-react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -15,14 +15,6 @@ import { LmsBreadcrumbs } from "@/components/lms/lms-breadcrumbs";
 import { LmsBreadcrumbProvider, useLmsBreadcrumbs } from "@/components/lms/lms-breadcrumb-context";
 import { RightSidebar } from "@/components/lms/right-sidebar";
 
-const NAV_ITEMS = [
-    { label: "All Offerings", href: "/", icon: "✦" },
-    { label: "Learning Contents", href: "/learning-contents", icon: BookOpen },
-    { label: "My Progress", href: "/my-progress", icon: BarChart3 },
-    { label: "Achievements", href: "/achievements", icon: Award },
-    { label: "Saved", href: "/saved", icon: Bookmark },
-];
-
 function LmsLayoutShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
@@ -30,7 +22,6 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
     const [role, setRole] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [userName, setUserName] = useState("");
-    const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
     const { breadcrumbs } = useLmsBreadcrumbs();
 
     useEffect(() => {
@@ -79,14 +70,14 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
             {isCoursePage && <CourseTopicsSidebar />}
             <SidebarInset className="flex flex-col">
                 {/* Top header */}
-                <header className="sticky top-0 z-40 flex h-20 shrink-0 items-center justify-between border-b bg-background px-5">
+                <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b bg-background px-6">
                     <div className="flex items-center gap-2">
                         <Link href={"/"} className="flex items-center gap-2 group transition-all duration-200">
-                            <PrayogLogo className="h-16 w-[264px] transition-transform duration-200 group-hover:scale-[1.02]" priority />
+                            <PrayogLogo className="h-10 w-[200px] transition-transform duration-200 group-hover:scale-[1.02]" priority />
                         </Link>
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4 ml-auto">
-                        {!loading && (role === "admin" || role === "super_admin") && (
+                        {!loading && (role === "admin" || role === "super_admin" || role === "faculty") && (
                             <Link href="/dashboard">
                                 <Button variant="ghost" size="sm" className="hidden sm:flex items-center gap-2 text-muted-foreground hover:text-blue-600 hover:bg-accent/50">
                                     <LayoutDashboard className="h-4 w-4" />
@@ -135,22 +126,9 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                 {/* Progress Strip - Only on home page */}
                 {isLmsHomePage && (
                     <div className="h-10 bg-muted/50 dark:bg-slate-900/50 border-b border-border dark:border-slate-800 flex items-center px-5 gap-3 text-sm">
-                        {/* Left Group: Toggle + Streak */}
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setLeftSidebarOpen(!leftSidebarOpen)}
-                                className="p-1.5 text-muted-foreground dark:text-slate-400 hover:bg-muted dark:hover:bg-slate-800 rounded transition-colors"
-                                aria-label={leftSidebarOpen ? "Close sidebar" : "Open sidebar"}
-                            >
-                                {leftSidebarOpen ? (
-                                    <PanelLeftClose className="h-4 w-4" />
-                                ) : (
-                                    <PanelLeft className="h-4 w-4" />
-                                )}
-                            </button>
-                            <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-semibold">
-                                🔥 14 day streak
-                            </div>
+                        {/* Left Group: Streak */}
+                        <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-semibold">
+                            🔥 14 day streak
                         </div>
 
                         {/* Divider */}
@@ -184,68 +162,8 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                     </div>
                 )}
 
-                {/* Main content area with sidebars */}
+                {/* Main content area */}
                 <div className="flex flex-1">
-                    {/* Left Sidebar - Only on home page, starts below progress strip */}
-                    {isLmsHomePage && (
-                        <aside className={`${leftSidebarOpen ? 'w-52' : 'w-0'} flex-shrink-0 bg-muted/30 dark:bg-slate-900/30 border-r border-border dark:border-slate-800 transition-all duration-300 overflow-hidden`}>
-                            {leftSidebarOpen && (
-                                <div className="w-52 p-3 flex flex-col h-full">
-                                    {/* Breadcrumb */}
-                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground dark:text-slate-500 mb-2 px-1.5">
-                                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                                            <polyline points="9 22 9 12 15 12 15 22" />
-                                        </svg>
-                                        <span className="opacity-50">›</span>
-                                        <span>Prayog Offerings</span>
-                                    </div>
-
-                                    {/* Navigation */}
-                                    <nav className="flex flex-col gap-0.5 flex-1">
-                                        {NAV_ITEMS.map((item) => {
-                                            const isActive = item.href === pathname;
-                                            const IconComponent = typeof item.icon === "string" ? null : item.icon;
-
-                                            return (
-                                                <Link
-                                                    key={item.href}
-                                                    href={item.href}
-                                                    className={`flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-lg transition-colors ${
-                                                        isActive
-                                                            ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold border-r-2 border-blue-600"
-                                                            : "text-muted-foreground dark:text-slate-400 hover:bg-muted dark:hover:bg-slate-800"
-                                                    }`}
-                                                >
-                                                    {typeof item.icon === "string" ? (
-                                                        <span className="w-4 text-center text-base">{item.icon}</span>
-                                                    ) : (
-                                                        <item.icon className="w-4 h-4" />
-                                                    )}
-                                                    {item.label}
-                                                </Link>
-                                            );
-                                        })}
-                                    </nav>
-
-                                    {/* Promo Card - Larger */}
-                                    <div className="mt-auto p-3.5 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/50 border border-blue-200/50 dark:border-blue-800/50 rounded-xl">
-                                        <div className="text-sm font-semibold text-blue-700 dark:text-blue-300 mb-1">Keep going!</div>
-                                        <div className="text-[11px] text-muted-foreground dark:text-slate-400 mb-2">You&apos;re in the top 15% of learners this week.</div>
-                                        <div className="text-3xl text-center mb-2.5">🏆</div>
-                                        <Link
-                                            href="/leaderboard"
-                                            className="w-full flex items-center justify-between px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                                        >
-                                            View Leaderboard
-                                            <ChevronRight className="w-4 h-4" />
-                                        </Link>
-                                    </div>
-                                </div>
-                            )}
-                        </aside>
-                    )}
-
                     {/* Center Content */}
                     <div className="flex-1 flex flex-col bg-muted/30 dark:bg-slate-950/30">
                         <main className="flex-1 overflow-y-auto w-full">

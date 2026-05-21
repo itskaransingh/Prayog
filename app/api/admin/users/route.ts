@@ -38,7 +38,7 @@ export async function GET() {
             .eq("id", requester.id)
             .single();
 
-        if (profileError || !profile || (profile.role !== "super_admin" && profile.role !== "admin")) {
+        if (profileError || !profile || (profile.role !== "super_admin" && profile.role !== "admin" && profile.role !== "faculty")) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

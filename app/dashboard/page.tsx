@@ -131,11 +131,11 @@ export default function AdminDashboard() {
 
     const fetchUserRole = useCallback(async () => {
         try {
-            const res = await fetch("/api/admin/users");
+            const res = await fetch("/api/admin/me");
             if (res.ok) {
                 const data = await res.json();
-                if (data.currentUserRole) {
-                    setUserRole(data.currentUserRole);
+                if (data.role) {
+                    setUserRole(data.role);
                 }
             }
         } catch (error) {
@@ -239,12 +239,17 @@ export default function AdminDashboard() {
         void fetchChapters(selectedCourseId);
     }, [activeTab, fetchChapters, selectedCourseId]);
 
+    const isFaculty = userRole === "faculty";
+    const isAdminOrSuperAdmin = userRole === "admin" || userRole === "super_admin";
+
     const tabs = [
-        { id: "overview", label: "Overview", icon: LayoutDashboard },
-        { id: "users", label: "Users", icon: Users },
-        { id: "simulations", label: "Simulation Attempts", icon: History },
-        { id: "settings", label: "Settings", icon: Settings },
-    ];
+        { id: "overview", label: "Overview", icon: LayoutDashboard, roles: ["super_admin", "admin"] as const },
+        { id: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "faculty"] as const },
+        { id: "simulations", label: "Simulation Attempts", icon: History, roles: ["super_admin", "admin"] as const },
+        { id: "settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] as const },
+    ].filter((tab) => tab.roles.includes(userRole as (typeof tab.roles)[number]));
+
+    const visibleTabs = tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }));
 
     return (
         <div className="flex min-h-screen bg-slate-50">
@@ -267,7 +272,7 @@ export default function AdminDashboard() {
                 </div>
 
                 <nav className="flex-1 px-4 space-y-1">
-                    {tabs.map((tab) => {
+                    {visibleTabs.map((tab) => {
                         const Icon = tab.icon;
                         return (
                             <button
@@ -287,13 +292,15 @@ export default function AdminDashboard() {
                     <div className="pt-6 pb-2 px-1">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Content Management</p>
                     </div>
-                    <Link
-                        href="/dashboard/admin/content/courses"
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    >
-                        <BookOpen className="h-4 w-4 text-slate-400" />
-                        Courses & Chapters
-                    </Link>
+                    {isAdminOrSuperAdmin && (
+                        <Link
+                            href="/dashboard/admin/content/courses"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        >
+                            <BookOpen className="h-4 w-4 text-slate-400" />
+                            Courses & Chapters
+                        </Link>
+                    )}
                     <Link
                         href="/dashboard/admin/content/questions"
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-slate-600 hover:bg-slate-50 hover:text-slate-900"
@@ -322,8 +329,12 @@ export default function AdminDashboard() {
                     </h2>
                     <div className="flex items-center gap-4">
                         <div className="text-right hidden sm:block">
-                            <p className="text-xs font-semibold text-slate-900">Administrator</p>
-                            <p className="text-[10px] text-slate-500">Super Admin Access</p>
+                            <p className="text-xs font-semibold text-slate-900">
+                                {userRole === "super_admin" ? "Super Admin" : userRole === "admin" ? "Admin" : userRole === "faculty" ? "Faculty" : "Administrator"}
+                            </p>
+                            <p className="text-[10px] text-slate-500">
+                                {userRole === "super_admin" ? "Full Access" : userRole === "admin" ? "Admin Access" : userRole === "faculty" ? "Faculty Access" : "Super Admin Access"}
+                            </p>
                         </div>
                         <div className="h-8 w-8 rounded-full bg-blue-100 border border-blue-200 flex items-center justify-center">
                             <Users className="h-4 w-4 text-blue-600" />
@@ -366,10 +377,12 @@ export default function AdminDashboard() {
 
                     {activeTab === "users" && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            <div className="lg:col-span-1">
-                                <CreateUserForm onSuccess={fetchUsers} userRole={userRole} />
-                            </div>
-                            <div className="lg:col-span-2 space-y-6">
+                            {!isFaculty && (
+                                <div className="lg:col-span-1">
+                                    <CreateUserForm onSuccess={fetchUsers} userRole={userRole} />
+                                </div>
+                            )}
+                            <div className={isFaculty ? "lg:col-span-3" : "lg:col-span-2"}>
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                                     <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                                         <h3 className="font-semibold text-slate-900">Recently Created Users</h3>

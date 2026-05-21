@@ -107,7 +107,26 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: `User created but profile insertion failed: ${insertError.message}` }, { status: 500 });
         }
 
-        if (role !== "super_admin" && Array.isArray(courseAccess) && courseAccess.length > 0) {
+        if (role === "admin") {
+            const { data: allCourses } = await supabaseAdmin
+                .from("courses")
+                .select("id");
+
+            if (allCourses && allCourses.length > 0) {
+                const accessRows = allCourses.map((course: { id: string }) => ({
+                    user_id: newUser.user.id,
+                    course_id: course.id,
+                }));
+
+                const { error: accessError } = await supabaseAdmin
+                    .from("user_course_access")
+                    .insert(accessRows);
+
+                if (accessError) {
+                    console.error("Failed to insert course access for admin:", accessError);
+                }
+            }
+        } else if (role !== "super_admin" && Array.isArray(courseAccess) && courseAccess.length > 0) {
             let accessibleCourseIds = courseAccess;
 
             if (requesterRole === "admin") {

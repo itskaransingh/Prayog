@@ -50,7 +50,8 @@ export default function LoginPage() {
                     return;
                 }
 
-                if (profile.role === "admin" || profile.role === "user") {
+                const validRoles = ["super_admin", "admin", "faculty", "student"];
+                if (validRoles.includes(profile.role)) {
                     router.push("/");
                     router.refresh();
                 } else {
