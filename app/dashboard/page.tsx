@@ -245,7 +245,7 @@ export default function AdminDashboard() {
     const tabs = [
         { id: "overview", label: "Overview", icon: LayoutDashboard, roles: ["super_admin", "admin"] as const },
         { id: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "faculty"] as const },
-        { id: "simulations", label: "Simulation Attempts", icon: History, roles: ["super_admin", "admin"] as const },
+        { id: "simulations", label: "Simulation Attempts", icon: History, roles: ["super_admin", "admin", "faculty"] as const },
         { id: "settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] as const },
     ].filter((tab) => tab.roles.includes(userRole as (typeof tab.roles)[number]));
 

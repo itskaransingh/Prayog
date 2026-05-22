@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
 import {
     LMS_COURSES_TAG,
@@ -52,15 +53,20 @@ export async function PUT(
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
-        const { data, error } = await supabase
+        const adminDb = createServiceRoleClient();
+        const { data, error } = await adminDb
             .from("courses")
             .update(updateData)
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        if (!data) {
+            return NextResponse.json({ error: "Course not found" }, { status: 404 });
         }
 
         revalidateTag(LMS_COURSES_TAG, "max");
@@ -86,7 +92,8 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const { error } = await supabase
+        const adminDb = createServiceRoleClient();
+        const { error } = await adminDb
             .from("courses")
             .delete()
             .eq("id", id);

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { verifyAdminAccess, verifyFacultyAccess } from "@/lib/supabase/admin-auth";
 import {
     LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
@@ -24,7 +25,8 @@ export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
         const admin = await verifyAdminAccess(supabase);
-        if (!admin) {
+        const faculty = await verifyFacultyAccess(supabase);
+        if (!admin && !faculty) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -79,7 +81,8 @@ export async function POST(request: Request) {
             );
         }
 
-        const { data, error } = await supabase
+        const adminDb = createServiceRoleClient();
+        const { data, error } = await adminDb
             .from("chapters")
             .insert({
                 course_id,
@@ -91,19 +94,23 @@ export async function POST(request: Request) {
                 simulator_type: simulator_type ?? "none",
             })
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
+        if (!data) {
+            return NextResponse.json({ error: "Failed to create chapter" }, { status: 500 });
+        }
+
         if (data?.course_id) {
-            const { count: chapterCount } = await supabase
+            const { count: chapterCount } = await adminDb
                 .from("chapters")
                 .select("*", { count: "exact", head: true })
                 .eq("course_id", data.course_id);
 
-            await supabase
+            await adminDb
                 .from("courses")
                 .update({ course_count: chapterCount ?? 0 })
                 .eq("id", data.course_id);

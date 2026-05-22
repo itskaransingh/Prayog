@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
-import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { verifyAdminAccess, verifyFacultyAccess } from "@/lib/supabase/admin-auth";
 import {
     LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
@@ -12,7 +13,8 @@ export async function GET() {
     try {
         const supabase = await createClient();
         const admin = await verifyAdminAccess(supabase);
-        if (!admin) {
+        const faculty = await verifyFacultyAccess(supabase);
+        if (!admin && !faculty) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -51,7 +53,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "is_active must be a boolean" }, { status: 400 });
         }
 
-        const { data, error } = await supabase
+        const adminDb = createServiceRoleClient();
+        const { data, error } = await adminDb
             .from("courses")
             .insert({
                 title,
@@ -63,10 +66,14 @@ export async function POST(request: Request) {
                 is_active: is_active ?? true,
             })
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        if (!data) {
+            return NextResponse.json({ error: "Failed to create course" }, { status: 500 });
         }
 
         revalidateTag(LMS_COURSES_TAG, "max");

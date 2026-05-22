@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
 import {
     LMS_COURSES_TAG,
@@ -63,15 +64,20 @@ export async function PUT(
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
-        const { data, error } = await supabase
+        const adminDb = createServiceRoleClient();
+        const { data, error } = await adminDb
             .from("chapters")
             .update(updateData)
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
+        }
+
+        if (!data) {
+            return NextResponse.json({ error: "Chapter not found" }, { status: 404 });
         }
 
         revalidateTag(LMS_COURSES_TAG, "max");
@@ -97,13 +103,14 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const { data: chapter } = await supabase
+        const adminDb = createServiceRoleClient();
+        const { data: chapter } = await adminDb
             .from("chapters")
             .select("course_id")
             .eq("id", id)
             .single();
 
-        const { error } = await supabase
+        const { error } = await adminDb
             .from("chapters")
             .delete()
             .eq("id", id);
@@ -113,12 +120,12 @@ export async function DELETE(
         }
 
         if (chapter?.course_id) {
-            const { count: chapterCount } = await supabase
+            const { count: chapterCount } = await adminDb
                 .from("chapters")
                 .select("*", { count: "exact", head: true })
                 .eq("course_id", chapter.course_id);
 
-            await supabase
+            await adminDb
                 .from("courses")
                 .update({ course_count: chapterCount ?? 0 })
                 .eq("id", chapter.course_id);

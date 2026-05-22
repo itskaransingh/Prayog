@@ -132,6 +132,18 @@ const COLOR_OPTIONS = [
     { label: "Teal", bg: "bg-teal-50", text: "text-teal-600" },
 ];
 
+function isColorCombinationSafe(bg: string, text: string): boolean {
+    const lightBackgrounds = ["bg-blue-50", "bg-emerald-50", "bg-amber-50", "bg-purple-50", "bg-rose-50", "bg-slate-50", "bg-indigo-50", "bg-teal-50"];
+    return lightBackgrounds.includes(bg) && text.includes("-");
+}
+
+function safeBgText(bg: string, text: string): { bg: string; text: string } {
+    if (!isColorCombinationSafe(bg, text)) {
+        return { bg: "bg-slate-100", text: "text-slate-900" };
+    }
+    return { bg, text };
+}
+
 const IconMap: Record<string, React.ElementType> = {
     Calculator, FileText, Briefcase, Landmark, Scale, BookOpen,
     GraduationCap, Gavel, Building, Receipt, Coins, PiggyBank
@@ -428,7 +440,7 @@ export default function AdminCoursesPage() {
                             <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
                                 <Layout className="h-4 w-4 text-white" />
                             </div>
-                            <h1 className="text-lg font-bold text-slate-900">Content Courses</h1>
+                            <h1 className="text-lg font-bold text-slate-900">Course Contents</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -499,7 +511,7 @@ export default function AdminCoursesPage() {
                                         onChange={(e) =>
                                             setCourseForm((prev) => ({ ...prev, icon_name: e.target.value }))
                                         }
-                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                     >
                                         {ICON_OPTIONS.map((icon) => (
                                             <option key={icon} value={icon}>
@@ -522,7 +534,7 @@ export default function AdminCoursesPage() {
                                                 }));
                                             }
                                         }}
-                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                     >
                                         {COLOR_OPTIONS.map((c) => (
                                             <option key={c.bg} value={c.bg}>
@@ -565,7 +577,7 @@ export default function AdminCoursesPage() {
                             {/* Preview */}
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
                                 <div
-                                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${courseForm.bg_color} ${courseForm.text_color}`}
+                                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${safeBgText(courseForm.bg_color, courseForm.text_color).bg} ${safeBgText(courseForm.bg_color, courseForm.text_color).text}`}
                                 >
                                     {(() => {
                                         const PreviewIcon = IconMap[courseForm.icon_name] || BookOpen;
@@ -656,7 +668,7 @@ export default function AdminCoursesPage() {
 
                                         {/* Icon */}
                                         <div
-                                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${course.bg_color} ${course.text_color}`}
+                                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${safeBgText(course.bg_color, course.text_color).bg} ${safeBgText(course.bg_color, course.text_color).text}`}
                                         >
                                             {(() => {
                                                 const ListIcon = IconMap[course.icon_name] || BookOpen;
