@@ -55,8 +55,10 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
     };
 
     const isCoursePage = pathname.startsWith("/course");
+    const isFinancialAccountingMapPage = pathname.startsWith("/learning-contents/financial-accounting");
     const hasCourseBreadcrumbs = isCoursePage && breadcrumbs.length > 0;
     const isLmsHomePage = pathname === "/";
+    const useImmersiveMapShell = isFinancialAccountingMapPage;
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -67,7 +69,7 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="flex min-h-screen w-full bg-background text-foreground">
-            {isCoursePage && <CourseTopicsSidebar />}
+            {isCoursePage && !useImmersiveMapShell && <CourseTopicsSidebar />}
             <SidebarInset className="flex flex-col">
                 {/* Top header */}
                 <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center justify-between border-b bg-background px-6">
@@ -115,7 +117,7 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                     </div>
                 </header>
 
-                {hasCourseBreadcrumbs && (
+                {hasCourseBreadcrumbs && !useImmersiveMapShell && (
                     <div className="sticky top-20 z-30 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
                         <div className="container mx-auto px-6 py-3">
                             <LmsBreadcrumbs items={breadcrumbs} />
@@ -124,7 +126,7 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                 )}
 
                 {/* Progress Strip - Only on home page */}
-                {isLmsHomePage && (
+                {isLmsHomePage && !useImmersiveMapShell && (
                     <div className="h-10 bg-muted/50 dark:bg-slate-900/50 border-b border-border dark:border-slate-800 flex items-center px-5 gap-3 text-sm">
                         {/* Left Group: Streak */}
                         <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-semibold">
@@ -163,16 +165,16 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                 )}
 
                 {/* Main content area */}
-                <div className="flex flex-1">
+                <div className={`flex flex-1 ${useImmersiveMapShell ? "bg-[#0d0f1a]" : ""}`}>
                     {/* Center Content */}
-                    <div className="flex-1 flex flex-col bg-muted/30 dark:bg-slate-950/30">
-                        <main className="flex-1 overflow-y-auto w-full">
+                    <div className={`flex-1 flex flex-col ${useImmersiveMapShell ? "bg-[#0d0f1a]" : "bg-muted/30 dark:bg-slate-950/30"}`}>
+                        <main className={`flex-1 overflow-y-auto w-full ${useImmersiveMapShell ? "bg-[#0d0f1a]" : ""}`}>
                             {children}
                         </main>
                     </div>
 
                     {/* Right Sidebar - Only on home page, always visible */}
-                    {isLmsHomePage && <RightSidebar />}
+                    {isLmsHomePage && !useImmersiveMapShell && <RightSidebar />}
                 </div>
             </SidebarInset>
         </div>
