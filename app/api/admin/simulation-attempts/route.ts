@@ -24,12 +24,12 @@ type JoinedAttemptRow = {
             questions: {
                 id: string;
                 title: string | null;
-                submodule_id: string;
-                submodules: {
+                chapter_id: string;
+                chapters: {
                     id: string;
                     title: string | null;
-                    module_id: string;
-                    modules: {
+                    course_id: string;
+                    courses: {
                         id: string;
                         title: string | null;
                     } | null;
@@ -93,16 +93,16 @@ export async function GET(request: Request) {
             .eq("id", requester.id)
             .single();
 
-        if (profileError || !profile || profile.role !== "admin") {
+        if (profileError || !profile || (profile.role !== "super_admin" && profile.role !== "admin" && profile.role !== "faculty")) {
             return NextResponse.json(
-                { error: "Forbidden: Admins only" },
+                { error: "Forbidden" },
                 { status: 403 },
             );
         }
 
         const url = new URL(request.url);
-        const selectedModuleId = url.searchParams.get("moduleId");
-        const selectedSubmoduleId = url.searchParams.get("submoduleId");
+        const selectedCourseId = url.searchParams.get("courseId");
+        const selectedChapterId = url.searchParams.get("chapterId");
 
         const supabaseAdmin = createAdminClient();
         const selectQuery = `
@@ -125,12 +125,12 @@ export async function GET(request: Request) {
                     questions!question_id (
                         id,
                         title,
-                        submodule_id,
-                        submodules!submodule_id (
+                        chapter_id,
+                        chapters!chapter_id (
                             id,
                             title,
-                            module_id,
-                            modules!module_id (
+                            course_id,
+                            courses!course_id (
                                 id,
                                 title
                             )
@@ -188,10 +188,10 @@ export async function GET(request: Request) {
                 const simulationAttempt = getFirst(attempt.user_simulation_attempts);
                 const simulationTask = getFirst(simulationAttempt?.simulation_tasks);
                 const question = getFirst(simulationTask?.questions);
-                const submodule = getFirst(question?.submodules);
-                const moduleRecord = getFirst(submodule?.modules);
+                const chapter = getFirst(question?.chapters);
+                const courseRecord = getFirst(chapter?.courses);
 
-                if (!simulationAttempt || !question || !submodule) {
+                if (!simulationAttempt || !question || !chapter) {
                     return null;
                 }
 
@@ -202,10 +202,10 @@ export async function GET(request: Request) {
                     attempt_id: simulationAttempt.id,
                     user_id: simulationAttempt.user_id,
                     email: profileMap[simulationAttempt.user_id]?.email || "Unknown",
-                    module_id: moduleRecord?.id || "",
-                    module_name: moduleRecord?.title || "Unknown",
-                    submodule_id: submodule.id,
-                    submodule_name: submodule.title || "Unknown",
+                    course_id: courseRecord?.id || "",
+                    course_name: courseRecord?.title || "Unknown",
+                    chapter_id: chapter.id,
+                    chapter_name: chapter.title || "Unknown",
                     question_id: question.id,
                     question_title: question.title || "Untitled Question",
                     task_id: simulationAttempt.task_id,
@@ -220,11 +220,11 @@ export async function GET(request: Request) {
             })
             .filter((attempt): attempt is NonNullable<typeof attempt> => Boolean(attempt))
             .filter((attempt) => {
-                if (selectedModuleId && attempt.module_id !== selectedModuleId) {
+                if (selectedCourseId && attempt.course_id !== selectedCourseId) {
                     return false;
                 }
 
-                if (selectedSubmoduleId && attempt.submodule_id !== selectedSubmoduleId) {
+                if (selectedChapterId && attempt.chapter_id !== selectedChapterId) {
                     return false;
                 }
 
@@ -243,14 +243,14 @@ export async function GET(request: Request) {
             };
         });
 
-        const groupedBySubmodule = Array.from(
-            flatAttempts.reduce((submoduleMap, attempt) => {
-                const submoduleKey = attempt.submodule_id;
-                const existingSubmodule = submoduleMap.get(submoduleKey) ?? {
-                    module_id: attempt.module_id,
-                    module_name: attempt.module_name,
-                    submodule_id: attempt.submodule_id,
-                    submodule_name: attempt.submodule_name,
+        const groupedByChapter = Array.from(
+            flatAttempts.reduce((chapterMap, attempt) => {
+                const chapterKey = attempt.chapter_id;
+                const existingChapter = chapterMap.get(chapterKey) ?? {
+                    course_id: attempt.course_id,
+                    course_name: attempt.course_name,
+                    chapter_id: attempt.chapter_id,
+                    chapter_name: attempt.chapter_name,
                     users: new Map<
                         string,
                         {
@@ -270,7 +270,7 @@ export async function GET(request: Request) {
                     >(),
                 };
 
-                const existingUser = existingSubmodule.users.get(attempt.user_id) ?? {
+                const existingUser = existingChapter.users.get(attempt.user_id) ?? {
                     user_id: attempt.user_id,
                     full_name: attempt.full_name,
                     email: attempt.email,
@@ -287,14 +287,14 @@ export async function GET(request: Request) {
                 existingQuestion.attempts.push(attempt);
                 existingQuestion.attempt_count = existingQuestion.attempts.length;
                 existingUser.questions.set(attempt.question_id, existingQuestion);
-                existingSubmodule.users.set(attempt.user_id, existingUser);
-                submoduleMap.set(submoduleKey, existingSubmodule);
-                return submoduleMap;
+                existingChapter.users.set(attempt.user_id, existingUser);
+                chapterMap.set(chapterKey, existingChapter);
+                return chapterMap;
             }, new Map<string, {
-                module_id: string;
-                module_name: string;
-                submodule_id: string;
-                submodule_name: string;
+                course_id: string;
+                course_name: string;
+                chapter_id: string;
+                chapter_name: string;
                 users: Map<string, {
                     user_id: string;
                     full_name: string;
@@ -308,12 +308,12 @@ export async function GET(request: Request) {
                 }>;
             }>())
                 .values(),
-        ).map((submodule) => ({
-            module_id: submodule.module_id,
-            module_name: submodule.module_name,
-            submodule_id: submodule.submodule_id,
-            submodule_name: submodule.submodule_name,
-            users: Array.from(submodule.users.values())
+        ).map((chapter) => ({
+            course_id: chapter.course_id,
+            course_name: chapter.course_name,
+            chapter_id: chapter.chapter_id,
+            chapter_name: chapter.chapter_name,
+            users: Array.from(chapter.users.values())
                 .sort((left, right) => left.email.localeCompare(right.email))
                 .map((groupedUser) => ({
                     user_id: groupedUser.user_id,
@@ -336,7 +336,7 @@ export async function GET(request: Request) {
                 })),
         }))
             .sort((left, right) =>
-                left.submodule_name.localeCompare(right.submodule_name),
+                left.chapter_name.localeCompare(right.chapter_name),
             );
 
         return NextResponse.json({
@@ -345,10 +345,10 @@ export async function GET(request: Request) {
                     new Date(right.created_at).getTime() -
                     new Date(left.created_at).getTime(),
             ),
-            groupedBySubmodule,
+            groupedByChapter,
             filters: {
-                moduleId: selectedModuleId,
-                submoduleId: selectedSubmoduleId,
+                courseId: selectedCourseId,
+                chapterId: selectedChapterId,
             },
             _count: flatAttempts.length,
             _totalCount: totalJoinedAttempts,

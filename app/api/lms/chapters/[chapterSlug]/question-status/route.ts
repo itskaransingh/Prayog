@@ -6,10 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(
     _request: Request,
-    { params }: { params: Promise<{ submoduleSlug: string }> },
+    { params }: { params: Promise<{ chapterSlug: string }> },
 ) {
     try {
-        const { submoduleSlug } = await params;
+        const { chapterSlug } = await params;
         const supabase = await createClient();
         const supabaseAdmin = createAdminClient();
 
@@ -22,16 +22,16 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: submodule, error: submoduleError } = await supabaseAdmin
-            .from("submodules")
+        const { data: chapter, error: chapterError } = await supabaseAdmin
+            .from("chapters")
             .select("id, title")
-            .eq("slug", submoduleSlug)
+            .eq("slug", chapterSlug)
             .eq("is_active", true)
             .single();
 
-        if (submoduleError || !submodule) {
+        if (chapterError || !chapter) {
             return NextResponse.json(
-                { error: "Submodule not found" },
+                { error: "Chapter not found" },
                 { status: 404 },
             );
         }
@@ -39,7 +39,7 @@ export async function GET(
         const { data: questions, error: questionsError } = await supabaseAdmin
             .from("questions")
             .select("id, title, type")
-            .eq("submodule_id", submodule.id)
+            .eq("chapter_id", chapter.id)
             .order("created_at", { ascending: true });
 
         if (questionsError) {
@@ -87,10 +87,10 @@ export async function GET(
         let taskOrder = 0;
 
         return NextResponse.json({
-            submodule: {
-                id: submodule.id,
-                slug: submoduleSlug,
-                title: submodule.title,
+            chapter: {
+                id: chapter.id,
+                slug: chapterSlug,
+                title: chapter.title,
             },
             questions: (questions ?? []).map((question, index) => {
                 const normalizedType = (question.type ?? "question") as QuestionType;

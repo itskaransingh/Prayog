@@ -1,6 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const DASHBOARD_ROLES = ['super_admin', 'admin', 'faculty'] as const;
+
 export async function proxy(request: NextRequest) {
     let supabaseResponse = NextResponse.next({
         request,
@@ -27,7 +29,6 @@ export async function proxy(request: NextRequest) {
         }
     )
 
-    // Do not run proxy on static assets, etc.
     if (
         request.nextUrl.pathname.startsWith('/_next') ||
         request.nextUrl.pathname.startsWith('/api') ||
@@ -43,21 +44,18 @@ export async function proxy(request: NextRequest) {
 
     const isLoginPage = request.nextUrl.pathname === '/login'
 
-    // 1. Unauthenticated users -> redirect to /login
     if (!user && !isLoginPage) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
     }
 
-    // 2. Authenticated users hitting /login -> redirect to /
     if (user && isLoginPage) {
         const url = request.nextUrl.clone()
         url.pathname = '/'
         return NextResponse.redirect(url)
     }
 
-    // 3. Authenticated users hitting /dashboard where role !== 'admin' -> redirect to /
     if (user && request.nextUrl.pathname.startsWith('/dashboard')) {
         const { data: profile, error: profileError } = await supabase
             .from('profiles')
@@ -72,7 +70,7 @@ export async function proxy(request: NextRequest) {
             return NextResponse.redirect(url)
         }
 
-        if (!profile || profile.role !== 'admin') {
+        if (!profile || !DASHBOARD_ROLES.includes(profile.role as (typeof DASHBOARD_ROLES)[number])) {
             const url = request.nextUrl.clone()
             url.pathname = '/'
             return NextResponse.redirect(url)
@@ -84,13 +82,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * Feel free to modify this pattern to include more paths.
-         */
         '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

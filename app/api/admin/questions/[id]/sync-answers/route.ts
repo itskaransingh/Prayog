@@ -32,12 +32,12 @@ import type { QuestionType } from "@/lib/questions/types";
 
 interface QuestionRecord {
     id: string;
-    submodule_id: string;
+    chapter_id: string;
     title: string;
     type: QuestionType;
 }
 
-interface SubmoduleRecord {
+interface ChapterRecord {
     id: string;
     is_active: boolean;
     simulator_type: SimulatorType | null;
@@ -631,16 +631,16 @@ function parsePayload(body: unknown): SyncAnswersPayload | { error: string } {
     }
 }
 
-async function loadQuestionAndSubmodule(
+async function loadQuestionAndChapter(
     questionId: string,
     adminDb: ReturnType<typeof createAdminClient>,
 ): Promise<
-    | { question: QuestionRecord; submodule: SubmoduleRecord }
+    | { question: QuestionRecord; chapter: ChapterRecord }
     | { errorResponse: NextResponse }
 > {
     const { data: question, error: questionError } = await adminDb
         .from("questions")
-        .select("id, submodule_id, title, type")
+        .select("id, chapter_id, title, type")
         .eq("id", questionId)
         .maybeSingle<QuestionRecord>();
 
@@ -656,21 +656,21 @@ async function loadQuestionAndSubmodule(
         return { errorResponse: badRequest("Only question tasks can sync answers") };
     }
 
-    const { data: submodule, error: submoduleError } = await adminDb
-        .from("submodules")
+    const { data: chapter, error: chapterError } = await adminDb
+        .from("chapters")
         .select("id, is_active, simulator_type")
-        .eq("id", question.submodule_id)
-        .maybeSingle<SubmoduleRecord>();
+        .eq("id", question.chapter_id)
+        .maybeSingle<ChapterRecord>();
 
-    if (submoduleError) {
-        throw submoduleError;
+    if (chapterError) {
+        throw chapterError;
     }
 
-    if (!submodule || !submodule.is_active) {
+    if (!chapter || !chapter.is_active) {
         return { errorResponse: notFound("Question not found") };
     }
 
-    return { question, submodule };
+    return { question, chapter };
 }
 
 export async function POST(
@@ -685,12 +685,12 @@ export async function POST(
         }
         const adminDb = createAdminClient();
 
-        const loaded = await loadQuestionAndSubmodule(id, adminDb);
+        const loaded = await loadQuestionAndChapter(id, adminDb);
         if ("errorResponse" in loaded) {
             return loaded.errorResponse;
         }
 
-        const expectedType = expectedPayloadType(loaded.submodule.simulator_type);
+        const expectedType = expectedPayloadType(loaded.chapter.simulator_type);
         if (!expectedType) {
             return badRequest("simulator_type is none or unsupported for sync-answers");
         }
@@ -702,7 +702,7 @@ export async function POST(
 
         if (parsedPayload.type !== expectedType) {
             return badRequest(
-                `Payload type "${parsedPayload.type}" does not match simulator_type "${loaded.submodule.simulator_type}"`,
+                `Payload type "${parsedPayload.type}" does not match simulator_type "${loaded.chapter.simulator_type}"`,
             );
         }
 
@@ -710,7 +710,7 @@ export async function POST(
             parsedPayload.type === "registration"
                 ? await loadRegistrationFieldDefinitions(
                       adminDb,
-                      loaded.submodule.simulator_type,
+                      loaded.chapter.simulator_type,
                   )
                 : null;
 
@@ -804,11 +804,11 @@ export async function POST(
             ...((existingSteps ?? []).map((step) => step.id).filter((id) => id !== primaryStepId)),
         ];
 
-        const submoduleSimulatorType = loaded.submodule.simulator_type;
+        const chapterSimulatorType = loaded.chapter.simulator_type;
         const fields = generateFields(primaryStepId, parsedPayload, {
             registrationFieldDefinitions,
-            simulatorType: isRegistrationSimulatorType(submoduleSimulatorType)
-                ? submoduleSimulatorType
+            simulatorType: isRegistrationSimulatorType(chapterSimulatorType)
+                ? chapterSimulatorType
                 : null,
         });
         const { data: existingFields, error: existingFieldsError } = await adminDb

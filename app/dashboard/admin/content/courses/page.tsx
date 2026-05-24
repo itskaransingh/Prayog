@@ -44,7 +44,7 @@ import Link from "next/link";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-interface Module {
+interface Course {
     id: string;
     title: string;
     slug: string;
@@ -54,12 +54,12 @@ interface Module {
     bg_color: string;
     text_color: string;
     progress: number;
-    submodules?: { count: number }[];
+    chapters?: { count: number }[];
 }
 
-interface Submodule {
+interface Chapter {
     id: string;
-    module_id: string;
+    course_id: string;
     title: string;
     slug: string;
     simulator_type:
@@ -79,7 +79,7 @@ interface Submodule {
     sort_order: number;
 }
 
-interface ModuleFormData {
+interface CourseFormData {
     title: string;
     slug: string;
     icon_name: string;
@@ -89,7 +89,7 @@ interface ModuleFormData {
     is_active: boolean;
 }
 
-interface SubmoduleFormData {
+interface ChapterFormData {
     title: string;
     slug: string;
     simulator_type:
@@ -132,12 +132,24 @@ const COLOR_OPTIONS = [
     { label: "Teal", bg: "bg-teal-50", text: "text-teal-600" },
 ];
 
+function isColorCombinationSafe(bg: string, text: string): boolean {
+    const lightBackgrounds = ["bg-blue-50", "bg-emerald-50", "bg-amber-50", "bg-purple-50", "bg-rose-50", "bg-slate-50", "bg-indigo-50", "bg-teal-50"];
+    return lightBackgrounds.includes(bg) && text.includes("-");
+}
+
+function safeBgText(bg: string, text: string): { bg: string; text: string } {
+    if (!isColorCombinationSafe(bg, text)) {
+        return { bg: "bg-slate-100", text: "text-slate-900" };
+    }
+    return { bg, text };
+}
+
 const IconMap: Record<string, React.ElementType> = {
     Calculator, FileText, Briefcase, Landmark, Scale, BookOpen,
     GraduationCap, Gavel, Building, Receipt, Coins, PiggyBank
 };
 
-const emptyModuleForm: ModuleFormData = {
+const emptyCourseForm: CourseFormData = {
     title: "",
     slug: "",
     icon_name: "BookOpen",
@@ -147,7 +159,7 @@ const emptyModuleForm: ModuleFormData = {
     is_active: true,
 };
 
-const emptySubmoduleForm: SubmoduleFormData = {
+const emptyChapterForm: ChapterFormData = {
     title: "",
     slug: "",
     simulator_type: "none",
@@ -157,7 +169,7 @@ const emptySubmoduleForm: SubmoduleFormData = {
 };
 
 const SIMULATOR_TYPE_OPTIONS: Array<{
-    value: SubmoduleFormData["simulator_type"];
+    value: ChapterFormData["simulator_type"];
     label: string;
 }> = [
     { value: "none", label: "None" },
@@ -173,36 +185,36 @@ const SIMULATOR_TYPE_OPTIONS: Array<{
 
 // ─── Main Component ──────────────────────────────────────────────────
 
-export default function AdminModulesPage() {
-    const [modules, setModules] = useState<Module[]>([]);
+export default function AdminCoursesPage() {
+    const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Module form state
-    const [showModuleForm, setShowModuleForm] = useState(false);
-    const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
-    const [moduleForm, setModuleForm] = useState<ModuleFormData>(emptyModuleForm);
-    const [isSavingModule, setIsSavingModule] = useState(false);
+    // Course form state
+    const [showCourseForm, setShowCourseForm] = useState(false);
+    const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
+    const [courseForm, setCourseForm] = useState<CourseFormData>(emptyCourseForm);
+    const [isSavingCourse, setIsSavingCourse] = useState(false);
 
-    // Submodule state
-    const [expandedModuleId, setExpandedModuleId] = useState<string | null>(null);
-    const [submodules, setSubmodules] = useState<Submodule[]>([]);
-    const [isLoadingSubmodules, setIsLoadingSubmodules] = useState(false);
-    const [showSubmoduleForm, setShowSubmoduleForm] = useState(false);
-    const [editingSubmoduleId, setEditingSubmoduleId] = useState<string | null>(null);
-    const [submoduleForm, setSubmoduleForm] = useState<SubmoduleFormData>(emptySubmoduleForm);
-    const [isSavingSubmodule, setIsSavingSubmodule] = useState(false);
+    // Chapter state
+    const [expandedCourseId, setExpandedCourseId] = useState<string | null>(null);
+    const [chapters, setChapters] = useState<Chapter[]>([]);
+    const [isLoadingChapters, setIsLoadingChapters] = useState(false);
+    const [showChapterForm, setShowChapterForm] = useState(false);
+    const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
+    const [chapterForm, setChapterForm] = useState<ChapterFormData>(emptyChapterForm);
+    const [isSavingChapter, setIsSavingChapter] = useState(false);
 
-    // ─── Fetch Modules ───────────────────────────────────────────────
+    // ─── Fetch Courses ───────────────────────────────────────────────
 
-    const fetchModules = useCallback(async () => {
+    const fetchCourses = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const res = await fetch("/api/admin/modules");
+            const res = await fetch("/api/admin/courses");
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to fetch modules");
-            setModules(data.modules || []);
+            setCourses(data.courses || []);
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Something went wrong");
         } finally {
@@ -211,165 +223,165 @@ export default function AdminModulesPage() {
     }, []);
 
     useEffect(() => {
-        fetchModules();
-    }, [fetchModules]);
+        fetchCourses();
+    }, [fetchCourses]);
 
-    // ─── Fetch Submodules ────────────────────────────────────────────
+    // ─── Fetch Chapters ────────────────────────────────────────────
 
-    const fetchSubmodules = useCallback(async (moduleId: string) => {
-        setIsLoadingSubmodules(true);
+    const fetchChapters = useCallback(async (moduleId: string) => {
+        setIsLoadingChapters(true);
         try {
-            const res = await fetch(`/api/admin/submodules?moduleId=${moduleId}`);
+            const res = await fetch(`/api/admin/chapters?courseId=${moduleId}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
-            setSubmodules(data.submodules || []);
+            setChapters(data.chapters || []);
         } catch (err: unknown) {
-            console.error("Failed to fetch submodules:", err);
-            setSubmodules([]);
+            console.error("Failed to fetch chapters:", err);
+            setChapters([]);
         } finally {
-            setIsLoadingSubmodules(false);
+            setIsLoadingChapters(false);
         }
     }, []);
 
-    // ─── Module CRUD ─────────────────────────────────────────────────
+    // ─── Course CRUD ─────────────────────────────────────────────────
 
-    const openCreateModule = () => {
-        setEditingModuleId(null);
-        setModuleForm(emptyModuleForm);
-        setShowModuleForm(true);
+    const openCreateCourse = () => {
+        setEditingCourseId(null);
+        setCourseForm(emptyCourseForm);
+        setShowCourseForm(true);
     };
 
-    const openEditModule = (mod: Module) => {
-        setEditingModuleId(mod.id);
-        setModuleForm({
-            title: mod.title,
-            slug: mod.slug,
-            icon_name: mod.icon_name,
-            bg_color: mod.bg_color,
-            text_color: mod.text_color,
-            course_count: mod.course_count,
-            is_active: typeof mod.is_active === "boolean" ? mod.is_active : true,
+    const openEditCourse = (course: Course) => {
+        setEditingCourseId(course.id);
+        setCourseForm({
+            title: course.title,
+            slug: course.slug,
+            icon_name: course.icon_name,
+            bg_color: course.bg_color,
+            text_color: course.text_color,
+            course_count: course.course_count,
+            is_active: typeof course.is_active === "boolean" ? course.is_active : true,
         });
-        setShowModuleForm(true);
+        setShowCourseForm(true);
     };
 
-    const cancelModuleForm = () => {
-        setShowModuleForm(false);
-        setEditingModuleId(null);
-        setModuleForm(emptyModuleForm);
+    const cancelCourseForm = () => {
+        setShowCourseForm(false);
+        setEditingCourseId(null);
+        setCourseForm(emptyCourseForm);
     };
 
-    const handleModuleTitleChange = (value: string) => {
-        setModuleForm((prev) => ({
+    const handleCourseTitleChange = (value: string) => {
+        setCourseForm((prev) => ({
             ...prev,
             title: value,
-            slug: editingModuleId ? prev.slug : slugify(value),
+            slug: editingCourseId ? prev.slug : slugify(value),
         }));
     };
 
-    const saveModule = async () => {
-        if (!moduleForm.title.trim() || !moduleForm.slug.trim()) return;
-        setIsSavingModule(true);
+    const saveCourse = async () => {
+        if (!courseForm.title.trim() || !courseForm.slug.trim()) return;
+        setIsSavingCourse(true);
         try {
-            const url = editingModuleId
-                ? `/api/admin/modules/${editingModuleId}`
-                : "/api/admin/modules";
-            const method = editingModuleId ? "PUT" : "POST";
+            const url = editingCourseId
+                ? `/api/admin/courses/${editingCourseId}`
+                : "/api/admin/courses";
+            const method = editingCourseId ? "PUT" : "POST";
 
             const res = await fetch(url, {
                 method,
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(moduleForm),
+                body: JSON.stringify(courseForm),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
 
-            cancelModuleForm();
-            fetchModules();
+            cancelCourseForm();
+            fetchCourses();
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Save failed");
         } finally {
-            setIsSavingModule(false);
+            setIsSavingCourse(false);
         }
     };
 
-    const deleteModule = async (id: string) => {
+    const deleteCourse = async (id: string) => {
         try {
-            const res = await fetch(`/api/admin/modules/${id}`, { method: "DELETE" });
+            const res = await fetch(`/api/admin/courses/${id}`, { method: "DELETE" });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
-            if (expandedModuleId === id) {
-                setExpandedModuleId(null);
-                setSubmodules([]);
+            if (expandedCourseId === id) {
+                setExpandedCourseId(null);
+                setChapters([]);
             }
-            fetchModules();
+            fetchCourses();
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Delete failed");
         }
     };
 
-    // ─── Submodule CRUD ──────────────────────────────────────────────
+    // ─── Chapter CRUD ──────────────────────────────────────────────
 
     const toggleExpand = (moduleId: string) => {
-        if (expandedModuleId === moduleId) {
-            setExpandedModuleId(null);
-            setSubmodules([]);
-            setShowSubmoduleForm(false);
+        if (expandedCourseId === moduleId) {
+            setExpandedCourseId(null);
+            setChapters([]);
+            setShowChapterForm(false);
         } else {
-            setExpandedModuleId(moduleId);
-            fetchSubmodules(moduleId);
-            setShowSubmoduleForm(false);
+            setExpandedCourseId(moduleId);
+            fetchChapters(moduleId);
+            setShowChapterForm(false);
         }
     };
 
-    const openCreateSubmodule = () => {
-        setEditingSubmoduleId(null);
-        setSubmoduleForm({
-            ...emptySubmoduleForm,
-            sort_order: submodules.length,
+    const openCreateChapter = () => {
+        setEditingChapterId(null);
+        setChapterForm({
+            ...emptyChapterForm,
+            sort_order: chapters.length,
         });
-        setShowSubmoduleForm(true);
+        setShowChapterForm(true);
     };
 
-    const openEditSubmodule = (sub: Submodule) => {
-        setEditingSubmoduleId(sub.id);
-        setSubmoduleForm({
-            title: sub.title,
-            slug: sub.slug,
-            simulator_type: sub.simulator_type ?? "none",
-            task_count: sub.task_count,
-            sort_order: sub.sort_order,
-            is_active: typeof sub.is_active === "boolean" ? sub.is_active : true,
+    const openEditChapter = (ch: Chapter) => {
+        setEditingChapterId(ch.id);
+        setChapterForm({
+            title: ch.title,
+            slug: ch.slug,
+            simulator_type: ch.simulator_type ?? "none",
+            task_count: ch.task_count,
+            sort_order: ch.sort_order,
+            is_active: typeof ch.is_active === "boolean" ? ch.is_active : true,
         });
-        setShowSubmoduleForm(true);
+        setShowChapterForm(true);
     };
 
-    const cancelSubmoduleForm = () => {
-        setShowSubmoduleForm(false);
-        setEditingSubmoduleId(null);
-        setSubmoduleForm(emptySubmoduleForm);
+    const cancelSubcourseForm = () => {
+        setShowChapterForm(false);
+        setEditingChapterId(null);
+        setChapterForm(emptyChapterForm);
     };
 
-    const handleSubmoduleTitleChange = (value: string) => {
-        setSubmoduleForm((prev) => ({
+    const handleChapterTitleChange = (value: string) => {
+        setChapterForm((prev) => ({
             ...prev,
             title: value,
-            slug: editingSubmoduleId ? prev.slug : slugify(value),
+            slug: editingChapterId ? prev.slug : slugify(value),
         }));
     };
 
-    const saveSubmodule = async () => {
-        if (!submoduleForm.title.trim() || !submoduleForm.slug.trim() || !expandedModuleId) return;
-        setIsSavingSubmodule(true);
+    const saveChapter = async () => {
+        if (!chapterForm.title.trim() || !chapterForm.slug.trim() || !expandedCourseId) return;
+        setIsSavingChapter(true);
         try {
-            const url = editingSubmoduleId
-                ? `/api/admin/submodules/${editingSubmoduleId}`
-                : "/api/admin/submodules";
-            const method = editingSubmoduleId ? "PUT" : "POST";
+            const url = editingChapterId
+                ? `/api/admin/chapters/${editingChapterId}`
+                : "/api/admin/chapters";
+            const method = editingChapterId ? "PUT" : "POST";
 
-            const body = editingSubmoduleId
-                ? submoduleForm
-                : { ...submoduleForm, module_id: expandedModuleId };
+            const body = editingChapterId
+                ? chapterForm
+                : { ...chapterForm, course_id: expandedCourseId };
 
             const res = await fetch(url, {
                 method,
@@ -379,24 +391,24 @@ export default function AdminModulesPage() {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
 
-            cancelSubmoduleForm();
-            fetchSubmodules(expandedModuleId);
-            fetchModules(); // refresh submodule counts
+            cancelSubcourseForm();
+            fetchChapters(expandedCourseId);
+            fetchCourses(); // refresh chapter counts
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Save failed");
         } finally {
-            setIsSavingSubmodule(false);
+            setIsSavingChapter(false);
         }
     };
 
-    const deleteSubmodule = async (id: string) => {
-        if (!expandedModuleId) return;
+    const deleteChapter = async (id: string) => {
+        if (!expandedCourseId) return;
         try {
-            const res = await fetch(`/api/admin/submodules/${id}`, { method: "DELETE" });
+            const res = await fetch(`/api/admin/chapters/${id}`, { method: "DELETE" });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
-            fetchSubmodules(expandedModuleId);
-            fetchModules();
+            fetchChapters(expandedCourseId);
+            fetchCourses();
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Delete failed");
         }
@@ -428,16 +440,16 @@ export default function AdminModulesPage() {
                             <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
                                 <Layout className="h-4 w-4 text-white" />
                             </div>
-                            <h1 className="text-lg font-bold text-slate-900">Content Modules</h1>
+                            <h1 className="text-lg font-bold text-slate-900">Course Contents</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <Link href="/dashboard/admin/content/questions">
                             <Button variant="outline">Manage Tasks</Button>
                         </Link>
-                        <Button onClick={openCreateModule} className="gap-2">
+                        <Button onClick={openCreateCourse} className="gap-2">
                             <Plus className="h-4 w-4" />
-                            Add Module
+                            Add Course
                         </Button>
                     </div>
                 </div>
@@ -454,14 +466,14 @@ export default function AdminModulesPage() {
                     </div>
                 )}
 
-                {/* Module Form (Create / Edit) */}
-                {showModuleForm && (
+                {/* Course Form (Create / Edit) */}
+                {showCourseForm && (
                     <div className="mb-8 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
                             <h2 className="font-semibold text-slate-900">
-                                {editingModuleId ? "Edit Module" : "New Module"}
+                                {editingCourseId ? "Edit Course" : "New Course"}
                             </h2>
-                            <button onClick={cancelModuleForm}>
+                            <button onClick={cancelCourseForm}>
                                 <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
                             </button>
                         </div>
@@ -471,8 +483,8 @@ export default function AdminModulesPage() {
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium text-slate-700">Title *</label>
                                     <Input
-                                        value={moduleForm.title}
-                                        onChange={(e) => handleModuleTitleChange(e.target.value)}
+                                        value={courseForm.title}
+                                        onChange={(e) => handleCourseTitleChange(e.target.value)}
                                         placeholder="e.g. Income Tax"
                                         className="rounded-lg"
                                     />
@@ -480,9 +492,9 @@ export default function AdminModulesPage() {
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium text-slate-700">Slug *</label>
                                     <Input
-                                        value={moduleForm.slug}
+                                        value={courseForm.slug}
                                         onChange={(e) =>
-                                            setModuleForm((prev) => ({ ...prev, slug: e.target.value }))
+                                            setCourseForm((prev) => ({ ...prev, slug: e.target.value }))
                                         }
                                         placeholder="e.g. income-tax"
                                         className="rounded-lg"
@@ -495,11 +507,11 @@ export default function AdminModulesPage() {
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium text-slate-700">Icon</label>
                                     <select
-                                        value={moduleForm.icon_name}
+                                        value={courseForm.icon_name}
                                         onChange={(e) =>
-                                            setModuleForm((prev) => ({ ...prev, icon_name: e.target.value }))
+                                            setCourseForm((prev) => ({ ...prev, icon_name: e.target.value }))
                                         }
-                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                     >
                                         {ICON_OPTIONS.map((icon) => (
                                             <option key={icon} value={icon}>
@@ -511,18 +523,18 @@ export default function AdminModulesPage() {
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium text-slate-700">Color Theme</label>
                                     <select
-                                        value={moduleForm.bg_color}
+                                        value={courseForm.bg_color}
                                         onChange={(e) => {
                                             const color = COLOR_OPTIONS.find((c) => c.bg === e.target.value);
                                             if (color) {
-                                                setModuleForm((prev) => ({
+                                                setCourseForm((prev) => ({
                                                     ...prev,
                                                     bg_color: color.bg,
                                                     text_color: color.text,
                                                 }));
                                             }
                                         }}
-                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                     >
                                         {COLOR_OPTIONS.map((c) => (
                                             <option key={c.bg} value={c.bg}>
@@ -536,9 +548,9 @@ export default function AdminModulesPage() {
                                     <Input
                                         type="number"
                                         min={0}
-                                        value={moduleForm.course_count}
+                                        value={courseForm.course_count}
                                         onChange={(e) =>
-                                            setModuleForm((prev) => ({
+                                            setCourseForm((prev) => ({
                                                 ...prev,
                                                 course_count: parseInt(e.target.value) || 0,
                                             }))
@@ -551,53 +563,53 @@ export default function AdminModulesPage() {
                             <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                                 <input
                                     type="checkbox"
-                                    checked={moduleForm.is_active}
+                                    checked={courseForm.is_active}
                                     onChange={(e) =>
-                                        setModuleForm((prev) => ({
+                                        setCourseForm((prev) => ({
                                             ...prev,
                                             is_active: e.target.checked,
                                         }))
                                     }
                                 />
-                                Module is enabled (visible to learners)
+                                Course is enabled (visible to learners)
                             </label>
 
                             {/* Preview */}
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
                                 <div
-                                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${moduleForm.bg_color} ${moduleForm.text_color}`}
+                                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${safeBgText(courseForm.bg_color, courseForm.text_color).bg} ${safeBgText(courseForm.bg_color, courseForm.text_color).text}`}
                                 >
                                     {(() => {
-                                        const PreviewIcon = IconMap[moduleForm.icon_name] || BookOpen;
+                                        const PreviewIcon = IconMap[courseForm.icon_name] || BookOpen;
                                         return <PreviewIcon className="h-5 w-5" />;
                                     })()}
                                 </div>
                                 <div>
                                     <p className="text-sm font-semibold text-slate-900">
-                                        {moduleForm.title || "Module Title"}
+                                        {courseForm.title || "Course Title"}
                                     </p>
                                     <p className="text-xs text-slate-500">
-                                        /{moduleForm.slug || "slug"} · {moduleForm.course_count} courses · Icon: {moduleForm.icon_name} · {moduleForm.is_active ? "Enabled" : "Disabled"}
+                                        /{courseForm.slug || "slug"} · {courseForm.course_count} courses · Icon: {courseForm.icon_name} · {courseForm.is_active ? "Enabled" : "Disabled"}
                                     </p>
                                 </div>
                             </div>
 
                             {/* Actions */}
                             <div className="flex justify-end gap-3 pt-2">
-                                <Button variant="outline" onClick={cancelModuleForm}>
+                                <Button variant="outline" onClick={cancelCourseForm}>
                                     Cancel
                                 </Button>
                                 <Button
-                                    onClick={saveModule}
-                                    disabled={isSavingModule || !moduleForm.title.trim()}
+                                    onClick={saveCourse}
+                                    disabled={isSavingCourse || !courseForm.title.trim()}
                                     className="gap-2"
                                 >
-                                    {isSavingModule ? (
+                                    {isSavingCourse ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
                                         <Save className="h-4 w-4" />
                                     )}
-                                    {editingModuleId ? "Update" : "Create"}
+                                    {editingCourseId ? "Update" : "Create"}
                                 </Button>
                             </div>
                         </div>
@@ -608,43 +620,43 @@ export default function AdminModulesPage() {
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-20">
                         <Loader2 className="h-8 w-8 text-blue-600 animate-spin mb-4" />
-                        <p className="text-sm text-slate-500 font-medium">Loading modules...</p>
+                        <p className="text-sm text-slate-500 font-medium">Loading courses...</p>
                     </div>
-                ) : modules.length === 0 ? (
+                ) : courses.length === 0 ? (
                     /* Empty State */
                     <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-dashed border-slate-300">
                         <div className="h-16 w-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
                             <BookOpen className="h-8 w-8 text-slate-400" />
                         </div>
-                        <h3 className="text-lg font-semibold text-slate-900">No modules yet</h3>
+                        <h3 className="text-lg font-semibold text-slate-900">No courses yet</h3>
                         <p className="text-sm text-slate-500 mt-1 mb-6">
-                            Create your first learning module to get started.
+                            Create your first learning course to get started.
                         </p>
-                        <Button onClick={openCreateModule} className="gap-2">
+                        <Button onClick={openCreateCourse} className="gap-2">
                             <Plus className="h-4 w-4" />
-                            Add Module
+                            Add Course
                         </Button>
                     </div>
                 ) : (
-                    /* Modules List */
+                    /* Courses List */
                     <div className="space-y-3">
-                        {modules.map((mod) => {
-                            const isExpanded = expandedModuleId === mod.id;
-                            const subCount =
-                                mod.submodules && mod.submodules[0]
-                                    ? mod.submodules[0].count
+                        {courses.map((course) => {
+                            const isExpanded = expandedCourseId === course.id;
+                            const chapterCount =
+                                course.chapters && course.chapters[0]
+                                    ? course.chapters[0].count
                                     : 0;
 
                             return (
                                 <div
-                                    key={mod.id}
+                                    key={course.id}
                                     className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-shadow hover:shadow-md"
                                 >
-                                    {/* Module Row */}
+                                    {/* Course Row */}
                                     <div className="flex items-center gap-4 px-5 py-4">
                                         {/* Expand Toggle */}
                                         <button
-                                            onClick={() => toggleExpand(mod.id)}
+                                            onClick={() => toggleExpand(course.id)}
                                             className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
                                         >
                                             {isExpanded ? (
@@ -656,10 +668,10 @@ export default function AdminModulesPage() {
 
                                         {/* Icon */}
                                         <div
-                                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${mod.bg_color} ${mod.text_color}`}
+                                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${safeBgText(course.bg_color, course.text_color).bg} ${safeBgText(course.bg_color, course.text_color).text}`}
                                         >
                                             {(() => {
-                                                const ListIcon = IconMap[mod.icon_name] || BookOpen;
+                                                const ListIcon = IconMap[course.icon_name] || BookOpen;
                                                 return <ListIcon className="h-5 w-5" />;
                                             })()}
                                         </div>
@@ -668,24 +680,24 @@ export default function AdminModulesPage() {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <h3 className="font-semibold text-slate-900 truncate">
-                                                    {mod.title}
+                                                    {course.title}
                                                 </h3>
                                                 <Badge variant="secondary" className="text-[10px]">
-                                                    {mod.slug}
+                                                    {course.slug}
                                                 </Badge>
                                                 <Badge
-                                                    variant={mod.is_active ? "default" : "outline"}
+                                                    variant={course.is_active ? "default" : "outline"}
                                                     className="text-[10px]"
                                                 >
-                                                    {mod.is_active ? "Enabled" : "Disabled"}
+                                                    {course.is_active ? "Enabled" : "Disabled"}
                                                 </Badge>
                                             </div>
                                             <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
-                                                <span>{mod.course_count} courses</span>
+                                                <span>{course.progress} courses</span>
                                                 <span>·</span>
-                                                <span>{subCount} submodules</span>
+                                                <span>{chapterCount} chapters</span>
                                                 <span>·</span>
-                                                <span>Icon: {mod.icon_name}</span>
+                                                <span>Icon: {course.icon_name}</span>
                                             </div>
                                         </div>
 
@@ -694,13 +706,13 @@ export default function AdminModulesPage() {
                                             variant="outline"
                                             className="text-[10px] hidden sm:inline-flex"
                                         >
-                                            {getColorLabel(mod.bg_color)}
+                                            {getColorLabel(course.bg_color)}
                                         </Badge>
 
                                         {/* Actions */}
                                         <div className="flex items-center gap-1">
                                             <button
-                                                onClick={() => openEditModule(mod)}
+                                                onClick={() => openEditCourse(course)}
                                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                 title="Edit module"
                                             >
@@ -718,17 +730,17 @@ export default function AdminModulesPage() {
                                                 </AlertDialogTrigger>
                                                 <AlertDialogContent>
                                                     <AlertDialogHeader>
-                                                        <AlertDialogTitle>Delete &quot;{mod.title}&quot;?</AlertDialogTitle>
+                                                        <AlertDialogTitle>Delete &quot;{course.title}&quot;?</AlertDialogTitle>
                                                         <AlertDialogDescription>
                                                             This will permanently delete this module and all its
-                                                            submodules. This action cannot be undone.
+                                                            chapters. This action cannot be undone.
                                                         </AlertDialogDescription>
                                                     </AlertDialogHeader>
                                                     <AlertDialogFooter>
                                                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                         <AlertDialogAction
                                                             variant="destructive"
-                                                            onClick={() => deleteModule(mod.id)}
+                                                            onClick={() => deleteCourse(course.id)}
                                                         >
                                                             Delete
                                                         </AlertDialogAction>
@@ -738,32 +750,32 @@ export default function AdminModulesPage() {
                                         </div>
                                     </div>
 
-                                    {/* Expanded: Submodules */}
+                                    {/* Expanded: Chapters */}
                                     {isExpanded && (
                                         <div className="border-t border-slate-100 bg-slate-50/50">
                                             <div className="px-5 py-3 flex items-center justify-between">
                                                 <h4 className="text-sm font-semibold text-slate-700">
-                                                    Submodules
+                                                    Chapters
                                                 </h4>
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    onClick={openCreateSubmodule}
+                                                    onClick={openCreateChapter}
                                                     className="gap-1.5 h-8 text-xs"
                                                 >
                                                     <Plus className="h-3.5 w-3.5" />
-                                                    Add Submodule
+                                                    Add Chapter
                                                 </Button>
                                             </div>
 
-                                            {/* Submodule Form */}
-                                            {showSubmoduleForm && (
+                                            {/* Chapter Form */}
+                                            {showChapterForm && (
                                                 <div className="mx-5 mb-3 p-4 bg-white rounded-lg border border-slate-200 space-y-4">
                                                     <div className="flex items-center justify-between">
                                                         <h5 className="text-sm font-semibold text-slate-800">
-                                                            {editingSubmoduleId ? "Edit Submodule" : "New Submodule"}
+                                                            {editingChapterId ? "Edit Chapter" : "New Chapter"}
                                                         </h5>
-                                                        <button onClick={cancelSubmoduleForm}>
+                                                        <button onClick={cancelSubcourseForm}>
                                                             <X className="h-4 w-4 text-slate-400" />
                                                         </button>
                                                     </div>
@@ -773,9 +785,9 @@ export default function AdminModulesPage() {
                                                                 Title *
                                                             </label>
                                                             <Input
-                                                                value={submoduleForm.title}
+                                                                value={chapterForm.title}
                                                                 onChange={(e) =>
-                                                                    handleSubmoduleTitleChange(e.target.value)
+                                                                    handleChapterTitleChange(e.target.value)
                                                                 }
                                                                 placeholder="e.g. E-PAN"
                                                                 className="rounded-lg h-8 text-sm"
@@ -786,9 +798,9 @@ export default function AdminModulesPage() {
                                                                 Slug *
                                                             </label>
                                                             <Input
-                                                                value={submoduleForm.slug}
+                                                                value={chapterForm.slug}
                                                                 onChange={(e) =>
-                                                                    setSubmoduleForm((prev) => ({
+                                                                    setChapterForm((prev) => ({
                                                                         ...prev,
                                                                         slug: e.target.value,
                                                                     }))
@@ -806,9 +818,9 @@ export default function AdminModulesPage() {
                                                             <Input
                                                                 type="number"
                                                                 min={0}
-                                                                value={submoduleForm.task_count}
+                                                                value={chapterForm.task_count}
                                                                 onChange={(e) =>
-                                                                    setSubmoduleForm((prev) => ({
+                                                                    setChapterForm((prev) => ({
                                                                         ...prev,
                                                                         task_count: parseInt(e.target.value) || 0,
                                                                     }))
@@ -823,9 +835,9 @@ export default function AdminModulesPage() {
                                                             <Input
                                                                 type="number"
                                                                 min={0}
-                                                                value={submoduleForm.sort_order}
+                                                                value={chapterForm.sort_order}
                                                                 onChange={(e) =>
-                                                                    setSubmoduleForm((prev) => ({
+                                                                    setChapterForm((prev) => ({
                                                                         ...prev,
                                                                         sort_order: parseInt(e.target.value) || 0,
                                                                     }))
@@ -838,12 +850,12 @@ export default function AdminModulesPage() {
                                                                 Simulator Type
                                                             </label>
                                                             <select
-                                                                value={submoduleForm.simulator_type}
+                                                                value={chapterForm.simulator_type}
                                                                 onChange={(e) =>
-                                                                    setSubmoduleForm((prev) => ({
+                                                                    setChapterForm((prev) => ({
                                                                         ...prev,
                                                                         simulator_type:
-                                                                            e.target.value as SubmoduleFormData["simulator_type"],
+                                                                            e.target.value as ChapterFormData["simulator_type"],
                                                                     }))
                                                                 }
                                                                 className="w-full h-8 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
@@ -859,60 +871,60 @@ export default function AdminModulesPage() {
                                                     <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
                                                         <input
                                                             type="checkbox"
-                                                            checked={submoduleForm.is_active}
+                                                            checked={chapterForm.is_active}
                                                             onChange={(e) =>
-                                                                setSubmoduleForm((prev) => ({
+                                                                setChapterForm((prev) => ({
                                                                     ...prev,
                                                                     is_active: e.target.checked,
                                                                 }))
                                                             }
                                                         />
-                                                        Submodule is enabled (visible to learners)
+                                                        Chapter is enabled (visible to learners)
                                                     </label>
                                                     <div className="flex justify-end gap-2">
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            onClick={cancelSubmoduleForm}
+                                                            onClick={cancelSubcourseForm}
                                                             className="h-8"
                                                         >
                                                             Cancel
                                                         </Button>
                                                         <Button
                                                             size="sm"
-                                                            onClick={saveSubmodule}
+                                                            onClick={saveChapter}
                                                             disabled={
-                                                                isSavingSubmodule ||
-                                                                !submoduleForm.title.trim()
+                                                                isSavingChapter ||
+                                                                !chapterForm.title.trim()
                                                             }
                                                             className="gap-1.5 h-8"
                                                         >
-                                                            {isSavingSubmodule ? (
+                                                            {isSavingChapter ? (
                                                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                                             ) : (
                                                                 <Save className="h-3.5 w-3.5" />
                                                             )}
-                                                            {editingSubmoduleId ? "Update" : "Create"}
+                                                            {editingChapterId ? "Update" : "Create"}
                                                         </Button>
                                                     </div>
                                                 </div>
                                             )}
 
-                                            {/* Submodules List */}
-                                            {isLoadingSubmodules ? (
+                                            {/* Chapters List */}
+                                            {isLoadingChapters ? (
                                                 <div className="px-5 py-6 text-center">
                                                     <Loader2 className="h-5 w-5 text-blue-600 animate-spin mx-auto mb-2" />
-                                                    <p className="text-xs text-slate-500">Loading submodules...</p>
+                                                    <p className="text-xs text-slate-500">Loading chapters...</p>
                                                 </div>
-                                            ) : submodules.length === 0 ? (
+                                            ) : chapters.length === 0 ? (
                                                 <div className="px-5 py-6 text-center text-sm text-slate-500">
-                                                    No submodules yet. Click &quot;Add Submodule&quot; to create one.
+                                                    No chapters yet. Click &quot;Add Chapter&quot; to create one.
                                                 </div>
                                             ) : (
                                                 <div className="px-5 pb-3 space-y-1.5">
-                                                    {submodules.map((sub, idx) => (
+                                                    {chapters.map((ch, idx) => (
                                                         <div
-                                                            key={sub.id}
+                                                            key={ch.id}
                                                             className="flex items-center gap-3 px-4 py-3 bg-white rounded-lg border border-slate-100 hover:border-slate-200 transition-colors"
                                                         >
                                                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">
@@ -920,10 +932,10 @@ export default function AdminModulesPage() {
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <p className="text-sm font-medium text-slate-900 truncate">
-                                                                    {sub.title}
+                                                                    {ch.title}
                                                                 </p>
                                                                 <p className="text-[11px] text-slate-500">
-                                                                    /{sub.slug} · {sub.task_count} tasks · Progress: {sub.progress}%
+                                                                    /{ch.slug} · {ch.task_count} tasks · Progress: {ch.progress}%
                                                                 </p>
                                                             </div>
                                                             <Badge
@@ -932,20 +944,20 @@ export default function AdminModulesPage() {
                                                             >
                                                                 {SIMULATOR_TYPE_OPTIONS.find(
                                                                     (option) =>
-                                                                        option.value === (sub.simulator_type ?? "none")
+                                                                        option.value === (ch.simulator_type ?? "none")
                                                                 )?.label ?? "None"}
                                                             </Badge>
                                                             <Badge
-                                                                variant={sub.is_active ? "default" : "outline"}
+                                                                variant={ch.is_active ? "default" : "outline"}
                                                                 className="text-[10px]"
                                                             >
-                                                                {sub.is_active ? "Enabled" : "Disabled"}
+                                                                {ch.is_active ? "Enabled" : "Disabled"}
                                                             </Badge>
                                                             <div className="flex items-center gap-1">
                                                                 <button
-                                                                    onClick={() => openEditSubmodule(sub)}
+                                                                    onClick={() => openEditChapter(ch)}
                                                                     className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                                                                    title="Edit submodule"
+                                                                    title="Edit chapter"
                                                                 >
                                                                     <Pencil className="h-3.5 w-3.5" />
                                                                 </button>
@@ -953,7 +965,7 @@ export default function AdminModulesPage() {
                                                                     <AlertDialogTrigger asChild>
                                                                         <button
                                                                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                                                            title="Delete submodule"
+                                                                            title="Delete chapter"
                                                                         >
                                                                             <Trash2 className="h-3.5 w-3.5" />
                                                                         </button>
@@ -961,17 +973,17 @@ export default function AdminModulesPage() {
                                                                     <AlertDialogContent>
                                                                         <AlertDialogHeader>
                                                                             <AlertDialogTitle>
-                                                                                Delete &quot;{sub.title}&quot;?
+                                                                                Delete &quot;{ch.title}&quot;?
                                                                             </AlertDialogTitle>
                                                                             <AlertDialogDescription>
-                                                                                This submodule will be permanently deleted.
+                                                                                This chapter will be permanently deleted.
                                                                             </AlertDialogDescription>
                                                                         </AlertDialogHeader>
                                                                         <AlertDialogFooter>
                                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                                             <AlertDialogAction
                                                                                 variant="destructive"
-                                                                                onClick={() => deleteSubmodule(sub.id)}
+                                                                                onClick={() => deleteChapter(ch.id)}
                                                                             >
                                                                                 Delete
                                                                             </AlertDialogAction>

@@ -16,7 +16,7 @@ export interface SimulationEvaluationConfig {
     showExpectedAnswersInEvaluation: boolean;
     mappings: PersistableEvaluationMapping[];
     questionTitle?: string | null;
-    submoduleId?: string | null;
+    chapterId?: string | null;
 }
 
 function trimValue(value: string | null | undefined): string {

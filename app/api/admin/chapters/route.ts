@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { verifyAdminAccess, verifyFacultyAccess } from "@/lib/supabase/admin-auth";
 import {
-    LMS_MODULES_TAG,
+    LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
-    LMS_SUBMODULES_TAG,
+    LMS_CHAPTERS_TAG,
 } from "../../../../lib/supabase/lms-cache-tags";
 import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
@@ -19,46 +21,33 @@ const VALID_SIMULATOR_TYPES = [
     "gstf-simulation",
 ] as const;
 
-async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return null;
-
-    const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-    if (!profile || profile.role !== "admin") return null;
-    return user;
-}
-
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-        const admin = await verifyAdmin(supabase);
-        if (!admin) {
+        const admin = await verifyAdminAccess(supabase);
+        const faculty = await verifyFacultyAccess(supabase);
+        if (!admin && !faculty) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const moduleId = request.nextUrl.searchParams.get("moduleId");
-        if (!moduleId) {
-            return NextResponse.json({ error: "moduleId query param is required" }, { status: 400 });
+        const courseId = request.nextUrl.searchParams.get("courseId");
+        if (!courseId) {
+            return NextResponse.json({ error: "courseId query param is required" }, { status: 400 });
         }
 
         const { data, error } = await supabase
-            .from("submodules")
+            .from("chapters")
             .select("*")
-            .eq("module_id", moduleId)
+            .eq("course_id", courseId)
             .order("sort_order", { ascending: true });
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        return NextResponse.json({ submodules: data });
+        return NextResponse.json({ chapters: data });
     } catch (error: unknown) {
-        console.error("Error fetching submodules:", error);
+        console.error("Error fetching chapters:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
@@ -66,16 +55,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
     try {
         const supabase = await createClient();
-        const admin = await verifyAdmin(supabase);
+        const admin = await verifyAdminAccess(supabase);
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const body = await request.json();
-        const { module_id, title, slug, task_count, sort_order, is_active, simulator_type } = body;
+        const { course_id, title, slug, task_count, sort_order, is_active, simulator_type } = body;
 
-        if (!module_id || !title || !slug) {
-            return NextResponse.json({ error: "module_id, title, and slug are required" }, { status: 400 });
+        if (!course_id || !title || !slug) {
+            return NextResponse.json({ error: "course_id, title, and slug are required" }, { status: 400 });
         }
 
         if (is_active !== undefined && typeof is_active !== "boolean") {
@@ -92,10 +81,11 @@ export async function POST(request: Request) {
             );
         }
 
-        const { data, error } = await supabase
-            .from("submodules")
+        const adminDb = createServiceRoleClient();
+        const { data, error } = await adminDb
+            .from("chapters")
             .insert({
-                module_id,
+                course_id,
                 title,
                 slug,
                 task_count: task_count ?? 0,
@@ -104,32 +94,35 @@ export async function POST(request: Request) {
                 simulator_type: simulator_type ?? "none",
             })
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Recalculate course_count for the parent module
-        if (data?.module_id) {
-            const { count: submoduleCount } = await supabase
-                .from("submodules")
-                .select("*", { count: "exact", head: true })
-                .eq("module_id", data.module_id);
-
-            await supabase
-                .from("modules")
-                .update({ course_count: submoduleCount ?? 0 })
-                .eq("id", data.module_id);
+        if (!data) {
+            return NextResponse.json({ error: "Failed to create chapter" }, { status: 500 });
         }
 
-        revalidateTag(LMS_MODULES_TAG, "max");
-        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        if (data?.course_id) {
+            const { count: chapterCount } = await adminDb
+                .from("chapters")
+                .select("*", { count: "exact", head: true })
+                .eq("course_id", data.course_id);
+
+            await adminDb
+                .from("courses")
+                .update({ course_count: chapterCount ?? 0 })
+                .eq("id", data.course_id);
+        }
+
+        revalidateTag(LMS_COURSES_TAG, "max");
+        revalidateTag(LMS_CHAPTERS_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
 
-        return NextResponse.json({ submodule: data }, { status: 201 });
+        return NextResponse.json({ chapter: data }, { status: 201 });
     } catch (error: unknown) {
-        console.error("Error creating submodule:", error);
+        console.error("Error creating chapter:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

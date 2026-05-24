@@ -1,10 +1,10 @@
 import { CaseStudyContent } from "@/components/lms/case-study-content";
 import {
-    getCachedModuleById,
-    getCachedQuestionsBySubmodule,
-    getCachedSubmoduleBySlug,
+    getCachedCourseById,
+    getCachedQuestionsByChapter,
+    getCachedChapterBySlug,
 } from "@/lib/supabase/lms-cache";
-import type { Submodule } from "@/lib/supabase/modules";
+import type { Chapter } from "@/lib/supabase/courses";
 import { notFound } from "next/navigation";
 
 interface CoursePageProps {
@@ -15,22 +15,22 @@ interface CoursePageProps {
 
 export default async function CoursePage({ params }: CoursePageProps) {
     const { submoduleSlug } = await params;
-    let submodule: Submodule;
+    let chapter: Chapter;
     let questions;
-    let moduleSlug = "";
-    let moduleTitle = "";
+    let courseSlug = "";
+    let courseTitle = "";
 
     try {
-        submodule = await getCachedSubmoduleBySlug(submoduleSlug);
+        chapter = await getCachedChapterBySlug(submoduleSlug);
 
-        const [questionList, parentModule] = await Promise.all([
-            getCachedQuestionsBySubmodule(submodule.id),
-            getCachedModuleById(submodule.module_id),
+        const [questionList, parentCourse] = await Promise.all([
+            getCachedQuestionsByChapter(chapter.id),
+            getCachedCourseById(chapter.course_id),
         ]);
 
         questions = questionList;
-        moduleSlug = parentModule.slug;
-        moduleTitle = parentModule.title;
+        courseSlug = parentCourse.slug;
+        courseTitle = parentCourse.title;
 
     } catch (error) {
         const code = typeof error === "object" && error !== null && "code" in error
@@ -46,17 +46,16 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
     return (
         <CaseStudyContent
-            title={`Case Study: ${submodule.title}`}
+            title={`Case Study: ${chapter.title}`}
             breadcrumbs={[
-                { label: "Prayog Offerings", href: "/offerings" },
+                { label: "Home", href: "/" },
                 { label: "Learning Contents", href: "/learning-contents" },
-                { label: moduleTitle, href: `/learning-contents/${moduleSlug}` },
-                { label: submodule.title },
+                { label: courseTitle, href: `/learning-contents/${courseSlug}` },
+                { label: chapter.title },
             ]}
             questions={questions}
-            submoduleSlug={submodule.slug}
-            moduleSlug={moduleSlug}
-            simulatorType={submodule.simulator_type}
+            submoduleSlug={submoduleSlug}
+            moduleSlug={courseSlug}
         />
     );
 }

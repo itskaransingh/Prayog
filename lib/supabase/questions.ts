@@ -8,7 +8,7 @@ export interface QuestionTableData {
 
 export interface Question {
     id: string;
-    submodule_id: string;
+    chapter_id: string;
     title: string;
     paragraph: string;
     content_html: string;
@@ -30,7 +30,7 @@ export interface Question {
 
 export type QuestionInsert = Pick<
     Question,
-    | "submodule_id"
+    | "chapter_id"
     | "title"
     | "paragraph"
     | "content_html"
@@ -49,15 +49,15 @@ export type QuestionInsert = Pick<
 >;
 
 export type QuestionUpdate = Partial<
-    Omit<Question, "id" | "submodule_id" | "created_at" | "updated_at">
+    Omit<Question, "id" | "chapter_id" | "created_at" | "updated_at">
 >;
 
-export async function getQuestionsBySubmodule(submoduleId: string) {
+export async function getQuestionsByChapter(chapterId: string) {
     const supabase = await createClient();
     const { data, error } = await supabase
         .from("questions")
         .select("*")
-        .eq("submodule_id", submoduleId)
+        .eq("chapter_id", chapterId)
         .order("created_at", { ascending: true });
 
     if (error) throw error;

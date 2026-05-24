@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
 import {
-    LMS_MODULES_TAG,
+    LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
-    LMS_SUBMODULES_TAG,
+    LMS_CHAPTERS_TAG,
 } from "../../../../../lib/supabase/lms-cache-tags";
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
@@ -19,20 +21,6 @@ const VALID_SIMULATOR_TYPES = [
     "gstf-simulation",
 ] as const;
 
-async function verifyAdmin(supabase: Awaited<ReturnType<typeof createClient>>) {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) return null;
-
-    const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-    if (!profile || profile.role !== "admin") return null;
-    return user;
-}
-
 export async function PUT(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -40,7 +28,7 @@ export async function PUT(
     try {
         const { id } = await params;
         const supabase = await createClient();
-        const admin = await verifyAdmin(supabase);
+        const admin = await verifyAdminAccess(supabase);
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
@@ -76,24 +64,29 @@ export async function PUT(
             return NextResponse.json({ error: "No fields to update" }, { status: 400 });
         }
 
-        const { data, error } = await supabase
-            .from("submodules")
+        const adminDb = createServiceRoleClient();
+        const { data, error } = await adminDb
+            .from("chapters")
             .update(updateData)
             .eq("id", id)
             .select()
-            .single();
+            .maybeSingle();
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        revalidateTag(LMS_MODULES_TAG, "max");
-        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        if (!data) {
+            return NextResponse.json({ error: "Chapter not found" }, { status: 404 });
+        }
+
+        revalidateTag(LMS_COURSES_TAG, "max");
+        revalidateTag(LMS_CHAPTERS_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
 
-        return NextResponse.json({ submodule: data });
+        return NextResponse.json({ chapter: data });
     } catch (error: unknown) {
-        console.error("Error updating submodule:", error);
+        console.error("Error updating chapter:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
@@ -105,20 +98,20 @@ export async function DELETE(
     try {
         const { id } = await params;
         const supabase = await createClient();
-        const admin = await verifyAdmin(supabase);
+        const admin = await verifyAdminAccess(supabase);
         if (!admin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // Get module_id before deleting
-        const { data: submodule } = await supabase
-            .from("submodules")
-            .select("module_id")
+        const adminDb = createServiceRoleClient();
+        const { data: chapter } = await adminDb
+            .from("chapters")
+            .select("course_id")
             .eq("id", id)
             .single();
 
-        const { error } = await supabase
-            .from("submodules")
+        const { error } = await adminDb
+            .from("chapters")
             .delete()
             .eq("id", id);
 
@@ -126,26 +119,25 @@ export async function DELETE(
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Recalculate course_count for the parent module
-        if (submodule?.module_id) {
-            const { count: submoduleCount } = await supabase
-                .from("submodules")
+        if (chapter?.course_id) {
+            const { count: chapterCount } = await adminDb
+                .from("chapters")
                 .select("*", { count: "exact", head: true })
-                .eq("module_id", submodule.module_id);
+                .eq("course_id", chapter.course_id);
 
-            await supabase
-                .from("modules")
-                .update({ course_count: submoduleCount ?? 0 })
-                .eq("id", submodule.module_id);
+            await adminDb
+                .from("courses")
+                .update({ course_count: chapterCount ?? 0 })
+                .eq("id", chapter.course_id);
         }
 
-        revalidateTag(LMS_MODULES_TAG, "max");
-        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_COURSES_TAG, "max");
+        revalidateTag(LMS_CHAPTERS_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
 
-        return NextResponse.json({ message: "Submodule deleted" });
+        return NextResponse.json({ message: "Chapter deleted" });
     } catch (error: unknown) {
-        console.error("Error deleting submodule:", error);
+        console.error("Error deleting chapter:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

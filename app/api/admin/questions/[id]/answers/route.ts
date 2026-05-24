@@ -19,12 +19,12 @@ import type { QuestionType } from "@/lib/questions/types";
 
 interface QuestionRecord {
     id: string;
-    submodule_id: string;
+    chapter_id: string;
     table_data: QuestionTableData | null;
     type: QuestionType;
 }
 
-interface SubmoduleRecord {
+interface ChapterRecord {
     id: string;
     is_active: boolean;
     simulator_type: SimulatorType | null;
@@ -72,7 +72,7 @@ export async function GET(
 
         const { data: question, error: questionError } = await adminDb
             .from("questions")
-            .select("id, submodule_id, table_data, type")
+            .select("id, chapter_id, table_data, type")
             .eq("id", id)
             .maybeSingle<QuestionRecord>();
 
@@ -91,21 +91,21 @@ export async function GET(
             );
         }
 
-        const { data: submodule, error: submoduleError } = await adminDb
-            .from("submodules")
+        const { data: chapter, error: chapterError } = await adminDb
+            .from("chapters")
             .select("id, is_active, simulator_type")
-            .eq("id", question.submodule_id)
-            .maybeSingle<SubmoduleRecord>();
+            .eq("id", question.chapter_id)
+            .maybeSingle<ChapterRecord>();
 
-        if (submoduleError) {
-            throw submoduleError;
+        if (chapterError) {
+            throw chapterError;
         }
 
-        if (!submodule || !submodule.is_active) {
+        if (!chapter || !chapter.is_active) {
             return NextResponse.json({ error: "Question not found" }, { status: 404 });
         }
 
-        const simulatorType = submodule.simulator_type ?? "none";
+        const simulatorType = chapter.simulator_type ?? "none";
         const registrationFieldDefinitions =
             await loadRegistrationFieldDefinitions(adminDb, simulatorType);
 

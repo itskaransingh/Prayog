@@ -1,9 +1,9 @@
-import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
+import { verifyFacultyAccess, getUserCourseAccess } from "@/lib/supabase/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-    LMS_MODULES_TAG,
+    LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
-    LMS_SUBMODULES_TAG,
+    LMS_CHAPTERS_TAG,
 } from "../../../../lib/supabase/lms-cache-tags";
 import { createClient } from "@/lib/supabase/server";
 import { isQuestionType } from "@/lib/questions/types";
@@ -34,25 +34,38 @@ function parseCourseObjectives(value: unknown): string[] | null {
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
-        const admin = await verifyAdminAccess(supabase);
+        const user = await verifyFacultyAccess(supabase);
         const adminDb = createAdminClient();
 
-        if (!admin) {
+        if (!user) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const submoduleId = request.nextUrl.searchParams.get("submoduleId");
-        if (!submoduleId) {
+        const chapterId = request.nextUrl.searchParams.get("chapterId");
+        if (!chapterId) {
             return NextResponse.json(
-                { error: "submoduleId query param is required" },
+                { error: "chapterId query param is required" },
                 { status: 400 }
             );
+        }
+
+        if (user.role !== "super_admin") {
+            const courseAccess = await getUserCourseAccess(supabase, user.id);
+            const { data: chapter } = await adminDb
+                .from("chapters")
+                .select("course_id")
+                .eq("id", chapterId)
+                .single();
+
+            if (!chapter || !courseAccess.includes(chapter.course_id)) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
         }
 
         const { data, error } = await adminDb
             .from("questions")
             .select("*")
-            .eq("submodule_id", submoduleId)
+            .eq("chapter_id", chapterId)
             .order("created_at", { ascending: true });
 
         if (error) {
@@ -72,16 +85,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
     try {
         const supabase = await createClient();
-        const admin = await verifyAdminAccess(supabase);
+        const user = await verifyFacultyAccess(supabase);
         const adminDb = createAdminClient();
 
-        if (!admin) {
+        if (!user) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const body = await request.json();
         const {
-            submodule_id,
+            chapter_id,
             title,
             paragraph,
             content_html,
@@ -99,11 +112,31 @@ export async function POST(request: Request) {
             link_title,
         } = body;
 
-        if (!submodule_id || !title) {
+        if (!chapter_id || !title) {
             return NextResponse.json(
-                { error: "submodule_id and title are required" },
+                { error: "chapter_id and title are required" },
                 { status: 400 }
             );
+        }
+
+        if (user.role !== "super_admin") {
+            const courseAccess = await getUserCourseAccess(supabase, user.id);
+            const { data: chapter } = await adminDb
+                .from("chapters")
+                .select("course_id")
+                .eq("id", chapter_id)
+                .single();
+
+            if (!chapter || !courseAccess.includes(chapter.course_id)) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+
+            if (user.role === "admin") {
+                return NextResponse.json(
+                    { error: "Only faculty can create tasks" },
+                    { status: 403 }
+                );
+            }
         }
 
         if (type !== undefined && !isQuestionType(type)) {
@@ -136,7 +169,7 @@ export async function POST(request: Request) {
         const { data, error } = await adminDb
             .from("questions")
             .insert({
-                submodule_id,
+                chapter_id,
                 title,
                 paragraph: paragraph ?? "",
                 content_html: normalizedContentHtml,
@@ -160,19 +193,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // Recalculate task_count for the submodule
         const { count: taskCount } = await adminDb
             .from("questions")
             .select("*", { count: "exact", head: true })
-            .eq("submodule_id", submodule_id);
+            .eq("chapter_id", chapter_id);
 
         await adminDb
-            .from("submodules")
+            .from("chapters")
             .update({ task_count: taskCount ?? 0 })
-            .eq("id", submodule_id);
+            .eq("id", chapter_id);
 
-        revalidateTag(LMS_MODULES_TAG, "max");
-        revalidateTag(LMS_SUBMODULES_TAG, "max");
+        revalidateTag(LMS_COURSES_TAG, "max");
+        revalidateTag(LMS_CHAPTERS_TAG, "max");
         revalidateTag(LMS_QUESTIONS_TAG, "max");
 
         return NextResponse.json({ question: data }, { status: 201 });

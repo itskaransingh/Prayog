@@ -58,17 +58,31 @@ interface Module {
     slug: string;
 }
 
-interface Submodule {
+interface Chapter {
     id: string;
-    module_id: string;
+    course_id: string;
     title: string;
     slug: string;
-    simulator_type: SimulatorType | null;
+    simulator_type:
+        | "none"
+        | "classification"
+        | "itr_registration"
+        | "epan_registration"
+        | "journal_entry"
+        | "ledger"
+        | "trial_balance"
+        | "financial_statement"
+        | "gstf-simulation"
+        | null;
+    is_active: boolean;
+    task_count: number;
+    progress: number;
+    sort_order: number;
 }
 
 interface Question {
     id: string;
-    submodule_id: string;
+    chapter_id: string;
     title: string;
     paragraph: string;
     content_html: string;
@@ -173,11 +187,11 @@ function normalizeFormForType(
 }
 
 export default function AdminQuestionsPage() {
-    const [modules, setModules] = useState<Module[]>([]);
-    const [submodules, setSubmodules] = useState<Submodule[]>([]);
+    const [courses, setCourses] = useState<Module[]>([]);
+    const [chapters, setChapters] = useState<Chapter[]>([]);
     const [questions, setQuestions] = useState<Question[]>([]);
-    const [selectedModuleId, setSelectedModuleId] = useState("");
-    const [selectedSubmoduleId, setSelectedSubmoduleId] = useState("");
+    const [selectedCourseId, setSelectedCourseId] = useState("");
+    const [selectedChapterId, setSelectedChapterId] = useState("");
     const [simulatorType, setSimulatorType] = useState<SimulatorType | null>(null);
     const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
     const [, setEditingSimulationTaskId] = useState<string | null>(null);
@@ -186,8 +200,8 @@ export default function AdminQuestionsPage() {
     const [loadedQaPayload, setLoadedQaPayload] = useState<SyncAnswersPayload | null>(null);
     const [qaDirty, setQaDirty] = useState(false);
     const [qaNotice, setQaNotice] = useState<string | null>(null);
-    const [isLoadingModules, setIsLoadingModules] = useState(true);
-    const [isLoadingSubmodules, setIsLoadingSubmodules] = useState(false);
+    const [isLoadingCourses, setIsLoadingCourses] = useState(true);
+    const [isLoadingChapters, setIsLoadingChapters] = useState(false);
     const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
     const [isLoadingAnswers, setIsLoadingAnswers] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -198,11 +212,11 @@ export default function AdminQuestionsPage() {
     const [showQuestionBuilder, setShowQuestionBuilder] = useState(false);
 
     const formMode = useMemo(() => getFormMode(form.type), [form.type]);
-    const selectedSubmodule =
-        submodules.find((submodule) => submodule.id === selectedSubmoduleId) ?? null;
+    const selectedChapter =
+        chapters.find((chapter) => chapter.id === selectedChapterId) ?? null;
     const simulatorTypeLabel = simulatorType ?? "none";
     const simulatorTypeMissing =
-        Boolean(selectedSubmoduleId) &&
+        Boolean(selectedChapterId) &&
         (simulatorType === null || simulatorType === "none");
 
     const isEmptyQaPayload = useCallback(
@@ -312,62 +326,61 @@ export default function AdminQuestionsPage() {
         [editingQuestionId, isEmptyQaPayload, loadedQaPayload, qaDirty, simulatorType],
     );
 
-    const fetchModules = useCallback(async () => {
-        setIsLoadingModules(true);
+    const fetchCourses = useCallback(async () => {
+        setIsLoadingCourses(true);
         setError(null);
-
         try {
-            const res = await fetch("/api/admin/modules");
+            const res = await fetch("/api/admin/courses");
             const data = await res.json();
-
             if (!res.ok) {
-                throw new Error(data.error || "Failed to fetch modules");
+                throw new Error(data.error || "Failed to fetch courses");
             }
 
-            setModules(data.modules || []);
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Failed to fetch modules");
-        } finally {
-            setIsLoadingModules(false);
-        }
-    }, []);
-
-    const fetchSubmodules = useCallback(async (moduleId: string) => {
-        setIsLoadingSubmodules(true);
-
-        try {
-            const res = await fetch(`/api/admin/submodules?moduleId=${moduleId}`);
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || "Failed to fetch submodules");
-            }
-
-            setSubmodules(data.submodules || []);
+            setCourses(data.courses || []);
         } catch (err: unknown) {
             setError(
-                err instanceof Error ? err.message : "Failed to fetch submodules",
+                err instanceof Error ? err.message : "Failed to fetch courses",
             );
-            setSubmodules([]);
         } finally {
-            setIsLoadingSubmodules(false);
+            setIsLoadingCourses(false);
         }
     }, []);
 
-    const fetchQuestions = useCallback(async (submoduleId: string) => {
-        setIsLoadingQuestions(true);
-
+    const fetchChapters = useCallback(async (courseId: string) => {
+        setIsLoadingChapters(true);
         try {
-            const res = await fetch(`/api/admin/questions?submoduleId=${submoduleId}`);
+            const res = await fetch(`/api/admin/chapters?courseId=${courseId}`);
             const data = await res.json();
-
             if (!res.ok) {
-                throw new Error(data.error || "Failed to fetch tasks");
+                throw new Error(data.error || "Failed to fetch chapters");
+            }
+
+            setChapters(data.chapters || []);
+        } catch (err: unknown) {
+            setError(
+                err instanceof Error ? err.message : "Failed to fetch chapters",
+            );
+            setChapters([]);
+        } finally {
+            setIsLoadingChapters(false);
+        }
+    }, []);
+
+    const fetchQuestions = useCallback(async (chapterId: string) => {
+        setIsLoadingQuestions(true);
+        setError(null);
+        try {
+            const res = await fetch(`/api/admin/questions?chapterId=${chapterId}`);
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || "Failed to fetch questions");
             }
 
             setQuestions(data.questions || []);
         } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : "Failed to fetch tasks");
+            setError(
+                err instanceof Error ? err.message : "Failed to fetch questions",
+            );
             setQuestions([]);
         } finally {
             setIsLoadingQuestions(false);
@@ -375,29 +388,27 @@ export default function AdminQuestionsPage() {
     }, []);
 
     useEffect(() => {
-        void fetchModules();
-    }, [fetchModules]);
+        fetchCourses();
+    }, [fetchCourses]);
 
     useEffect(() => {
-        if (!selectedModuleId) {
-            setSubmodules([]);
-            setSelectedSubmoduleId("");
-            setSimulatorType(null);
+        if (!selectedCourseId) {
+            setChapters([]);
+            setSelectedChapterId("");
+            return;
+        }
+
+        void fetchChapters(selectedCourseId);
+    }, [fetchChapters, selectedCourseId]);
+
+    useEffect(() => {
+        if (!selectedChapterId) {
             setQuestions([]);
             return;
         }
 
-        void fetchSubmodules(selectedModuleId);
-    }, [fetchSubmodules, selectedModuleId]);
-
-    useEffect(() => {
-        if (!selectedSubmoduleId) {
-            setQuestions([]);
-            return;
-        }
-
-        void fetchQuestions(selectedSubmoduleId);
-    }, [fetchQuestions, selectedSubmoduleId]);
+        void fetchQuestions(selectedChapterId);
+    }, [fetchQuestions, selectedChapterId]);
 
     const resetForm = useCallback(() => {
         setEditingQuestionId(null);
@@ -520,8 +531,8 @@ export default function AdminQuestionsPage() {
     );
 
     const saveQuestion = async () => {
-        if (!selectedSubmoduleId || !form.title.trim()) {
-            setError("Select a submodule and provide a title.");
+        if (!selectedChapterId || !form.title.trim()) {
+            setError("Select a chapter and provide a title.");
             return;
         }
 
@@ -580,7 +591,7 @@ export default function AdminQuestionsPage() {
                             ? questionPayload
                             : {
                                   ...questionPayload,
-                                  submodule_id: selectedSubmoduleId,
+                                  chapter_id: selectedChapterId,
                               },
                     ),
                 },
@@ -715,8 +726,8 @@ export default function AdminQuestionsPage() {
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : "Save failed");
         } finally {
-            if (selectedSubmoduleId) {
-                await fetchQuestions(selectedSubmoduleId);
+            if (selectedChapterId) {
+                await fetchQuestions(selectedChapterId);
             }
 
             if (savedQuestion) {
@@ -738,8 +749,8 @@ export default function AdminQuestionsPage() {
                 throw new Error(data.error || "Failed to delete task");
             }
 
-            if (selectedSubmoduleId) {
-                await fetchQuestions(selectedSubmoduleId);
+            if (selectedChapterId) {
+                await fetchQuestions(selectedChapterId);
             }
 
             if (editingQuestionId === questionId) {
@@ -813,7 +824,7 @@ export default function AdminQuestionsPage() {
                                         setSuccessMessage(null);
                                         setError(null);
                                     }}
-                                    disabled={!selectedSubmoduleId}
+                                    disabled={!selectedChapterId}
                                     className="gap-2"
                                 >
                                     <Plus className="h-4 w-4" />
@@ -832,29 +843,29 @@ export default function AdminQuestionsPage() {
                             Select Context
                         </h2>
                         <p className="mt-1 text-sm text-slate-500">
-                            Choose the submodule that owns these tasks and resources.
+                            Choose the chapter that owns these tasks and resources.
                         </p>
 
                         <div className="mt-4 space-y-4">
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium text-slate-700">
-                                    Module
+                                    Course
                                 </label>
                                 <select
-                                    value={selectedModuleId}
+                                    value={selectedCourseId}
                                     onChange={(event) => {
-                                        setSelectedModuleId(event.target.value);
-                                        setSelectedSubmoduleId("");
+                                        setSelectedCourseId(event.target.value);
+                                        setSelectedChapterId("");
                                         setSimulatorType(null);
                                         setQuestions([]);
                                         resetForm();
                                     }}
                                     className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-emerald-500"
                                 >
-                                    <option value="">Select a module</option>
-                                    {modules.map((module) => (
-                                        <option key={module.id} value={module.id}>
-                                            {module.title}
+                                    <option value="">Select a course</option>
+                                    {courses.map((course) => (
+                                        <option key={course.id} value={course.id}>
+                                            {course.title}
                                         </option>
                                     ))}
                                 </select>
@@ -862,37 +873,37 @@ export default function AdminQuestionsPage() {
 
                             <div className="space-y-1.5">
                                 <label className="text-sm font-medium text-slate-700">
-                                    Submodule
+                                    Chapter
                                 </label>
                                 <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
-                                    {!selectedModuleId ? (
+                                    {!selectedCourseId ? (
                                         <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                                            Select a module first.
+                                            Select a course first.
                                         </div>
-                                    ) : isLoadingSubmodules ? (
+                                    ) : isLoadingChapters ? (
                                         <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                                            Loading submodules...
+                                            Loading chapters...
                                         </div>
-                                    ) : submodules.length === 0 ? (
+                                    ) : chapters.length === 0 ? (
                                         <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                                            No submodules found for this module.
+                                            No chapters found for this course.
                                         </div>
                                     ) : (
                                         <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
-                                            {submodules.map((submodule) => {
+                                            {chapters.map((chapter) => {
                                                 const isSelected =
-                                                    selectedSubmoduleId === submodule.id;
+                                                    selectedChapterId === chapter.id;
 
                                                 return (
                                                     <button
-                                                        key={submodule.id}
+                                                        key={chapter.id}
                                                         type="button"
                                                         onClick={() => {
-                                                            setSelectedSubmoduleId(
-                                                                submodule.id,
+                                                            setSelectedChapterId(
+                                                                chapter.id,
                                                             );
                                                             setSimulatorType(
-                                                                submodule.simulator_type ??
+                                                                chapter.simulator_type ??
                                                                     null,
                                                             );
                                                             resetForm();
@@ -905,14 +916,14 @@ export default function AdminQuestionsPage() {
                                                     >
                                                         <div className="min-w-0">
                                                             <p className="truncate text-sm font-medium text-slate-900">
-                                                                {submodule.title}
+                                                                {chapter.title}
                                                             </p>
                                                             <p className="truncate text-xs text-slate-500">
-                                                                {submodule.slug}
+                                                                {chapter.slug}
                                                             </p>
                                                         </div>
                                                         <Badge variant="outline" className="shrink-0">
-                                                            {submodule.simulator_type ??
+                                                            {chapter.simulator_type ??
                                                                 "none"}
                                                         </Badge>
                                                     </button>
@@ -923,9 +934,9 @@ export default function AdminQuestionsPage() {
                                 </div>
                                 <div className="flex items-center justify-between gap-2 px-1 pt-1 text-xs text-slate-500">
                                     <span>
-                                        Selected submodule:
-                                        {selectedSubmodule
-                                            ? ` ${selectedSubmodule.title}`
+                                        Selected chapter:
+                                        {selectedChapter
+                                            ? ` ${selectedChapter.title}`
                                             : " none"}
                                     </span>
                                     <Badge variant="outline" className="h-6">
@@ -944,7 +955,7 @@ export default function AdminQuestionsPage() {
                                         Tasks & Resources
                                     </h2>
                                     <p className="text-sm text-slate-500">
-                                        Existing items for the selected submodule.
+                                        Existing items for the selected chapter.
                                     </p>
                                 </div>
                                 <Badge variant="secondary">{questions.length}</Badge>
@@ -952,18 +963,18 @@ export default function AdminQuestionsPage() {
                         </div>
 
                         <div className="max-h-[65vh] overflow-y-auto p-3">
-                            {isLoadingModules || isLoadingQuestions ? (
+                            {isLoadingCourses || isLoadingQuestions ? (
                                 <div className="flex items-center justify-center gap-3 rounded-xl p-8 text-sm text-slate-500">
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                     Loading...
                                 </div>
-                            ) : !selectedSubmoduleId ? (
+                            ) : !selectedChapterId ? (
                                 <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-                                    Pick a submodule to load items.
+                                    Pick a chapter to load items.
                                 </div>
                             ) : questions.length === 0 ? (
                                 <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-                                    No items yet for this submodule.
+                                    No items yet for this chapter.
                                 </div>
                             ) : (
                                 <div className="space-y-2">
@@ -1487,7 +1498,7 @@ export default function AdminQuestionsPage() {
                                 </Button>
                                 <Button
                                     onClick={saveQuestion}
-                                    disabled={!selectedSubmoduleId || isSaving}
+                                    disabled={!selectedChapterId || isSaving}
                                     className="gap-2"
                                 >
                                     {isSaving ? (
