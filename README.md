@@ -13,6 +13,7 @@ Before running the application, you need to configure your local environment var
    - `SUPABASE_SERVICE_ROLE_KEY`: Your project's `service_role` secret (Do **NOT** expose this to the browser/client-side).
 
 
+
 First, run the development server:
 
 ```bash
