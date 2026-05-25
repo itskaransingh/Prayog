@@ -31,6 +31,7 @@ export async function PUT(
             text_color,
             progress,
             is_active,
+            is_hidden,
         } = body;
 
         const updateData: Record<string, unknown> = {};
@@ -47,6 +48,13 @@ export async function PUT(
                 return NextResponse.json({ error: "is_active must be a boolean" }, { status: 400 });
             }
             updateData.is_active = is_active;
+        }
+
+        if (is_hidden !== undefined) {
+            if (typeof is_hidden !== "boolean") {
+                return NextResponse.json({ error: "is_hidden must be a boolean" }, { status: 400 });
+            }
+            updateData.is_hidden = is_hidden;
         }
 
         if (Object.keys(updateData).length === 0) {

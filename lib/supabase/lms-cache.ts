@@ -20,6 +20,7 @@ const getCoursesCached = unstable_cache(
             .from("courses")
             .select("*")
             .eq("is_active", true)
+            .eq("is_hidden", false)
             .order("created_at", { ascending: true });
 
         if (error) throw error;
@@ -37,6 +38,7 @@ const getCourseBySlugCached = unstable_cache(
             .select("*")
             .eq("slug", slug)
             .eq("is_active", true)
+            .eq("is_hidden", false)
             .single();
 
         if (error) throw error;
@@ -54,6 +56,7 @@ const getCourseByIdCached = unstable_cache(
             .select("*")
             .eq("id", id)
             .eq("is_active", true)
+            .eq("is_hidden", false)
             .single();
 
         if (error) throw error;

@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
     Tooltip,
     TooltipContent,
@@ -764,13 +765,13 @@ export default function AdminQuestionsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50">
-            <header className="sticky top-0 z-10 border-b border-slate-200 bg-white shadow-sm">
+        <div className="min-h-screen bg-background text-foreground">
+            <header className="sticky top-0 z-10 border-b border-border bg-background shadow-sm">
                 <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
                     <div className="flex items-center gap-4">
                         <Link
                             href="/dashboard"
-                            className="flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-blue-600"
+                            className="flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-blue-600"
                         >
                             <ArrowLeft className="h-4 w-4" />
                             Dashboard
@@ -781,16 +782,17 @@ export default function AdminQuestionsPage() {
                                 <LayoutList className="h-4 w-4" />
                             </div>
                             <div>
-                                <h1 className="text-lg font-bold text-slate-900">
+                                <h1 className="text-lg font-bold text-foreground">
                                     Tasks
                                 </h1>
-                                <p className="text-xs text-slate-500">
+                                <p className="text-xs text-muted-foreground">
                                     Manage task prompts, videos, and document resources
                                 </p>
                             </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        <ThemeToggle />
                         <Link href="/dashboard/admin/content/modules">
                             <Button variant="outline">Manage Modules</Button>
                         </Link>
@@ -838,17 +840,17 @@ export default function AdminQuestionsPage() {
 
             <main className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-6 py-8 lg:grid-cols-[340px_minmax(0,1fr)]">
                 <aside className="space-y-6">
-                    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <h2 className="text-sm font-semibold text-slate-900">
+                    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+                        <h2 className="text-sm font-semibold text-foreground">
                             Select Context
                         </h2>
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 text-sm text-muted-foreground">
                             Choose the chapter that owns these tasks and resources.
                         </p>
 
                         <div className="mt-4 space-y-4">
                             <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">
+                                <label className="text-sm font-medium text-foreground">
                                     Course
                                 </label>
                                 <select
@@ -860,7 +862,7 @@ export default function AdminQuestionsPage() {
                                         setQuestions([]);
                                         resetForm();
                                     }}
-                                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-transparent focus:ring-2 focus:ring-emerald-500"
+                                    className="h-10 w-full rounded-lg border border-border bg-background px-3 text-sm text-foreground outline-none focus:border-transparent focus:ring-2 focus:ring-emerald-500"
                                 >
                                     <option value="">Select a course</option>
                                     {courses.map((course) => (
@@ -872,20 +874,20 @@ export default function AdminQuestionsPage() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-slate-700">
+                                <label className="text-sm font-medium text-foreground">
                                     Chapter
                                 </label>
-                                <div className="rounded-2xl border border-slate-200 bg-white p-2 shadow-sm">
+                                <div className="rounded-2xl border border-border bg-card p-2 shadow-sm">
                                     {!selectedCourseId ? (
-                                        <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                                        <div className="rounded-xl border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
                                             Select a course first.
                                         </div>
                                     ) : isLoadingChapters ? (
-                                        <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                                        <div className="rounded-xl border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
                                             Loading chapters...
                                         </div>
                                     ) : chapters.length === 0 ? (
-                                        <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
+                                        <div className="rounded-xl border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
                                             No chapters found for this course.
                                         </div>
                                     ) : (
@@ -911,14 +913,14 @@ export default function AdminQuestionsPage() {
                                                         className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition ${
                                                             isSelected
                                                                 ? "border-emerald-300 bg-emerald-50"
-                                                                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                                                                : "border-border bg-background hover:border-border hover:bg-accent/40"
                                                         }`}
                                                     >
                                                         <div className="min-w-0">
-                                                            <p className="truncate text-sm font-medium text-slate-900">
+                                                            <p className="truncate text-sm font-medium text-foreground">
                                                                 {chapter.title}
                                                             </p>
-                                                            <p className="truncate text-xs text-slate-500">
+                                                            <p className="truncate text-xs text-muted-foreground">
                                                                 {chapter.slug}
                                                             </p>
                                                         </div>
@@ -932,7 +934,7 @@ export default function AdminQuestionsPage() {
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex items-center justify-between gap-2 px-1 pt-1 text-xs text-slate-500">
+                                <div className="flex items-center justify-between gap-2 px-1 pt-1 text-xs text-muted-foreground">
                                     <span>
                                         Selected chapter:
                                         {selectedChapter
@@ -947,14 +949,14 @@ export default function AdminQuestionsPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <div className="border-b border-slate-100 px-5 py-4">
+                    <div className="rounded-2xl border border-border bg-card shadow-sm">
+                        <div className="border-b border-border px-5 py-4">
                             <div className="flex items-center justify-between gap-2">
                                 <div>
-                                    <h2 className="text-sm font-semibold text-slate-900">
+                                    <h2 className="text-sm font-semibold text-foreground">
                                         Tasks & Resources
                                     </h2>
-                                    <p className="text-sm text-slate-500">
+                                    <p className="text-sm text-muted-foreground">
                                         Existing items for the selected chapter.
                                     </p>
                                 </div>
@@ -964,16 +966,16 @@ export default function AdminQuestionsPage() {
 
                         <div className="max-h-[65vh] overflow-y-auto p-3">
                             {isLoadingCourses || isLoadingQuestions ? (
-                                <div className="flex items-center justify-center gap-3 rounded-xl p-8 text-sm text-slate-500">
+                                <div className="flex items-center justify-center gap-3 rounded-xl p-8 text-sm text-muted-foreground">
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                     Loading...
                                 </div>
                             ) : !selectedChapterId ? (
-                                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+                                <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                                     Pick a chapter to load items.
                                 </div>
                             ) : questions.length === 0 ? (
-                                <div className="rounded-xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+                                <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
                                     No items yet for this chapter.
                                 </div>
                             ) : (
@@ -986,17 +988,17 @@ export default function AdminQuestionsPage() {
                                             className={`w-full rounded-xl border px-4 py-3 text-left transition ${
                                                 editingQuestionId === question.id
                                                     ? "border-emerald-300 bg-emerald-50"
-                                                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                                                    : "border-border bg-background hover:border-border hover:bg-accent/40"
                                             }`}
                                         >
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
-                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                                         {question.type === "question"
                                                             ? `Task ${getTaskNumber(questions, question.id) ?? index + 1}`
                                                             : getItemLabel(question.type)}
                                                     </p>
-                                                    <p className="mt-1 font-medium text-slate-900">
+                                                    <p className="mt-1 font-medium text-foreground">
                                                         {question.title}
                                                     </p>
                                                 </div>
@@ -1008,13 +1010,13 @@ export default function AdminQuestionsPage() {
                                                     </Badge>
                                                     {question.type === "question" &&
                                                         question.has_image && (
-                                                            <ImageIcon className="h-4 w-4 text-slate-400" />
+                                                            <ImageIcon className="h-4 w-4 text-muted-foreground" />
                                                         )}
                                                     {question.type === "video" && (
-                                                        <Video className="h-4 w-4 text-slate-400" />
+                                                        <Video className="h-4 w-4 text-muted-foreground" />
                                                     )}
                                                     {question.type === "document" && (
-                                                        <FileText className="h-4 w-4 text-slate-400" />
+                                                        <FileText className="h-4 w-4 text-muted-foreground" />
                                                     )}
                                                 </div>
                                             </div>

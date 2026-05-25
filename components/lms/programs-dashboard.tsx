@@ -51,6 +51,7 @@ export async function ProgramsDashboard() {
         .from("courses")
         .select("id, title, slug, course_count, icon_name, bg_color, text_color")
         .eq("is_active", true)
+        .eq("is_hidden", false)
         .order("created_at", { ascending: true })
         .limit(3);
 
