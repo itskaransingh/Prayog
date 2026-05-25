@@ -165,10 +165,10 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                 )}
 
                 {/* Main content area */}
-                <div className={`flex flex-1 ${useImmersiveMapShell ? "bg-[#0d0f1a]" : ""}`}>
+                <div className={`flex flex-1 ${useImmersiveMapShell ? "bg-background" : ""}`}>
                     {/* Center Content */}
-                    <div className={`flex-1 flex flex-col ${useImmersiveMapShell ? "bg-[#0d0f1a]" : "bg-muted/30 dark:bg-slate-950/30"}`}>
-                        <main className={`flex-1 overflow-y-auto w-full ${useImmersiveMapShell ? "bg-[#0d0f1a]" : ""}`}>
+                    <div className={`flex-1 flex flex-col ${useImmersiveMapShell ? "bg-background" : "bg-muted/30 dark:bg-slate-950/30"}`}>
+                        <main className={`flex-1 overflow-y-auto w-full ${useImmersiveMapShell ? "bg-background" : ""}`}>
                             {children}
                         </main>
                     </div>

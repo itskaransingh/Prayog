@@ -29,6 +29,22 @@ _Avoid_: Submodule, lesson, topic
 **Task**: A learning activity within a Chapter, combining a question description with its simulation configuration.
 _Avoid_: Question, exercise, assignment
 
+### Simulation
+
+**Simulator Type**: The kind of interactive exercise a Task uses. Financial Accounting simulator types: Classification, Journal Entry, Ledger, Trial Balance, Financial Statement.
+_Avoid_: Simulation mode, exercise type
+
+### Engagement
+
+**XP**: Experience points earned by completing Tasks. Reward decreases with repeated attempts (50 → 25 → 15 → 10).
+_Avoid_: Points, score, credits
+
+**Quest**: A time-bound challenge created by Faculty or Admin, scoped to a single Course. Defines a goal, an XP reward, and a deadline.
+_Avoid_: Challenge, mission, assignment
+
+**Leaderboard**: A per-Course ranking of Students by total XP earned.
+_Avoid_: Scoreboard, rankings
+
 ### Access
 
 **Course Access**: The set of Courses a user (Admin, Faculty, or Student) is permitted to interact with.
