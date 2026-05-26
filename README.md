@@ -2,6 +2,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+
 ## Environment Setup (Supabase)
 
 Before running the application, you need to configure your local environment variables to connect to the Supabase backend.
