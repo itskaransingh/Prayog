@@ -1,10 +1,9 @@
 node_modules/
 .next/
 .env*
-scripts/
+ 
 context/
-docs/
-supabase/
+docs/ 
 .claude/
 __tests__/
 resources/
