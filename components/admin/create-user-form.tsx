@@ -221,7 +221,7 @@ export function CreateUserForm({ onSuccess, userRole }: { onSuccess?: () => void
                                         {selectedCourses.map((courseId) => {
                                             const course = courses.find((c) => c.id === courseId);
                                             return course ? (
-                                                <ComboboxChip key={courseId} value={courseId}>
+                                                <ComboboxChip key={courseId}>
                                                     {course.title}
                                                 </ComboboxChip>
                                             ) : null;

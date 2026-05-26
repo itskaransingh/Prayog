@@ -248,7 +248,7 @@ export default function AdminDashboard() {
         { id: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "faculty"] as const },
         { id: "results", label: "Results", icon: History, roles: ["super_admin", "admin", "faculty"] as const },
         { id: "settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] as const },
-    ].filter((tab) => tab.roles.includes(userRole as (typeof tab.roles)[number]));
+    ].filter((tab) => (tab.roles as readonly string[]).includes(userRole));
 
     const visibleTabs = tabs.map((tab) => ({ id: tab.id, label: tab.label, icon: tab.icon }));
 

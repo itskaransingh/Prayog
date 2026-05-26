@@ -2,8 +2,6 @@ node_modules/
 .next/
 .env*
  
-context/
-docs/ 
+
 .claude/
 __tests__/
-resources/
