@@ -77,6 +77,7 @@ function FinancialStatementContent() {
   const [loading, setLoading] = useState(true);
   const [questionNo, setQuestionNo] = useState("FS_000");
   const [taskId, setTaskId] = useState<string | null>(null);
+  const [chapterSlug, setChapterSlug] = useState<string | null>(null);
   const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
   const [fields, setFields] = useState<FSFieldRecord[]>([]);
   const [allRows, setAllRows] = useState<AllRows>(INITIAL_ROWS);
@@ -108,6 +109,19 @@ function FinancialStatementContent() {
         if (task) {
           setTaskId(task.id);
           setShowExpectedAnswersInEvaluation(task.show_expected_answers_in_evaluation ?? false);
+          const { data: questionMeta } = await supabase
+            .from("questions")
+            .select("chapter_id")
+            .eq("id", questionId)
+            .maybeSingle<{ chapter_id: string | null }>();
+          if (questionMeta?.chapter_id) {
+            const { data: chapter } = await supabase
+              .from("chapters")
+              .select("slug")
+              .eq("id", questionMeta.chapter_id)
+              .maybeSingle<{ slug: string }>();
+            setChapterSlug(chapter?.slug ?? null);
+          }
           const { data: steps } = await supabase
             .from("simulation_steps").select("id")
             .eq("task_id", task.id).order("step_order");
@@ -127,6 +141,7 @@ function FinancialStatementContent() {
     }
     load();
   }, [questionId, supabase]);
+  const returnHref = chapterSlug ? `/course/${chapterSlug}` : "/learning-contents";
 
   // ─── Options per section ──────────────────────────────────────────────────
   const sectionOptions = useMemo(() => {
@@ -276,10 +291,11 @@ function FinancialStatementContent() {
       )}
       <EvaluationPopup
         open={showEval}
-        onClose={() => setShowEval(false)}
+        onClose={() => window.location.replace(returnHref)}
         results={evaluation}
         variant="fs"
         showExpectedValues={showExpectedAnswersInEvaluation}
+        primaryActionLabel="Return to Chapter"
       />
       <DraggableCalculator />
     </>

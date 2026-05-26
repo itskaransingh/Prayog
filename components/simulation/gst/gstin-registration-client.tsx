@@ -653,6 +653,7 @@ function GSTGstinSimulator({
 }) {
     const [mappings, setMappings] = useState<PersistableEvaluationMapping[]>(() => getCachedMappings(questionId));
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [chapterSlug, setChapterSlug] = useState<string | null>(null);
     const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
 
     // Stages: "trn" | "otp" | "saved-apps" | "form" | "done"
@@ -698,6 +699,7 @@ function GSTGstinSimulator({
                 if (!res.ok) throw new Error("Failed to fetch config");
                 const config = (await res.json()) as SimulationEvaluationConfig;
                 setTaskId(config.taskId);
+                setChapterSlug(config.chapterSlug ?? null);
                 onQuestionTitleChange(config.questionTitle ?? null);
                 setShowExpectedAnswersInEvaluation(config.showExpectedAnswersInEvaluation);
                 setMappings(config.mappings);
@@ -710,6 +712,7 @@ function GSTGstinSimulator({
         }
         void loadConfig();
     }, [onQuestionTitleChange, questionId]);
+    const returnHref = chapterSlug ? `/course/${chapterSlug}` : "/learning-contents";
 
     const getSubmissionData = useCallback(() => {
         const byPath = new Map(mappings.map((mapping) => [mapping.fieldPath, mapping.expectedValue]));
@@ -1002,8 +1005,9 @@ function GSTGstinSimulator({
                 <EvaluationPopup
                     open={showEvaluationPopup}
                     results={evaluationResults}
-                    onClose={() => setShowEvaluationPopup(false)}
+                    onClose={() => window.location.replace(returnHref)}
                     showExpectedValues={showExpectedAnswersInEvaluation}
+                    primaryActionLabel="Return to Chapter"
                 />
             </>
         );

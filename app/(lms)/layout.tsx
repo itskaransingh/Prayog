@@ -21,7 +21,6 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
     const supabase = useMemo(() => createClient(), []);
     const [role, setRole] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [userName, setUserName] = useState("");
     const { breadcrumbs } = useLmsBreadcrumbs();
 
     useEffect(() => {
@@ -36,10 +35,6 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
 
                 if (profile) {
                     setRole(profile.role);
-                }
-                if (user.email) {
-                    const name = user.email.split("@")[0];
-                    setUserName(name.charAt(0).toUpperCase() + name.slice(1));
                 }
             }
             setLoading(false);
@@ -59,13 +54,6 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
     const hasCourseBreadcrumbs = isCoursePage && breadcrumbs.length > 0;
     const isLmsHomePage = pathname === "/";
     const useImmersiveMapShell = isFinancialAccountingMapPage;
-
-    const getGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return "Good morning";
-        if (hour < 17) return "Good afternoon";
-        return "Good evening";
-    };
 
     return (
         <div className="flex min-h-screen w-full bg-background text-foreground">
@@ -124,46 +112,6 @@ function LmsLayoutShell({ children }: { children: React.ReactNode }) {
                         </div>
                     </div>
                 )}
-
-                {/* Progress Strip - Only on home page */}
-                {isLmsHomePage && !useImmersiveMapShell && (
-                    <div className="h-10 bg-muted/50 dark:bg-slate-900/50 border-b border-border dark:border-slate-800 flex items-center px-5 gap-3 text-sm">
-                        {/* Left Group: Streak */}
-                        <div className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 font-semibold">
-                            🔥 14 day streak
-                        </div>
-
-                        {/* Divider */}
-                        <div className="w-px h-5 bg-border dark:bg-slate-700" />
-
-                        {/* Center Group: Programs + Level/XP */}
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 text-muted-foreground dark:text-slate-400">
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-blue-600 dark:text-blue-400">
-                                    <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                                    <path d="M6 12v5c0 1.1 2.7 2 6 2s6-.9 6-2v-5"/>
-                                </svg>
-                                <span>Programs Enrolled</span>
-                                <strong className="text-foreground dark:text-slate-200">3</strong>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="bg-blue-100 dark:bg-blue-900/50 border border-blue-200 dark:border-blue-800 rounded-full px-2.5 py-0.5 text-xs font-bold text-blue-700 dark:text-blue-300">Lv 7</span>
-                                <div className="w-24 h-1.5 bg-muted dark:bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full w-[63%] bg-gradient-to-r from-blue-600 to-blue-400 rounded-full" />
-                                </div>
-                                <span className="text-muted-foreground dark:text-slate-400 text-xs">1,260 / 2,000 XP</span>
-                            </div>
-                        </div>
-
-                        <div className="flex-1" />
-
-                        {/* Right Group: Greeting */}
-                        <div className="text-muted-foreground dark:text-slate-400">
-                            {getGreeting()}, <strong className="text-foreground dark:text-slate-200">{userName || "Learner"}</strong> 👋
-                        </div>
-                    </div>
-                )}
-
                 {/* Main content area */}
                 <div className={`flex flex-1 ${useImmersiveMapShell ? "bg-background" : ""}`}>
                     {/* Center Content */}

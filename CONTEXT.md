@@ -39,6 +39,9 @@ _Avoid_: Simulation mode, exercise type
 **XP**: Experience points earned by completing Tasks. Reward decreases with repeated attempts (50 → 25 → 15 → 10).
 _Avoid_: Points, score, credits
 
+**Achievement**: A course-specific milestone that recognizes student progress, consistency, or mastery and awards a small XP bonus.
+_Avoid_: Badge, trophy, medal
+
 **Quest**: A time-bound challenge created by Faculty or Admin, scoped to a single Course. Defines a goal, an XP reward, and a deadline.
 _Avoid_: Challenge, mission, assignment
 
@@ -60,7 +63,7 @@ _Avoid_: Enrollment, permission, assignment
 - A **Student** has explicit **Course Access** to a subset of Courses
 - An **Admin** can only grant **Course Access** within their own assigned Courses
 - Removing a Course from an Admin's access cascades to remove it from all Faculty and Students they granted access to
-- A **Faculty** can access the Dashboard but is restricted to viewing Users and managing Tasks only
+- A **Faculty** can access the Dashboard, view the Courses & Chapters section for assigned Courses, and edit Chapters within those Courses
 - A **Faculty** cannot create new users from the Dashboard
 
 ## Example dialogue

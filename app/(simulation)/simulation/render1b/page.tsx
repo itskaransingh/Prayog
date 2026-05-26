@@ -204,6 +204,7 @@ function LedgerCreationContent() {
     const [questionNo, setQuestionNo] = useState("Ledger_003AC");
     const [questionRows, setQuestionRows] = useState<string[][]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [chapterSlug, setChapterSlug] = useState<string | null>(null);
     const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
     const [fields, setFields] = useState<SimulationFieldWithOptions[]>([]);
     const [drEntries, setDrEntries] = useState<LedgerEntry[]>([{ id: 1, account: "", amount: "" }]);
@@ -235,6 +236,14 @@ function LedgerCreationContent() {
                         question.table_data?.question_no ??
                             `Ledger_${question.id.slice(-5).toUpperCase()}`,
                     );
+                    if (question.chapter_id) {
+                        const { data: chapter } = await supabase
+                            .from("chapters")
+                            .select("slug")
+                            .eq("id", question.chapter_id)
+                            .maybeSingle<{ slug: string }>();
+                        setChapterSlug(chapter?.slug ?? null);
+                    }
                 }
 
                 const { data: task } = await supabase
@@ -273,6 +282,7 @@ function LedgerCreationContent() {
 
         void load();
     }, [questionId, supabase]);
+    const returnHref = chapterSlug ? `/course/${chapterSlug}` : "/learning-contents";
 
     const groupedFields = useMemo(() => normalizeGridFields(fields), [fields]);
     const ledgerQuestionRows = useMemo(
@@ -514,7 +524,7 @@ function LedgerCreationContent() {
                     onPreview={() => setShowPreview(true)}
                 />
             )}
-            <EvaluationPopup open={showEval} onClose={() => setShowEval(false)} results={evaluation} variant="grid" showExpectedValues={showExpectedAnswersInEvaluation} />
+            <EvaluationPopup open={showEval} onClose={() => window.location.replace(returnHref)} results={evaluation} variant="grid" showExpectedValues={showExpectedAnswersInEvaluation} primaryActionLabel="Return to Chapter" />
             <DraggableCalculator />
         </>
     );

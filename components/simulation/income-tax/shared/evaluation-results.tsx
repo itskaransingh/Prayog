@@ -12,6 +12,7 @@ interface EvaluationPopupProps {
     results?: EvaluationResult | null;
     showExpectedValues?: boolean;
     variant?: EvaluationPopupVariant;
+    primaryActionLabel?: string;
 }
 
 interface GridFieldBreakdownRow {
@@ -60,6 +61,7 @@ export function EvaluationPopup({
     results,
     showExpectedValues = true,
     variant = "default",
+    primaryActionLabel = "Return to Chapter",
 }: EvaluationPopupProps) {
     const itr = useContext(RegistrationContext);
     const evaluationResults = results || itr?.evaluationResults;
@@ -271,7 +273,7 @@ export function EvaluationPopup({
                             style={{ width: '100%', padding: '12px', fontSize: '16px' }}
                             onClick={onClose}
                         >
-                            Proceed to Login
+                            {primaryActionLabel}
                         </button>
                     </div>
                 </div>

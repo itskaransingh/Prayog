@@ -5,6 +5,7 @@ import {
     Plus,
     Pencil,
     Trash2,
+    GripVertical,
     ChevronDown,
     ChevronRight,
     BookOpen,
@@ -193,6 +194,7 @@ export default function AdminCoursesPage() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [userRole, setUserRole] = useState<string>("");
 
     // Course form state
     const [showCourseForm, setShowCourseForm] = useState(false);
@@ -208,6 +210,7 @@ export default function AdminCoursesPage() {
     const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
     const [chapterForm, setChapterForm] = useState<ChapterFormData>(emptyChapterForm);
     const [isSavingChapter, setIsSavingChapter] = useState(false);
+    const [draggedChapterId, setDraggedChapterId] = useState<string | null>(null);
 
     // ─── Fetch Courses ───────────────────────────────────────────────
 
@@ -226,9 +229,24 @@ export default function AdminCoursesPage() {
         }
     }, []);
 
+    const fetchUserRole = useCallback(async () => {
+        try {
+            const res = await fetch("/api/admin/me");
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (data.role) {
+                setUserRole(data.role);
+            }
+        } catch (err) {
+            console.error("Error fetching user role:", err);
+        }
+    }, []);
+
     useEffect(() => {
+        fetchUserRole();
         fetchCourses();
-    }, [fetchCourses]);
+    }, [fetchCourses, fetchUserRole]);
 
     // ─── Fetch Chapters ────────────────────────────────────────────
 
@@ -419,11 +437,54 @@ export default function AdminCoursesPage() {
         }
     };
 
+    const persistChapterOrder = async (orderedChapters: Chapter[]) => {
+        try {
+            await Promise.all(
+                orderedChapters.map((chapter, index) =>
+                    fetch(`/api/admin/chapters/${chapter.id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ sort_order: index }),
+                    }),
+                ),
+            );
+            if (expandedCourseId) {
+                fetchChapters(expandedCourseId);
+            }
+            fetchCourses();
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to reorder chapters");
+        }
+    };
+
+    const moveChapter = (fromId: string, toId: string) => {
+        if (fromId === toId) return;
+
+        setChapters((current) => {
+            const fromIndex = current.findIndex((chapter) => chapter.id === fromId);
+            const toIndex = current.findIndex((chapter) => chapter.id === toId);
+            if (fromIndex < 0 || toIndex < 0) return current;
+
+            const next = [...current];
+            const [moved] = next.splice(fromIndex, 1);
+            next.splice(toIndex, 0, moved);
+            const normalized = next.map((chapter, index) => ({ ...chapter, sort_order: index }));
+            void persistChapterOrder(normalized);
+            return normalized;
+        });
+    };
+
     // ─── Color helpers ───────────────────────────────────────────────
 
     const getColorLabel = (bg: string) => {
         return COLOR_OPTIONS.find((c) => c.bg === bg)?.label || bg;
     };
+
+    const canManageCourses = userRole === "super_admin" || userRole === "admin";
+    const canCreateCourses = userRole === "super_admin";
+    const canCreateChapters = userRole === "super_admin" || userRole === "admin" || userRole === "faculty";
+    const canEditChapters = userRole === "super_admin" || userRole === "admin" || userRole === "faculty";
+    const canDeleteChapters = userRole === "super_admin" || userRole === "admin";
 
     // ─── Render ──────────────────────────────────────────────────────
 
@@ -453,10 +514,12 @@ export default function AdminCoursesPage() {
                         <Link href="/dashboard/admin/content/questions">
                             <Button variant="outline">Manage Tasks</Button>
                         </Link>
-                        <Button onClick={openCreateCourse} className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Add Course
-                        </Button>
+                        {canCreateCourses && (
+                            <Button onClick={openCreateCourse} className="gap-2">
+                                <Plus className="h-4 w-4" />
+                                Add Course
+                            </Button>
+                        )}
                     </div>
                 </div>
             </header>
@@ -473,7 +536,7 @@ export default function AdminCoursesPage() {
                 )}
 
                 {/* Course Form (Create / Edit) */}
-                {showCourseForm && (
+                {showCourseForm && canManageCourses && (
                     <div className="mb-8 bg-card rounded-xl border border-border shadow-sm overflow-hidden">
                         <div className="px-6 py-4 bg-muted border-b border-border flex items-center justify-between">
                             <h2 className="font-semibold text-foreground">
@@ -508,7 +571,7 @@ export default function AdminCoursesPage() {
                                 </div>
                             </div>
 
-                            {/* Icon + Color + Course Count */}
+                            {/* Icon + Color + Chapter Count */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-medium text-foreground">Icon</label>
@@ -550,7 +613,7 @@ export default function AdminCoursesPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-foreground">Course Count</label>
+                                    <label className="text-sm font-medium text-foreground">Chapter Count</label>
                                     <Input
                                         type="number"
                                         min={0}
@@ -609,7 +672,7 @@ export default function AdminCoursesPage() {
                                         {courseForm.title || "Course Title"}
                                     </p>
                                     <p className="text-xs text-muted-foreground">
-                                        /{courseForm.slug || "slug"} · {courseForm.course_count} courses · Icon: {courseForm.icon_name} · {courseForm.is_active ? "Enabled" : "Disabled"} · {courseForm.is_hidden ? "Hidden" : "Visible"}
+                                        /{courseForm.slug || "slug"} · {courseForm.course_count} chapters · Icon: {courseForm.icon_name} · {courseForm.is_active ? "Enabled" : "Disabled"} · {courseForm.is_hidden ? "Hidden" : "Visible"}
                                     </p>
                                 </div>
                             </div>
@@ -652,10 +715,12 @@ export default function AdminCoursesPage() {
                         <p className="text-sm text-muted-foreground mt-1 mb-6">
                             Create your first learning course to get started.
                         </p>
-                        <Button onClick={openCreateCourse} className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Add Course
-                        </Button>
+                        {canCreateCourses && (
+                            <Button onClick={openCreateCourse} className="gap-2">
+                                <Plus className="h-4 w-4" />
+                                Add Course
+                            </Button>
+                        )}
                     </div>
                 ) : (
                     /* Courses List */
@@ -736,44 +801,45 @@ export default function AdminCoursesPage() {
                                         </Badge>
 
                                         {/* Actions */}
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={() => openEditCourse(course)}
-                                                className="p-2 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
-                                                title="Edit module"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </button>
+                                        {canManageCourses && (
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => openEditCourse(course)}
+                                                    className="p-2 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
+                                                    title="Edit course"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </button>
 
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <button
-                                                        className="p-2 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
-                                                        title="Delete module"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Delete &quot;{course.title}&quot;?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This will permanently delete this module and all its
-                                                            chapters. This action cannot be undone.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction
-                                                            variant="destructive"
-                                                            onClick={() => deleteCourse(course.id)}
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <button
+                                                            className="p-2 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                                                            title="Delete course"
                                                         >
-                                                            Delete
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Delete &quot;{course.title}&quot;?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This will permanently delete this course and all its chapters. This action cannot be undone.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                variant="destructive"
+                                                                onClick={() => deleteCourse(course.id)}
+                                                            >
+                                                                Delete
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Expanded: Chapters */}
@@ -783,19 +849,21 @@ export default function AdminCoursesPage() {
                                                 <h4 className="text-sm font-semibold text-foreground">
                                                     Chapters
                                                 </h4>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={openCreateChapter}
-                                                    className="gap-1.5 h-8 text-xs"
-                                                >
-                                                    <Plus className="h-3.5 w-3.5" />
-                                                    Add Chapter
-                                                </Button>
+                                                {canCreateChapters && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={openCreateChapter}
+                                                        className="gap-1.5 h-8 text-xs"
+                                                    >
+                                                        <Plus className="h-3.5 w-3.5" />
+                                                        Add Chapter
+                                                    </Button>
+                                                )}
                                             </div>
 
                                             {/* Chapter Form */}
-                                            {showChapterForm && (
+                                            {showChapterForm && (canCreateChapters || (canEditChapters && editingChapterId)) && (
                                                 <div className="mx-5 mb-3 p-4 bg-card rounded-lg border border-border space-y-4">
                                                     <div className="flex items-center justify-between">
                                                         <h5 className="text-sm font-semibold text-foreground">
@@ -951,10 +1019,28 @@ export default function AdminCoursesPage() {
                                                     {chapters.map((ch, idx) => (
                                                         <div
                                                             key={ch.id}
-                                                            className="flex items-center gap-3 px-4 py-3 bg-card rounded-lg border border-border hover:border-border transition-colors"
+                                                            draggable={canCreateChapters}
+                                                            onDragStart={() => setDraggedChapterId(ch.id)}
+                                                            onDragEnd={() => setDraggedChapterId(null)}
+                                                            onDragOver={(event) => {
+                                                                if (!canCreateChapters) return;
+                                                                event.preventDefault();
+                                                            }}
+                                                            onDrop={(event) => {
+                                                                if (!canCreateChapters) return;
+                                                                event.preventDefault();
+                                                                if (draggedChapterId) {
+                                                                    moveChapter(draggedChapterId, ch.id);
+                                                                }
+                                                                setDraggedChapterId(null);
+                                                            }}
+                                                            className={`flex items-center gap-3 px-4 py-3 bg-card rounded-lg border transition-colors ${canCreateChapters ? "cursor-move hover:border-blue-300" : "hover:border-border"} ${draggedChapterId === ch.id ? "opacity-60 ring-2 ring-blue-300" : ""}`}
                                                         >
-                                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">
-                                                                {idx + 1}
+                                                            <div
+                                                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold ${canCreateChapters ? "bg-blue-600" : "bg-muted-foreground"}`}
+                                                                title={canCreateChapters ? "Drag to reorder" : undefined}
+                                                            >
+                                                                {canCreateChapters ? <GripVertical className="h-3.5 w-3.5" /> : idx + 1}
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <p className="text-sm font-medium text-foreground truncate">
@@ -980,42 +1066,51 @@ export default function AdminCoursesPage() {
                                                                 {ch.is_active ? "Enabled" : "Disabled"}
                                                             </Badge>
                                                             <div className="flex items-center gap-1">
-                                                                <button
-                                                                    onClick={() => openEditChapter(ch)}
-                                                                    className="p-1.5 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-md transition-colors"
-                                                                    title="Edit chapter"
-                                                                >
-                                                                    <Pencil className="h-3.5 w-3.5" />
-                                                                </button>
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild>
-                                                                        <button
-                                                                            className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors"
-                                                                            title="Delete chapter"
-                                                                        >
-                                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                                        </button>
-                                                                    </AlertDialogTrigger>
-                                                                    <AlertDialogContent>
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle>
-                                                                                Delete &quot;{ch.title}&quot;?
-                                                                            </AlertDialogTitle>
-                                                                            <AlertDialogDescription>
-                                                                                This chapter will be permanently deleted.
-                                                                            </AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                            <AlertDialogAction
-                                                                                variant="destructive"
-                                                                                onClick={() => deleteChapter(ch.id)}
+                                                                {canCreateChapters && (
+                                                                    <span className="hidden sm:inline-flex text-[10px] text-muted-foreground mr-1">
+                                                                        {idx + 1}
+                                                                    </span>
+                                                                )}
+                                                                {canEditChapters && (
+                                                                    <button
+                                                                        onClick={() => openEditChapter(ch)}
+                                                                        className="p-1.5 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-md transition-colors"
+                                                                        title="Edit chapter"
+                                                                    >
+                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                    </button>
+                                                                )}
+                                                                {canDeleteChapters && (
+                                                                    <AlertDialog>
+                                                                        <AlertDialogTrigger asChild>
+                                                                            <button
+                                                                                className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors"
+                                                                                title="Delete chapter"
                                                                             >
-                                                                                Delete
-                                                                            </AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
+                                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                            </button>
+                                                                        </AlertDialogTrigger>
+                                                                        <AlertDialogContent>
+                                                                            <AlertDialogHeader>
+                                                                                <AlertDialogTitle>
+                                                                                    Delete &quot;{ch.title}&quot;?
+                                                                                </AlertDialogTitle>
+                                                                                <AlertDialogDescription>
+                                                                                    This chapter will be permanently deleted.
+                                                                                </AlertDialogDescription>
+                                                                            </AlertDialogHeader>
+                                                                            <AlertDialogFooter>
+                                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                                <AlertDialogAction
+                                                                                    variant="destructive"
+                                                                                    onClick={() => deleteChapter(ch.id)}
+                                                                                >
+                                                                                    Delete
+                                                                                </AlertDialogAction>
+                                                                            </AlertDialogFooter>
+                                                                        </AlertDialogContent>
+                                                                    </AlertDialog>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     ))}

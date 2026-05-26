@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { verifyAdminAccess } from "@/lib/supabase/admin-auth";
+import {
+    verifyAdminAccess,
+    verifyFacultyAccess,
+    getUserCourseAccess,
+} from "@/lib/supabase/admin-auth";
 import {
     LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
@@ -29,7 +33,8 @@ export async function PUT(
         const { id } = await params;
         const supabase = await createClient();
         const admin = await verifyAdminAccess(supabase);
-        if (!admin) {
+        const faculty = await verifyFacultyAccess(supabase);
+        if (!admin && !faculty) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -65,6 +70,19 @@ export async function PUT(
         }
 
         const adminDb = createServiceRoleClient();
+        if (faculty && faculty.role === "faculty" && admin?.role !== "super_admin") {
+            const { data: chapter } = await adminDb
+                .from("chapters")
+                .select("course_id")
+                .eq("id", id)
+                .single();
+
+            const accessibleCourseIds = await getUserCourseAccess(supabase, faculty.id);
+            if (!chapter || !accessibleCourseIds.includes(chapter.course_id)) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+        }
+
         const { data, error } = await adminDb
             .from("chapters")
             .update(updateData)

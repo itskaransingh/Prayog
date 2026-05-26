@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
 
-type Tab = "overview" | "users" | "simulations" | "settings";
+type Tab = "overview" | "users" | "results" | "settings";
 
 interface CourseOption {
     id: string;
@@ -193,7 +193,7 @@ export default function AdminDashboard() {
 
             const queryString = searchParams.toString();
             const res = await fetch(
-                `/api/admin/simulation-attempts${queryString ? `?${queryString}` : ""}`,
+                `/api/admin/results${queryString ? `?${queryString}` : ""}`,
             );
             const data = await res.json();
             if (res.ok && data.attempts) {
@@ -220,14 +220,14 @@ export default function AdminDashboard() {
         fetchUserRole();
         if (activeTab === "users") {
             fetchUsers();
-        } else if (activeTab === "simulations") {
+        } else if (activeTab === "results") {
             fetchCourses();
             fetchSimulations();
         }
     }, [activeTab, fetchUsers, fetchCourses, fetchSimulations, fetchUserRole]);
 
     useEffect(() => {
-        if (activeTab !== "simulations") {
+        if (activeTab !== "results") {
             return;
         }
 
@@ -241,12 +241,12 @@ export default function AdminDashboard() {
     }, [activeTab, fetchChapters, selectedCourseId]);
 
     const isFaculty = userRole === "faculty";
-    const isAdminOrSuperAdmin = userRole === "admin" || userRole === "super_admin";
+    const canViewCoursesAndChapters = userRole === "admin" || userRole === "super_admin" || userRole === "faculty";
 
     const tabs = [
         { id: "overview", label: "Overview", icon: LayoutDashboard, roles: ["super_admin", "admin"] as const },
         { id: "users", label: "Users", icon: Users, roles: ["super_admin", "admin", "faculty"] as const },
-        { id: "simulations", label: "Simulation Attempts", icon: History, roles: ["super_admin", "admin", "faculty"] as const },
+        { id: "results", label: "Results", icon: History, roles: ["super_admin", "admin", "faculty"] as const },
         { id: "settings", label: "Settings", icon: Settings, roles: ["super_admin", "admin"] as const },
     ].filter((tab) => tab.roles.includes(userRole as (typeof tab.roles)[number]));
 
@@ -293,7 +293,7 @@ export default function AdminDashboard() {
                     <div className="pt-6 pb-2 px-1">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Content Management</p>
                     </div>
-                    {isAdminOrSuperAdmin && (
+                    {canViewCoursesAndChapters && (
                         <Link
                             href="/dashboard/admin/content/courses"
                             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -447,13 +447,13 @@ export default function AdminDashboard() {
                         </div>
                     )}
 
-                    {activeTab === "simulations" && (
+                    {activeTab === "results" && (
                         <div className="space-y-6">
                             <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
                                 <div className="p-6 border-b border-border flex flex-col gap-4">
                                     <div className="flex items-center justify-between gap-4">
                                         <div>
-                                            <h3 className="font-semibold text-foreground">User Simulation Attempts</h3>
+                                        <h3 className="font-semibold text-foreground">User Results</h3>
                                             <p className="text-sm text-muted-foreground mt-1">
                                                 Filter by course and chapter, then review each learner&apos;s question-wise attempt history in chronological order.
                                             </p>
@@ -524,7 +524,7 @@ export default function AdminDashboard() {
                                 ) : isEmptySimulations ? (
                                     <div className="p-12 text-center">
                                         <History className="h-10 w-10 text-muted-foreground/30 mx-auto mb-4" />
-                                        <p className="text-sm text-muted-foreground font-medium">No simulation attempts yet</p>
+                                        <p className="text-sm text-muted-foreground font-medium">No results yet</p>
                                         <p className="text-xs text-muted-foreground mt-2 max-w-md mx-auto">
                                             Learners haven&apos;t submitted any simulations yet, so this table is still empty.
                                         </p>
@@ -532,7 +532,7 @@ export default function AdminDashboard() {
                                 ) : simulations.length === 0 ? (
                                     <div className="p-12 text-center">
                                         <History className="h-10 w-10 text-muted-foreground/30 mx-auto mb-4" />
-                                        <p className="text-sm text-muted-foreground font-medium">No attempts match the selected filters</p>
+                                        <p className="text-sm text-muted-foreground font-medium">No results match the selected filters</p>
                                         <p className="text-xs text-muted-foreground mt-2 max-w-md mx-auto">
                                             Try a different module or submodule filter to surface matching attempts.
                                         </p>

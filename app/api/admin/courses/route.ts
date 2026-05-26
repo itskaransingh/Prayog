@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { verifyAdminAccess, verifyFacultyAccess } from "@/lib/supabase/admin-auth";
+import {
+    verifyAdminAccess,
+    verifyFacultyAccess,
+    getUserCourseAccess,
+} from "@/lib/supabase/admin-auth";
 import {
     LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
@@ -23,8 +27,16 @@ export async function GET() {
             .select("*, chapters(count)")
             .order("created_at", { ascending: true });
 
-        if (admin?.role !== "super_admin") {
+        if (admin?.role === "super_admin") {
+            // super admins can see every course
+        } else if (admin?.role === "admin") {
             query = query.eq("is_hidden", false);
+        } else if (faculty) {
+            const accessibleCourseIds = await getUserCourseAccess(supabase, faculty.id);
+            if (accessibleCourseIds.length === 0) {
+                return NextResponse.json({ courses: [] });
+            }
+            query = query.in("id", accessibleCourseIds).eq("is_hidden", false);
         }
 
         const { data, error } = await query;
