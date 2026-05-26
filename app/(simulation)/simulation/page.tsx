@@ -107,6 +107,7 @@ function SimulationPageContent() {
 function SimulationPageQuestion({ questionId }: { questionId: string }) {
     const [mappings, setMappings] = useState<PersistableEvaluationMapping[]>(() => getCachedMappings(questionId) as PersistableEvaluationMapping[]);
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [chapterSlug, setChapterSlug] = useState<string | null>(null);
     const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
 
     useEffect(() => {
@@ -125,6 +126,7 @@ function SimulationPageQuestion({ questionId }: { questionId: string }) {
                     (await response.json()) as SimulationEvaluationConfig;
 
                 setTaskId(config.taskId);
+                setChapterSlug(config.chapterSlug ?? null);
                 setShowExpectedAnswersInEvaluation(
                     config.showExpectedAnswersInEvaluation,
                 );
@@ -149,6 +151,7 @@ function SimulationPageQuestion({ questionId }: { questionId: string }) {
             <SimulationContent
                 questionId={questionId}
                 taskId={taskId}
+                chapterSlug={chapterSlug}
                 showExpectedAnswersInEvaluation={
                     showExpectedAnswersInEvaluation
                 }
@@ -160,16 +163,19 @@ function SimulationPageQuestion({ questionId }: { questionId: string }) {
 function SimulationContent({
     questionId,
     taskId,
+    chapterSlug,
     showExpectedAnswersInEvaluation,
 }: {
     questionId: string;
     taskId: string | null;
+    chapterSlug: string | null;
     showExpectedAnswersInEvaluation: boolean;
 }) {
     const { data, transactionId, isCompleted, completeRegistration, evaluationResults, evaluationMappings, startTime } = useRegistration();
     const [showEvalPopup, setShowEvalPopup] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
     const hasSavedAttemptRef = useRef(false);
+    const returnHref = chapterSlug ? `/course/${chapterSlug}` : "/learning-contents";
 
     // Auto-show evaluation popup after 1 second
     useEffect(() => {
@@ -291,8 +297,9 @@ function SimulationContent({
                 {/* Evaluation popup */}
                 <EvaluationPopup
                     open={showEvalPopup}
-                    onClose={() => setShowEvalPopup(false)}
+                    onClose={() => window.location.replace(returnHref)}
                     showExpectedValues={showExpectedAnswersInEvaluation}
+                    primaryActionLabel="Return to Chapter"
                 />
             </>
         );

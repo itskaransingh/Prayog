@@ -29,6 +29,25 @@ _Avoid_: Submodule, lesson, topic
 **Task**: A learning activity within a Chapter, combining a question description with its simulation configuration.
 _Avoid_: Question, exercise, assignment
 
+### Simulation
+
+**Simulator Type**: The kind of interactive exercise a Task uses. Financial Accounting simulator types: Classification, Journal Entry, Ledger, Trial Balance, Financial Statement.
+_Avoid_: Simulation mode, exercise type
+
+### Engagement
+
+**XP**: Experience points earned by completing Tasks. Reward decreases with repeated attempts (50 → 25 → 15 → 10).
+_Avoid_: Points, score, credits
+
+**Achievement**: A course-specific milestone that recognizes student progress, consistency, or mastery and awards a small XP bonus.
+_Avoid_: Badge, trophy, medal
+
+**Quest**: A time-bound challenge created by Faculty or Admin, scoped to a single Course. Defines a goal, an XP reward, and a deadline.
+_Avoid_: Challenge, mission, assignment
+
+**Leaderboard**: A per-Course ranking of Students by total XP earned.
+_Avoid_: Scoreboard, rankings
+
 ### Access
 
 **Course Access**: The set of Courses a user (Admin, Faculty, or Student) is permitted to interact with.
@@ -44,7 +63,7 @@ _Avoid_: Enrollment, permission, assignment
 - A **Student** has explicit **Course Access** to a subset of Courses
 - An **Admin** can only grant **Course Access** within their own assigned Courses
 - Removing a Course from an Admin's access cascades to remove it from all Faculty and Students they granted access to
-- A **Faculty** can access the Dashboard but is restricted to viewing Users and managing Tasks only
+- A **Faculty** can access the Dashboard, view the Courses & Chapters section for assigned Courses, and edit Chapters within those Courses
 - A **Faculty** cannot create new users from the Dashboard
 
 ## Example dialogue

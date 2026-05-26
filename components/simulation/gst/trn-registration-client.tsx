@@ -480,6 +480,7 @@ function GSTTrnSimulator({
         () => getCachedMappings(questionId),
     );
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [chapterSlug, setChapterSlug] = useState<string | null>(null);
     const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] =
         useState(false);
     const [currentStep, setCurrentStep] = useState<1 | 2>(1);
@@ -516,6 +517,7 @@ function GSTTrnSimulator({
                     (await response.json()) as SimulationEvaluationConfig;
 
                 setTaskId(config.taskId);
+                setChapterSlug(config.chapterSlug ?? null);
                 onQuestionTitleChange(config.questionTitle ?? null);
                 setShowExpectedAnswersInEvaluation(
                     config.showExpectedAnswersInEvaluation,
@@ -536,6 +538,7 @@ function GSTTrnSimulator({
 
         void loadConfig();
     }, [onQuestionTitleChange, questionId]);
+    const returnHref = chapterSlug ? `/course/${chapterSlug}` : "/learning-contents";
 
     useEffect(() => {
         async function persistAttempt() {
@@ -707,8 +710,9 @@ function GSTTrnSimulator({
                 <EvaluationPopup
                     open={showEvaluationPopup}
                     results={evaluationResults}
-                    onClose={() => setShowEvaluationPopup(false)}
+                    onClose={() => window.location.replace(returnHref)}
                     showExpectedValues={showExpectedAnswersInEvaluation}
+                    primaryActionLabel="Return to Chapter"
                 />
             </>
         );

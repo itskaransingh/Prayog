@@ -124,6 +124,7 @@ function FinancialAccountingSimulationPageInner() {
     const [evaluationResults, setEvaluationResults] = useState<EvaluationResult | null>(null);
     const [showEvaluation, setShowEvaluation] = useState(false);
     const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
+    const [chapterSlug, setChapterSlug] = useState<string | null>(null);
 
     useEffect(() => { setStartedAt(Date.now()); }, [questionId]);
 
@@ -140,6 +141,11 @@ function FinancialAccountingSimulationPageInner() {
                 const { data: fields } = await supabase.from("simulation_fields").select("id, field_name, field_label, options, order_index, expected_value").eq("step_id", stepRecord.id).order("order_index", { ascending: true });
                 const { data: questionRecord } = await supabase.from("questions").select("table_data").eq("id", questionId).limit(1).maybeSingle();
                 setTask({ taskId: taskRecord.id, tableData: (questionRecord?.table_data as QuestionTableData | null) ?? null, fields: (fields as SimulationFieldRecord[] | null) ?? [], });
+                const { data: questionMeta } = await supabase.from("questions").select("chapter_id").eq("id", questionId).maybeSingle<{ chapter_id: string | null }>();
+                if (questionMeta?.chapter_id) {
+                    const { data: chapter } = await supabase.from("chapters").select("slug").eq("id", questionMeta.chapter_id).maybeSingle<{ slug: string }>();
+                    setChapterSlug(chapter?.slug ?? null);
+                }
                 try {
                     const { data: titleRecord } = await supabase.from("questions").select("title").eq("id", questionId).limit(1).maybeSingle();
                     if (titleRecord?.title) setQuestionTitle(titleRecord.title);
@@ -148,6 +154,7 @@ function FinancialAccountingSimulationPageInner() {
         }
         loadSimulation();
     }, [questionId, supabase]);
+    const returnHref = chapterSlug ? `/course/${chapterSlug}` : "/learning-contents";
 
     const baseHeaders = useMemo(() => {
         const headers = task?.tableData?.headers ?? [];
@@ -357,9 +364,10 @@ function FinancialAccountingSimulationPageInner() {
 
                 <EvaluationPopup
                     open={showEvaluation}
-                    onClose={() => setShowEvaluation(false)}
+                    onClose={() => window.location.replace(returnHref)}
                     results={evaluationResults}
                     showExpectedValues={showExpectedAnswersInEvaluation}
+                    primaryActionLabel="Return to Chapter"
                 />
                 <DraggableCalculator />
             </div>

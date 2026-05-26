@@ -113,6 +113,7 @@ function JournalEntryContent() {
     const [rows, setRows] = useState<string[][]>([]);
     const [fields, setFields] = useState<SimulationFieldWithOptions[]>([]);
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [chapterSlug, setChapterSlug] = useState<string | null>(null);
     const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
 
     const [entries, setEntries] = useState<Record<number, JournalLineInput[]>>({});
@@ -169,6 +170,19 @@ function JournalEntryContent() {
                 } else if (task) {
                     setTaskId(task.id);
                     setShowExpectedAnswersInEvaluation(task.show_expected_answers_in_evaluation ?? false);
+                    const { data: questionMeta } = await supabase
+                        .from("questions")
+                        .select("chapter_id")
+                        .eq("id", questionId)
+                        .maybeSingle<{ chapter_id: string | null }>();
+                    if (questionMeta?.chapter_id) {
+                        const { data: chapter } = await supabase
+                            .from("chapters")
+                            .select("slug")
+                            .eq("id", questionMeta.chapter_id)
+                            .maybeSingle<{ slug: string }>();
+                        setChapterSlug(chapter?.slug ?? null);
+                    }
 
                     // 3. Fetch Fields/Steps
                     const { data: step } = await supabase
@@ -195,6 +209,7 @@ function JournalEntryContent() {
         }
         load();
     }, [questionId, supabase]);
+    const returnHref = chapterSlug ? `/course/${chapterSlug}` : "/learning-contents";
 
     const groupedFields = useMemo(() => normalizeGridFields(fields), [fields]);
     const options = useMemo(() => {
@@ -481,7 +496,7 @@ function JournalEntryContent() {
                 )}
             </main>
 
-            <EvaluationPopup open={showEval} onClose={() => setShowEval(false)} results={evaluation} variant="grid" showExpectedValues={showExpectedAnswersInEvaluation} />
+            <EvaluationPopup open={showEval} onClose={() => window.location.replace(returnHref)} results={evaluation} variant="grid" showExpectedValues={showExpectedAnswersInEvaluation} primaryActionLabel="Return to Chapter" />
             <DraggableCalculator />
         </div>
     );

@@ -28,6 +28,7 @@ interface QuestionRecord {
 
 interface ChapterRecord {
     id: string;
+    slug: string;
     simulator_type: SimulatorType | null;
 }
 
@@ -96,7 +97,7 @@ export async function GET(
 
         const { data: chapter, error: chapterError } = await supabase
             .from("chapters")
-            .select("id, simulator_type")
+            .select("id, slug, simulator_type")
             .eq("id", question.chapter_id)
             .maybeSingle<ChapterRecord>();
 
@@ -160,6 +161,7 @@ export async function GET(
                     mappings: [],
                     questionTitle: question.title ?? null,
                     chapterId: chapter.id,
+                    chapterSlug: chapter.slug,
                 } satisfies SimulationEvaluationConfig);
             }
 
@@ -167,6 +169,7 @@ export async function GET(
                 ...buildEmptyConfig(simulatorType),
                 questionTitle: question.title ?? null,
                 chapterId: chapter.id,
+                chapterSlug: chapter.slug,
             } satisfies SimulationEvaluationConfig);
         }
 
@@ -198,6 +201,7 @@ export async function GET(
                           ),
                 questionTitle: question.title ?? null,
                 chapterId: chapter.id,
+                chapterSlug: chapter.slug,
             } satisfies SimulationEvaluationConfig);
         }
 
@@ -228,6 +232,7 @@ export async function GET(
                       ),
             questionTitle: question.title ?? null,
             chapterId: chapter.id,
+            chapterSlug: chapter.slug,
         } satisfies SimulationEvaluationConfig);
     } catch (error) {
         console.error("Error fetching simulation evaluation config:", error);

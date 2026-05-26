@@ -5,6 +5,7 @@ import {
     Plus,
     Pencil,
     Trash2,
+    GripVertical,
     ChevronDown,
     ChevronRight,
     BookOpen,
@@ -29,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -49,6 +51,7 @@ interface Course {
     title: string;
     slug: string;
     is_active: boolean;
+    is_hidden: boolean;
     course_count: number;
     icon_name: string;
     bg_color: string;
@@ -87,6 +90,7 @@ interface CourseFormData {
     text_color: string;
     course_count: number;
     is_active: boolean;
+    is_hidden: boolean;
 }
 
 interface ChapterFormData {
@@ -157,6 +161,7 @@ const emptyCourseForm: CourseFormData = {
     text_color: "text-blue-600",
     course_count: 0,
     is_active: true,
+    is_hidden: false,
 };
 
 const emptyChapterForm: ChapterFormData = {
@@ -189,6 +194,7 @@ export default function AdminCoursesPage() {
     const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [userRole, setUserRole] = useState<string>("");
 
     // Course form state
     const [showCourseForm, setShowCourseForm] = useState(false);
@@ -204,6 +210,7 @@ export default function AdminCoursesPage() {
     const [editingChapterId, setEditingChapterId] = useState<string | null>(null);
     const [chapterForm, setChapterForm] = useState<ChapterFormData>(emptyChapterForm);
     const [isSavingChapter, setIsSavingChapter] = useState(false);
+    const [draggedChapterId, setDraggedChapterId] = useState<string | null>(null);
 
     // ─── Fetch Courses ───────────────────────────────────────────────
 
@@ -222,9 +229,24 @@ export default function AdminCoursesPage() {
         }
     }, []);
 
+    const fetchUserRole = useCallback(async () => {
+        try {
+            const res = await fetch("/api/admin/me");
+            if (!res.ok) return;
+
+            const data = await res.json();
+            if (data.role) {
+                setUserRole(data.role);
+            }
+        } catch (err) {
+            console.error("Error fetching user role:", err);
+        }
+    }, []);
+
     useEffect(() => {
+        fetchUserRole();
         fetchCourses();
-    }, [fetchCourses]);
+    }, [fetchCourses, fetchUserRole]);
 
     // ─── Fetch Chapters ────────────────────────────────────────────
 
@@ -261,6 +283,7 @@ export default function AdminCoursesPage() {
             text_color: course.text_color,
             course_count: course.course_count,
             is_active: typeof course.is_active === "boolean" ? course.is_active : true,
+            is_hidden: typeof course.is_hidden === "boolean" ? course.is_hidden : false,
         });
         setShowCourseForm(true);
     };
@@ -414,23 +437,66 @@ export default function AdminCoursesPage() {
         }
     };
 
+    const persistChapterOrder = async (orderedChapters: Chapter[]) => {
+        try {
+            await Promise.all(
+                orderedChapters.map((chapter, index) =>
+                    fetch(`/api/admin/chapters/${chapter.id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ sort_order: index }),
+                    }),
+                ),
+            );
+            if (expandedCourseId) {
+                fetchChapters(expandedCourseId);
+            }
+            fetchCourses();
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to reorder chapters");
+        }
+    };
+
+    const moveChapter = (fromId: string, toId: string) => {
+        if (fromId === toId) return;
+
+        setChapters((current) => {
+            const fromIndex = current.findIndex((chapter) => chapter.id === fromId);
+            const toIndex = current.findIndex((chapter) => chapter.id === toId);
+            if (fromIndex < 0 || toIndex < 0) return current;
+
+            const next = [...current];
+            const [moved] = next.splice(fromIndex, 1);
+            next.splice(toIndex, 0, moved);
+            const normalized = next.map((chapter, index) => ({ ...chapter, sort_order: index }));
+            void persistChapterOrder(normalized);
+            return normalized;
+        });
+    };
+
     // ─── Color helpers ───────────────────────────────────────────────
 
     const getColorLabel = (bg: string) => {
         return COLOR_OPTIONS.find((c) => c.bg === bg)?.label || bg;
     };
 
+    const canManageCourses = userRole === "super_admin" || userRole === "admin";
+    const canCreateCourses = userRole === "super_admin";
+    const canCreateChapters = userRole === "super_admin" || userRole === "admin" || userRole === "faculty";
+    const canEditChapters = userRole === "super_admin" || userRole === "admin" || userRole === "faculty";
+    const canDeleteChapters = userRole === "super_admin" || userRole === "admin";
+
     // ─── Render ──────────────────────────────────────────────────────
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-background text-foreground">
             {/* Header */}
-            <header className="sticky top-0 z-10 bg-white border-b border-slate-200 shadow-sm">
+            <header className="sticky top-0 z-10 bg-background border-b border-border shadow-sm">
                 <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <Link
                             href="/dashboard"
-                            className="flex items-center gap-2 text-slate-500 hover:text-blue-600 transition-colors"
+                            className="flex items-center gap-2 text-muted-foreground hover:text-blue-600 transition-colors"
                         >
                             <ArrowLeft className="h-4 w-4" />
                             <span className="text-sm font-medium">Dashboard</span>
@@ -440,17 +506,20 @@ export default function AdminCoursesPage() {
                             <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm">
                                 <Layout className="h-4 w-4 text-white" />
                             </div>
-                            <h1 className="text-lg font-bold text-slate-900">Course Contents</h1>
+                            <h1 className="text-lg font-bold text-foreground">Course Contents</h1>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        <ThemeToggle />
                         <Link href="/dashboard/admin/content/questions">
                             <Button variant="outline">Manage Tasks</Button>
                         </Link>
-                        <Button onClick={openCreateCourse} className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Add Course
-                        </Button>
+                        {canCreateCourses && (
+                            <Button onClick={openCreateCourse} className="gap-2">
+                                <Plus className="h-4 w-4" />
+                                Add Course
+                            </Button>
+                        )}
                     </div>
                 </div>
             </header>
@@ -467,21 +536,21 @@ export default function AdminCoursesPage() {
                 )}
 
                 {/* Course Form (Create / Edit) */}
-                {showCourseForm && (
-                    <div className="mb-8 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                        <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                            <h2 className="font-semibold text-slate-900">
+                {showCourseForm && canManageCourses && (
+                    <div className="mb-8 bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 bg-muted border-b border-border flex items-center justify-between">
+                            <h2 className="font-semibold text-foreground">
                                 {editingCourseId ? "Edit Course" : "New Course"}
                             </h2>
                             <button onClick={cancelCourseForm}>
-                                <X className="h-5 w-5 text-slate-400 hover:text-slate-600" />
+                                <X className="h-5 w-5 text-muted-foreground hover:text-foreground" />
                             </button>
                         </div>
                         <div className="p-6 space-y-5">
                             {/* Title + Slug */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-slate-700">Title *</label>
+                                    <label className="text-sm font-medium text-foreground">Title *</label>
                                     <Input
                                         value={courseForm.title}
                                         onChange={(e) => handleCourseTitleChange(e.target.value)}
@@ -490,7 +559,7 @@ export default function AdminCoursesPage() {
                                     />
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-slate-700">Slug *</label>
+                                    <label className="text-sm font-medium text-foreground">Slug *</label>
                                     <Input
                                         value={courseForm.slug}
                                         onChange={(e) =>
@@ -502,16 +571,16 @@ export default function AdminCoursesPage() {
                                 </div>
                             </div>
 
-                            {/* Icon + Color + Course Count */}
+                            {/* Icon + Color + Chapter Count */}
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-slate-700">Icon</label>
+                                    <label className="text-sm font-medium text-foreground">Icon</label>
                                     <select
                                         value={courseForm.icon_name}
                                         onChange={(e) =>
                                             setCourseForm((prev) => ({ ...prev, icon_name: e.target.value }))
                                         }
-                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                     >
                                         {ICON_OPTIONS.map((icon) => (
                                             <option key={icon} value={icon}>
@@ -521,7 +590,7 @@ export default function AdminCoursesPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-slate-700">Color Theme</label>
+                                    <label className="text-sm font-medium text-foreground">Color Theme</label>
                                     <select
                                         value={courseForm.bg_color}
                                         onChange={(e) => {
@@ -534,7 +603,7 @@ export default function AdminCoursesPage() {
                                                 }));
                                             }
                                         }}
-                                        className="w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                        className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                     >
                                         {COLOR_OPTIONS.map((c) => (
                                             <option key={c.bg} value={c.bg}>
@@ -544,7 +613,7 @@ export default function AdminCoursesPage() {
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <label className="text-sm font-medium text-slate-700">Course Count</label>
+                                    <label className="text-sm font-medium text-foreground">Chapter Count</label>
                                     <Input
                                         type="number"
                                         min={0}
@@ -560,7 +629,7 @@ export default function AdminCoursesPage() {
                                 </div>
                             </div>
 
-                            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                            <label className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
                                 <input
                                     type="checkbox"
                                     checked={courseForm.is_active}
@@ -574,8 +643,22 @@ export default function AdminCoursesPage() {
                                 Course is enabled (visible to learners)
                             </label>
 
+                            <label className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
+                                <input
+                                    type="checkbox"
+                                    checked={courseForm.is_hidden}
+                                    onChange={(e) =>
+                                        setCourseForm((prev) => ({
+                                            ...prev,
+                                            is_hidden: e.target.checked,
+                                        }))
+                                    }
+                                />
+                                Hide from admin and faculty dashboard lists
+                            </label>
+
                             {/* Preview */}
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted border border-border">
                                 <div
                                     className={`flex h-10 w-10 items-center justify-center rounded-lg ${safeBgText(courseForm.bg_color, courseForm.text_color).bg} ${safeBgText(courseForm.bg_color, courseForm.text_color).text}`}
                                 >
@@ -585,11 +668,11 @@ export default function AdminCoursesPage() {
                                     })()}
                                 </div>
                                 <div>
-                                    <p className="text-sm font-semibold text-slate-900">
+                                    <p className="text-sm font-semibold text-foreground">
                                         {courseForm.title || "Course Title"}
                                     </p>
-                                    <p className="text-xs text-slate-500">
-                                        /{courseForm.slug || "slug"} · {courseForm.course_count} courses · Icon: {courseForm.icon_name} · {courseForm.is_active ? "Enabled" : "Disabled"}
+                                    <p className="text-xs text-muted-foreground">
+                                        /{courseForm.slug || "slug"} · {courseForm.course_count} chapters · Icon: {courseForm.icon_name} · {courseForm.is_active ? "Enabled" : "Disabled"} · {courseForm.is_hidden ? "Hidden" : "Visible"}
                                     </p>
                                 </div>
                             </div>
@@ -620,22 +703,24 @@ export default function AdminCoursesPage() {
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-20">
                         <Loader2 className="h-8 w-8 text-blue-600 animate-spin mb-4" />
-                        <p className="text-sm text-slate-500 font-medium">Loading courses...</p>
+                        <p className="text-sm text-muted-foreground font-medium">Loading courses...</p>
                     </div>
                 ) : courses.length === 0 ? (
                     /* Empty State */
-                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-dashed border-slate-300">
-                        <div className="h-16 w-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
-                            <BookOpen className="h-8 w-8 text-slate-400" />
+                    <div className="flex flex-col items-center justify-center py-20 bg-card rounded-xl border border-dashed border-border">
+                        <div className="h-16 w-16 bg-muted rounded-2xl flex items-center justify-center mb-4">
+                            <BookOpen className="h-8 w-8 text-muted-foreground" />
                         </div>
-                        <h3 className="text-lg font-semibold text-slate-900">No courses yet</h3>
-                        <p className="text-sm text-slate-500 mt-1 mb-6">
+                        <h3 className="text-lg font-semibold text-foreground">No courses yet</h3>
+                        <p className="text-sm text-muted-foreground mt-1 mb-6">
                             Create your first learning course to get started.
                         </p>
-                        <Button onClick={openCreateCourse} className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Add Course
-                        </Button>
+                        {canCreateCourses && (
+                            <Button onClick={openCreateCourse} className="gap-2">
+                                <Plus className="h-4 w-4" />
+                                Add Course
+                            </Button>
+                        )}
                     </div>
                 ) : (
                     /* Courses List */
@@ -650,19 +735,19 @@ export default function AdminCoursesPage() {
                             return (
                                 <div
                                     key={course.id}
-                                    className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden transition-shadow hover:shadow-md"
+                                    className="bg-card rounded-xl border border-border shadow-sm overflow-hidden transition-shadow hover:shadow-md"
                                 >
                                     {/* Course Row */}
                                     <div className="flex items-center gap-4 px-5 py-4">
                                         {/* Expand Toggle */}
                                         <button
                                             onClick={() => toggleExpand(course.id)}
-                                            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                                            className="p-1 hover:bg-accent rounded-lg transition-colors"
                                         >
                                             {isExpanded ? (
-                                                <ChevronDown className="h-5 w-5 text-slate-400" />
+                                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
                                             ) : (
-                                                <ChevronRight className="h-5 w-5 text-slate-400" />
+                                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
                                             )}
                                         </button>
 
@@ -679,7 +764,7 @@ export default function AdminCoursesPage() {
                                         {/* Info */}
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
-                                                <h3 className="font-semibold text-slate-900 truncate">
+                                                <h3 className="font-semibold text-foreground truncate">
                                                     {course.title}
                                                 </h3>
                                                 <Badge variant="secondary" className="text-[10px]">
@@ -691,8 +776,14 @@ export default function AdminCoursesPage() {
                                                 >
                                                     {course.is_active ? "Enabled" : "Disabled"}
                                                 </Badge>
+                                                <Badge
+                                                    variant={course.is_hidden ? "destructive" : "secondary"}
+                                                    className="text-[10px]"
+                                                >
+                                                    {course.is_hidden ? "Hidden" : "Visible"}
+                                                </Badge>
                                             </div>
-                                            <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-500">
+                                            <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                                                 <span>{course.progress} courses</span>
                                                 <span>·</span>
                                                 <span>{chapterCount} chapters</span>
@@ -710,78 +801,81 @@ export default function AdminCoursesPage() {
                                         </Badge>
 
                                         {/* Actions */}
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={() => openEditCourse(course)}
-                                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="Edit module"
-                                            >
-                                                <Pencil className="h-4 w-4" />
-                                            </button>
+                                        {canManageCourses && (
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => openEditCourse(course)}
+                                                    className="p-2 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors"
+                                                    title="Edit course"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </button>
 
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <button
-                                                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                        title="Delete module"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>Delete &quot;{course.title}&quot;?</AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            This will permanently delete this module and all its
-                                                            chapters. This action cannot be undone.
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                        <AlertDialogAction
-                                                            variant="destructive"
-                                                            onClick={() => deleteCourse(course.id)}
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <button
+                                                            className="p-2 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                                                            title="Delete course"
                                                         >
-                                                            Delete
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
-                                        </div>
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Delete &quot;{course.title}&quot;?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This will permanently delete this course and all its chapters. This action cannot be undone.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                variant="destructive"
+                                                                onClick={() => deleteCourse(course.id)}
+                                                            >
+                                                                Delete
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Expanded: Chapters */}
                                     {isExpanded && (
-                                        <div className="border-t border-slate-100 bg-slate-50/50">
+                                        <div className="border-t border-border bg-muted/30">
                                             <div className="px-5 py-3 flex items-center justify-between">
-                                                <h4 className="text-sm font-semibold text-slate-700">
+                                                <h4 className="text-sm font-semibold text-foreground">
                                                     Chapters
                                                 </h4>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={openCreateChapter}
-                                                    className="gap-1.5 h-8 text-xs"
-                                                >
-                                                    <Plus className="h-3.5 w-3.5" />
-                                                    Add Chapter
-                                                </Button>
+                                                {canCreateChapters && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={openCreateChapter}
+                                                        className="gap-1.5 h-8 text-xs"
+                                                    >
+                                                        <Plus className="h-3.5 w-3.5" />
+                                                        Add Chapter
+                                                    </Button>
+                                                )}
                                             </div>
 
                                             {/* Chapter Form */}
-                                            {showChapterForm && (
-                                                <div className="mx-5 mb-3 p-4 bg-white rounded-lg border border-slate-200 space-y-4">
+                                            {showChapterForm && (canCreateChapters || (canEditChapters && editingChapterId)) && (
+                                                <div className="mx-5 mb-3 p-4 bg-card rounded-lg border border-border space-y-4">
                                                     <div className="flex items-center justify-between">
-                                                        <h5 className="text-sm font-semibold text-slate-800">
+                                                        <h5 className="text-sm font-semibold text-foreground">
                                                             {editingChapterId ? "Edit Chapter" : "New Chapter"}
                                                         </h5>
                                                         <button onClick={cancelSubcourseForm}>
-                                                            <X className="h-4 w-4 text-slate-400" />
+                                                            <X className="h-4 w-4 text-muted-foreground" />
                                                         </button>
                                                     </div>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-medium text-slate-600">
+                                                            <label className="text-xs font-medium text-foreground">
                                                                 Title *
                                                             </label>
                                                             <Input
@@ -794,7 +888,7 @@ export default function AdminCoursesPage() {
                                                             />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-medium text-slate-600">
+                                                            <label className="text-xs font-medium text-foreground">
                                                                 Slug *
                                                             </label>
                                                             <Input
@@ -812,7 +906,7 @@ export default function AdminCoursesPage() {
                                                     </div>
                                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-medium text-slate-600">
+                                                            <label className="text-xs font-medium text-foreground">
                                                                 Task Count
                                                             </label>
                                                             <Input
@@ -829,7 +923,7 @@ export default function AdminCoursesPage() {
                                                             />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-medium text-slate-600">
+                                                            <label className="text-xs font-medium text-foreground">
                                                                 Sort Order
                                                             </label>
                                                             <Input
@@ -846,7 +940,7 @@ export default function AdminCoursesPage() {
                                                             />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <label className="text-xs font-medium text-slate-600">
+                                                            <label className="text-xs font-medium text-foreground">
                                                                 Simulator Type
                                                             </label>
                                                             <select
@@ -858,7 +952,7 @@ export default function AdminCoursesPage() {
                                                                             e.target.value as ChapterFormData["simulator_type"],
                                                                     }))
                                                                 }
-                                                                className="w-full h-8 px-3 rounded-lg border border-slate-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                                                className="w-full h-8 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                                             >
                                                                 {SIMULATOR_TYPE_OPTIONS.map((option) => (
                                                                     <option key={option.value} value={option.value}>
@@ -868,7 +962,7 @@ export default function AdminCoursesPage() {
                                                             </select>
                                                         </div>
                                                     </div>
-                                                    <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                                                    <label className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-foreground">
                                                         <input
                                                             type="checkbox"
                                                             checked={chapterForm.is_active}
@@ -914,10 +1008,10 @@ export default function AdminCoursesPage() {
                                             {isLoadingChapters ? (
                                                 <div className="px-5 py-6 text-center">
                                                     <Loader2 className="h-5 w-5 text-blue-600 animate-spin mx-auto mb-2" />
-                                                    <p className="text-xs text-slate-500">Loading chapters...</p>
+                                                    <p className="text-xs text-muted-foreground">Loading chapters...</p>
                                                 </div>
                                             ) : chapters.length === 0 ? (
-                                                <div className="px-5 py-6 text-center text-sm text-slate-500">
+                                                <div className="px-5 py-6 text-center text-sm text-muted-foreground">
                                                     No chapters yet. Click &quot;Add Chapter&quot; to create one.
                                                 </div>
                                             ) : (
@@ -925,16 +1019,34 @@ export default function AdminCoursesPage() {
                                                     {chapters.map((ch, idx) => (
                                                         <div
                                                             key={ch.id}
-                                                            className="flex items-center gap-3 px-4 py-3 bg-white rounded-lg border border-slate-100 hover:border-slate-200 transition-colors"
+                                                            draggable={canCreateChapters}
+                                                            onDragStart={() => setDraggedChapterId(ch.id)}
+                                                            onDragEnd={() => setDraggedChapterId(null)}
+                                                            onDragOver={(event) => {
+                                                                if (!canCreateChapters) return;
+                                                                event.preventDefault();
+                                                            }}
+                                                            onDrop={(event) => {
+                                                                if (!canCreateChapters) return;
+                                                                event.preventDefault();
+                                                                if (draggedChapterId) {
+                                                                    moveChapter(draggedChapterId, ch.id);
+                                                                }
+                                                                setDraggedChapterId(null);
+                                                            }}
+                                                            className={`flex items-center gap-3 px-4 py-3 bg-card rounded-lg border transition-colors ${canCreateChapters ? "cursor-move hover:border-blue-300" : "hover:border-border"} ${draggedChapterId === ch.id ? "opacity-60 ring-2 ring-blue-300" : ""}`}
                                                         >
-                                                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold">
-                                                                {idx + 1}
+                                                            <div
+                                                                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold ${canCreateChapters ? "bg-blue-600" : "bg-muted-foreground"}`}
+                                                                title={canCreateChapters ? "Drag to reorder" : undefined}
+                                                            >
+                                                                {canCreateChapters ? <GripVertical className="h-3.5 w-3.5" /> : idx + 1}
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-sm font-medium text-slate-900 truncate">
+                                                                <p className="text-sm font-medium text-foreground truncate">
                                                                     {ch.title}
                                                                 </p>
-                                                                <p className="text-[11px] text-slate-500">
+                                                                <p className="text-[11px] text-muted-foreground">
                                                                     /{ch.slug} · {ch.task_count} tasks · Progress: {ch.progress}%
                                                                 </p>
                                                             </div>
@@ -954,42 +1066,51 @@ export default function AdminCoursesPage() {
                                                                 {ch.is_active ? "Enabled" : "Disabled"}
                                                             </Badge>
                                                             <div className="flex items-center gap-1">
-                                                                <button
-                                                                    onClick={() => openEditChapter(ch)}
-                                                                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                                                                    title="Edit chapter"
-                                                                >
-                                                                    <Pencil className="h-3.5 w-3.5" />
-                                                                </button>
-                                                                <AlertDialog>
-                                                                    <AlertDialogTrigger asChild>
-                                                                        <button
-                                                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                                                            title="Delete chapter"
-                                                                        >
-                                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                                        </button>
-                                                                    </AlertDialogTrigger>
-                                                                    <AlertDialogContent>
-                                                                        <AlertDialogHeader>
-                                                                            <AlertDialogTitle>
-                                                                                Delete &quot;{ch.title}&quot;?
-                                                                            </AlertDialogTitle>
-                                                                            <AlertDialogDescription>
-                                                                                This chapter will be permanently deleted.
-                                                                            </AlertDialogDescription>
-                                                                        </AlertDialogHeader>
-                                                                        <AlertDialogFooter>
-                                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                                            <AlertDialogAction
-                                                                                variant="destructive"
-                                                                                onClick={() => deleteChapter(ch.id)}
+                                                                {canCreateChapters && (
+                                                                    <span className="hidden sm:inline-flex text-[10px] text-muted-foreground mr-1">
+                                                                        {idx + 1}
+                                                                    </span>
+                                                                )}
+                                                                {canEditChapters && (
+                                                                    <button
+                                                                        onClick={() => openEditChapter(ch)}
+                                                                        className="p-1.5 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-md transition-colors"
+                                                                        title="Edit chapter"
+                                                                    >
+                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                    </button>
+                                                                )}
+                                                                {canDeleteChapters && (
+                                                                    <AlertDialog>
+                                                                        <AlertDialogTrigger asChild>
+                                                                            <button
+                                                                                className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md transition-colors"
+                                                                                title="Delete chapter"
                                                                             >
-                                                                                Delete
-                                                                            </AlertDialogAction>
-                                                                        </AlertDialogFooter>
-                                                                    </AlertDialogContent>
-                                                                </AlertDialog>
+                                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                            </button>
+                                                                        </AlertDialogTrigger>
+                                                                        <AlertDialogContent>
+                                                                            <AlertDialogHeader>
+                                                                                <AlertDialogTitle>
+                                                                                    Delete &quot;{ch.title}&quot;?
+                                                                                </AlertDialogTitle>
+                                                                                <AlertDialogDescription>
+                                                                                    This chapter will be permanently deleted.
+                                                                                </AlertDialogDescription>
+                                                                            </AlertDialogHeader>
+                                                                            <AlertDialogFooter>
+                                                                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                                                <AlertDialogAction
+                                                                                    variant="destructive"
+                                                                                    onClick={() => deleteChapter(ch.id)}
+                                                                                >
+                                                                                    Delete
+                                                                                </AlertDialogAction>
+                                                                            </AlertDialogFooter>
+                                                                        </AlertDialogContent>
+                                                                    </AlertDialog>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     ))}

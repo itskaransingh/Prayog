@@ -47,9 +47,11 @@ function getCachedMappings(questionId: string | null): EvaluationMapping[] {
 
 function EPANSimulationContent({
     taskId,
+    chapterSlug,
     showExpectedAnswersInEvaluation,
 }: {
     taskId: string | null;
+    chapterSlug: string | null;
     showExpectedAnswersInEvaluation: boolean;
 }) {
     const searchParams = useSearchParams();
@@ -73,6 +75,7 @@ function EPANSimulationContent({
         completeEPAN
     } = useEPAN();
     const hasSavedAttemptRef = useRef(false);
+    const returnHref = chapterSlug ? `/course/${chapterSlug}` : "/learning-contents";
     const completedSteps = useMemo(() => {
         if (isCompleted || currentStep >= 4) {
             return EPAN_STEPS.map((step) => step.number);
@@ -283,8 +286,9 @@ function EPANSimulationContent({
             <EvaluationPopup
                 open={showEvaluationPopup}
                 results={evaluationResults}
-                onClose={() => setShowEvaluationPopup(false)}
+                onClose={() => window.location.replace(returnHref)}
                 showExpectedValues={showExpectedAnswersInEvaluation}
+                primaryActionLabel="Return to Chapter"
             />
         </div>
     );
@@ -308,6 +312,7 @@ function EPANProviderWrapper() {
 function EPANProviderLoader({ questionId }: { questionId: string | null }) {
     const [mappings, setMappings] = useState<PersistableEvaluationMapping[]>(() => getCachedMappings(questionId) as PersistableEvaluationMapping[]);
     const [taskId, setTaskId] = useState<string | null>(null);
+    const [chapterSlug, setChapterSlug] = useState<string | null>(null);
     const [showExpectedAnswersInEvaluation, setShowExpectedAnswersInEvaluation] = useState(false);
 
     useEffect(() => {
@@ -328,6 +333,7 @@ function EPANProviderLoader({ questionId }: { questionId: string | null }) {
                     (await response.json()) as SimulationEvaluationConfig;
 
                 setTaskId(config.taskId);
+                setChapterSlug(config.chapterSlug ?? null);
                 setShowExpectedAnswersInEvaluation(
                     config.showExpectedAnswersInEvaluation,
                 );
@@ -352,6 +358,7 @@ function EPANProviderLoader({ questionId }: { questionId: string | null }) {
         <EPANProvider initialMappings={mappings}>
             <EPANSimulationContent
                 taskId={taskId}
+                chapterSlug={chapterSlug}
                 showExpectedAnswersInEvaluation={
                     showExpectedAnswersInEvaluation
                 }

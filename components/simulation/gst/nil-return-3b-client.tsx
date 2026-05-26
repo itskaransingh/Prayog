@@ -386,6 +386,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
 
     const backHref = questionId ? `?questionId=${questionId}` : "#";
     const registerHref = questionId ? `/gst-simulation?questionId=${questionId}` : "/gst-simulation";
+    const [chapterSlug, setChapterSlug] = useState<string | null>(null);
 
     // ── Load evaluation config ────────────────────────────────────────────────
     useEffect(() => {
@@ -400,6 +401,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                 if (!res.ok) return;
                 const config = (await res.json()) as SimulationEvaluationConfig;
                 setTaskId(config.taskId);
+                setChapterSlug(config.chapterSlug ?? null);
                 setShowExpectedAnswers(config.showExpectedAnswersInEvaluation);
                 setMappings(config.mappings);
                 if (config.questionTitle?.trim()) {
@@ -416,6 +418,7 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
 
         void loadConfig();
     }, [questionId]);
+    const returnHref = chapterSlug ? `/course/${chapterSlug}` : "/learning-contents";
 
     // ── Save attempt ──────────────────────────────────────────────────────────
     useEffect(() => {
@@ -572,7 +575,8 @@ export function NilReturn3bClient({ questionId, initialMode }: NilReturn3bClient
                         open={showEvaluationPopup}
                         results={evaluationResults}
                         showExpectedValues={showExpectedAnswers}
-                        onClose={() => setShowEvaluationPopup(false)}
+                        onClose={() => window.location.replace(returnHref)}
+                        primaryActionLabel="Return to Chapter"
                     />
                 </div>
             </GSTPortalChrome>

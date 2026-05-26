@@ -17,6 +17,7 @@ export interface SimulationEvaluationConfig {
     mappings: PersistableEvaluationMapping[];
     questionTitle?: string | null;
     chapterId?: string | null;
+    chapterSlug?: string | null;
 }
 
 function trimValue(value: string | null | undefined): string {

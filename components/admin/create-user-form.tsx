@@ -16,7 +16,6 @@ import {
     ComboboxEmpty,
     ComboboxChips,
     ComboboxChip,
-    ComboboxCollection,
 } from "@/components/ui/combobox";
 
 interface Course {
@@ -134,7 +133,7 @@ export function CreateUserForm({ onSuccess, userRole }: { onSuccess?: () => void
     };
 
     return (
-        <Card className="w-full max-w-md border-border/50 shadow-sm">
+        <Card className="w-full max-w-md border-border/50 bg-card text-card-foreground shadow-sm">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <UserPlus className="h-5 w-5 text-blue-600" />

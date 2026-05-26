@@ -1,6 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
-import { verifyAdminAccess, verifyFacultyAccess } from "@/lib/supabase/admin-auth";
+import {
+    verifyAdminAccess,
+    verifyFacultyAccess,
+    getUserCourseAccess,
+} from "@/lib/supabase/admin-auth";
 import {
     LMS_COURSES_TAG,
     LMS_QUESTIONS_TAG,
@@ -35,6 +39,13 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "courseId query param is required" }, { status: 400 });
         }
 
+        if (faculty?.role === "faculty") {
+            const accessibleCourseIds = await getUserCourseAccess(supabase, faculty.id);
+            if (!accessibleCourseIds.includes(courseId)) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+        }
+
         const { data, error } = await supabase
             .from("chapters")
             .select("*")
@@ -56,7 +67,8 @@ export async function POST(request: Request) {
     try {
         const supabase = await createClient();
         const admin = await verifyAdminAccess(supabase);
-        if (!admin) {
+        const faculty = await verifyFacultyAccess(supabase);
+        if (!admin && !faculty) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -79,6 +91,13 @@ export async function POST(request: Request) {
                 { error: `simulator_type must be one of: ${VALID_SIMULATOR_TYPES.join(", ")}` },
                 { status: 400 }
             );
+        }
+
+        if (faculty && faculty.role === "faculty") {
+            const accessibleCourseIds = await getUserCourseAccess(supabase, faculty.id);
+            if (!accessibleCourseIds.includes(course_id)) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
         }
 
         const adminDb = createServiceRoleClient();

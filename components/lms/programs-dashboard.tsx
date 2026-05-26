@@ -4,14 +4,35 @@ import { getModulePresentation } from "@/lib/learning-contents";
 import { getCourseBanner } from "@/lib/course-banners";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import Image from "next/image";
 import Link from "next/link";
-import { Flame, Zap, Rocket, Star, ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronRight } from "lucide-react";
 
 const ACHIEVEMENTS = [
-    { icon: Flame, title: "Streak Master", desc: "Maintain a 7 day streak", xp: "+100 XP", bg: "bg-orange-100 dark:bg-orange-900/30" },
-    { icon: Zap, title: "Task Ace", desc: "Complete 10 tasks", xp: "+200 XP", bg: "bg-yellow-100 dark:bg-yellow-900/30" },
-    { icon: Rocket, title: "Explorer", desc: "Explore 3 new programs", xp: "+150 XP", bg: "bg-blue-100 dark:bg-blue-900/30" },
-    { icon: Star, title: "Top Performer", desc: "Score in top 20%", xp: "+250 XP", bg: "bg-red-100 dark:bg-red-900/30" },
+    {
+        title: "First Try Ace",
+        desc: "Complete a task with 100% accuracy on the 1st attempt",
+        xp: "+25 XP",
+        image: "/achievements/star.png",
+    },
+    {
+        title: "Quick Mastery",
+        desc: "Complete a task with 100% accuracy on the 2nd attempt",
+        xp: "+25 XP",
+        image: "/achievements/bag.png",
+    },
+    {
+        title: "Accuracy Builder",
+        desc: "Reach 80%+ average accuracy across 5 completed tasks",
+        xp: "+40 XP",
+        image: "/achievements/accuracy.png",
+    },
+    {
+        title: "Practice Streak",
+        desc: "Complete tasks on 3 consecutive study days",
+        xp: "+30 XP",
+        image: "/achievements/fire.png",
+    },
 ];
 
 export async function ProgramsDashboard() {
@@ -51,6 +72,7 @@ export async function ProgramsDashboard() {
         .from("courses")
         .select("id, title, slug, course_count, icon_name, bg_color, text_color")
         .eq("is_active", true)
+        .eq("is_hidden", false)
         .order("created_at", { ascending: true })
         .limit(3);
 
@@ -238,13 +260,27 @@ export async function ProgramsDashboard() {
 
             {/* Achievements */}
             <div>
-                <div className="text-base font-bold text-foreground dark:text-slate-100 mb-3">Earn More. Learn More. Level Up!</div>
+                <div className="mb-3 flex items-center justify-between gap-4">
+                    <div className="text-base font-bold text-foreground dark:text-slate-100">Earn More. Learn More. Level Up!</div>
+                    <Link
+                        href="/achievements"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+                    >
+                        See All <ChevronRight className="h-4 w-4" />
+                    </Link>
+                </div>
                 <div className="grid grid-cols-4 gap-4">
                     {ACHIEVEMENTS.map((achievement) => (
                         <Card key={achievement.title} className="h-24 bg-card dark:bg-slate-900/50 border-border dark:border-slate-800 p-3">
                             <div className="flex items-start gap-3 h-full">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${achievement.bg}`}>
-                                    <achievement.icon className="w-5 h-5" />
+                                <div className="relative w-10 h-10 flex-shrink-0 overflow-hidden rounded-full bg-muted">
+                                    <Image
+                                        src={achievement.image}
+                                        alt={achievement.title}
+                                        fill
+                                        sizes="40px"
+                                        className="object-cover"
+                                    />
                                 </div>
                                 <div className="flex flex-col min-w-0">
                                     <div className="text-xs font-semibold text-foreground dark:text-slate-200 truncate">{achievement.title}</div>
