@@ -4,6 +4,9 @@ import { revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { LMS_COURSES_TAG, LMS_CHAPTERS_TAG } from "@/lib/supabase/lms-cache-tags";
+import { upsertUserXP, checkChapterCompletion, checkAccountingExplorer, checkAccountingMaster, recordContentXPEvent } from "@/lib/xp/service";
+
+const VIDEO_DOC_XP = 15;
 
 export async function POST(
     _request: Request,
@@ -56,6 +59,43 @@ export async function POST(
 
         if (upsertError) {
             throw upsertError;
+        }
+
+        await upsertUserXP(supabaseAdmin, user.id, VIDEO_DOC_XP);
+
+        if (question.chapter_id) {
+            const { data: allQuestionsInChapter } = await supabaseAdmin
+                .from("questions")
+                .select("id, created_at")
+                .eq("chapter_id", question.chapter_id)
+                .order("created_at", { ascending: true });
+
+            let topicNumber = 1;
+            if (allQuestionsInChapter) {
+                const currentIndex = allQuestionsInChapter.findIndex((q) => q.id === questionId);
+                if (currentIndex !== -1) {
+                    topicNumber = currentIndex + 1;
+                }
+            }
+
+            await recordContentXPEvent(supabaseAdmin, user.id, questionId, question.chapter_id, topicNumber, VIDEO_DOC_XP);
+
+            const { data: chapterData } = await supabaseAdmin
+                .from("chapters")
+                .select("id, course_id")
+                .eq("id", question.chapter_id)
+                .maybeSingle();
+
+            if (chapterData) {
+                await checkChapterCompletion(
+                    supabaseAdmin,
+                    user.id,
+                    chapterData.id,
+                    chapterData.course_id,
+                );
+                await checkAccountingExplorer(supabaseAdmin, user.id, chapterData.course_id);
+                await checkAccountingMaster(supabaseAdmin, user.id, chapterData.course_id);
+            }
         }
 
         // Always revalidate tags to ensure fresh data

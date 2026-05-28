@@ -3,6 +3,15 @@ import { NextResponse } from "next/server";
 import type { EvaluationResult, FieldResult } from "@/lib/evaluation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import {
+    getXPForAttempt,
+    upsertUserXP,
+    recordTaskXPEvent,
+    checkAndAwardAchievements,
+    checkChapterCompletion,
+    checkAccountingExplorer,
+    checkAccountingMaster,
+} from "@/lib/xp/service";
 
 interface TaskAnswerPayload {
     field_id?: string;
@@ -143,14 +152,14 @@ export async function POST(request: Request) {
             const field = answer.field_id
                 ? fieldMapById.get(answer.field_id)
                 : answer.field_name
-                ? fieldMapByName.get(answer.field_name)
-                : undefined;
+                    ? fieldMapByName.get(answer.field_name)
+                    : undefined;
 
             const normalizedField = field
                 ? field
                 : answer.field_name
-                ? fieldMapByNormalizedName.get(normalizeFieldName(answer.field_name))
-                : undefined;
+                    ? fieldMapByNormalizedName.get(normalizeFieldName(answer.field_name))
+                    : undefined;
 
             if (!normalizedField) {
                 throw new Error(
@@ -192,6 +201,17 @@ export async function POST(request: Request) {
             fieldBreakdown,
             timeTakenSeconds,
         };
+
+        // Count prior attempts for THIS user+task BEFORE inserting the new one.
+        // Must happen here to avoid: (a) counting other users' attempts (no user_id filter bug)
+        // and (b) an off-by-one because the new record would already be in the table.
+        const { count: priorAttemptCount } = await supabaseAdmin
+            .from("user_simulation_attempts")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+            .eq("task_id", resolvedTaskId);
+
+        const currentAttemptNumber = (priorAttemptCount ?? 0) + 1;
 
         const { data: attemptData, error: attemptError } = await supabaseAdmin
             .from("user_simulation_attempts")
@@ -242,11 +262,79 @@ export async function POST(request: Request) {
             throw new Error(`Failed to save simulation answers: ${answersError.message}`);
         }
 
+
+        const { data: questionData } = await supabaseAdmin
+            .from("questions")
+            .select("id, chapter_id, type")
+            .eq("id", question_id)
+            .maybeSingle();
+
+        const { data: chapterData } = questionData
+            ? await supabaseAdmin
+                .from("chapters")
+                .select("id, course_id, simulator_type")
+                .eq("id", questionData.chapter_id)
+                .maybeSingle()
+            : { data: null };
+
+        const isFirstCompletion = currentAttemptNumber === 1;
+        let xpEarned = 0;
+
+        if (accuracy === 100) {
+            xpEarned = getXPForAttempt(currentAttemptNumber);
+            await upsertUserXP(supabaseAdmin, user.id, xpEarned);
+
+            let topicNumber = 1;
+            if (questionData) {
+                const { data: allQuestionsInChapter } = await supabaseAdmin
+                    .from("questions")
+                    .select("id, created_at")
+                    .eq("chapter_id", questionData.chapter_id)
+                    .order("created_at", { ascending: true });
+
+                if (allQuestionsInChapter) {
+                    const currentIndex = allQuestionsInChapter.findIndex((q) => q.id === question_id);
+                    if (currentIndex !== -1) {
+                        topicNumber = currentIndex + 1;
+                    }
+                }
+            }
+
+            await recordTaskXPEvent(supabaseAdmin, user.id, question_id, questionData?.chapter_id ?? "", topicNumber, currentAttemptNumber, xpEarned);
+
+            if (questionData && chapterData) {
+                const simulatorType = chapterData.simulator_type ?? null;
+                await checkAndAwardAchievements(supabaseAdmin, user.id, {
+                    questionId: question_id,
+                    attemptNumber: currentAttemptNumber,
+                    accuracy,
+                    isFirstCompletion,
+                    chapterId: chapterData.id,
+                    simulatorType,
+                });
+
+                const chapterResult = await checkChapterCompletion(
+                    supabaseAdmin,
+                    user.id,
+                    chapterData.id,
+                    chapterData.course_id,
+                );
+                if (chapterResult.completed) {
+                    xpEarned += chapterResult.xpAwarded;
+                }
+
+                await checkAccountingExplorer(supabaseAdmin, user.id, chapterData.course_id);
+                await checkAccountingMaster(supabaseAdmin, user.id, chapterData.course_id);
+            }
+        }
+
         return NextResponse.json({
             success: true,
             attemptId: attemptData.id,
             questionAttemptId: questionAttemptData.id,
             results,
+            xpEarned,
+            attemptNumber: currentAttemptNumber,
         });
     } catch (error) {
         console.error("Failed to save simulation attempt", error);

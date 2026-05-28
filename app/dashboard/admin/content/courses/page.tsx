@@ -773,12 +773,14 @@ export default function AdminCoursesPage() {
                                                 >
                                                     {course.is_active ? "Enabled" : "Disabled"}
                                                 </Badge>
-                                                <Badge
-                                                    variant={course.is_hidden ? "destructive" : "secondary"}
-                                                    className="text-[10px]"
-                                                >
-                                                    {course.is_hidden ? "Hidden" : "Visible"}
-                                                </Badge>
+                                                {userRole === "super_admin" && (
+                                                    <Badge
+                                                        variant={course.is_hidden ? "destructive" : "secondary"}
+                                                        className="text-[10px]"
+                                                    >
+                                                        {course.is_hidden ? "Hidden" : "Visible"}
+                                                    </Badge>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                                                 <span>{course.progress} courses</span>

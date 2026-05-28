@@ -21,10 +21,9 @@ interface FinancialAccountingMapProps {
 
 const CHAPTER_ICONS = ["📖", "📒", "💰", "🏦", "📮", "📝", "🗂️", "⚖️", "📊"];
 
-function getState(progress: number, index: number): ChapterState {
+function getState(progress: number, _index: number): ChapterState {
     if (progress >= 100) return "done";
-    if (progress > 0) return "in-progress";
-    return index === 0 ? "in-progress" : "locked";
+    return "in-progress";
 }
 
 export function FinancialAccountingMap({ courseTitle, moduleSlug, chapters }: FinancialAccountingMapProps) {
@@ -145,7 +144,7 @@ export function FinancialAccountingMap({ courseTitle, moduleSlug, chapters }: Fi
                                         <div className="mb-4 h-1.5 overflow-hidden rounded-full bg-foreground/5 dark:bg-white/5">
                                             <div
                                                 className={`h-full rounded-full ${chapter.state === "done" ? "bg-gradient-to-r from-[#00b87a] to-[#00e5a0]" : chapter.state === "in-progress" ? "bg-gradient-to-r from-[#c79b00] to-[#ffd966]" : "bg-muted dark:bg-[#2a2f47]"}`}
-                                                style={{ width: `${chapter.state === "locked" ? 0 : Math.max(chapter.progress, chapter.state === "done" ? 100 : 20)}%` }}
+                                                style={{ width: `${chapter.state === "locked" ? 0 : chapter.state === "done" ? 100 : chapter.progress}%` }}
                                             />
                                         </div>
                                         <div className="mb-3 flex items-center gap-1.5 text-[0.7rem] font-extrabold">
