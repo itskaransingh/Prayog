@@ -35,18 +35,18 @@ export async function GET(request: Request) {
 
         const userIds = leaderboardData.map((entry) => entry.user_id);
 
-        const { data: userProfiles } = await supabaseAdmin
-            .from("user_profiles")
-            .select("user_id, display_name")
-            .in("user_id", userIds);
+        const { data: profiles } = await supabaseAdmin
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", userIds);
 
         const profileMap = new Map(
-            (userProfiles ?? []).map((p) => [p.user_id, p]),
+            (profiles ?? []).map((p) => [p.id, p]),
         );
 
         const entries = leaderboardData.map((entry, index) => {
             const profile = profileMap.get(entry.user_id);
-            const name = profile?.display_name ?? `Learner ${index + 1}`;
+            const name = profile?.full_name ?? `Learner ${index + 1}`;
             const initials = name
                 .split(" ")
                 .map((n) => n[0])

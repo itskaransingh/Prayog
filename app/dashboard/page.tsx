@@ -76,6 +76,20 @@ interface GroupedChapter {
     users: GroupedUser[];
 }
 
+interface UserProgress {
+    attempted: number;
+    completed: number;
+    remaining: number;
+    total: number;
+    progress: number;
+    courseProgress: number;
+    courseAttempted: number;
+    courseCompleted: number;
+    courseTotal: number;
+}
+
+type ViewMode = "chapter" | "chronological";
+
 function getChapterAttemptCount(group: GroupedChapter) {
     return group.users.reduce(
         (userTotal, user) =>
@@ -105,6 +119,7 @@ export default function AdminDashboard() {
     const [chapters, setChapters] = useState<ChapterOption[]>([]);
     const [selectedCourseId, setSelectedCourseId] = useState("");
     const [selectedChapterId, setSelectedChapterId] = useState("");
+    const [selectedUserId, setSelectedUserId] = useState("");
     const [simulations, setSimulations] = useState<SimulationAttempt[]>([]);
     const [groupedSimulations, setGroupedSimulations] = useState<GroupedChapter[]>([]);
     const [isLoadingCourses, setIsLoadingCourses] = useState(false);
@@ -112,6 +127,12 @@ export default function AdminDashboard() {
     const [isLoadingSimulations, setIsLoadingSimulations] = useState(false);
     const [errorSimulations, setErrorSimulations] = useState<string | null>(null);
     const [isEmptySimulations, setIsEmptySimulations] = useState(false);
+    const [students, setStudents] = useState<AdminUserRecord[]>([]);
+    const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+    const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
+    const [isLoadingProgress, setIsLoadingProgress] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>("chapter");
+    const [chronologicalAttempts, setChronologicalAttempts] = useState<SimulationAttempt[]>([]);
 
     const fetchUsers = useCallback(async () => {
         setIsLoadingUsers(true);
@@ -179,6 +200,54 @@ export default function AdminDashboard() {
         }
     }, []);
 
+    const fetchStudents = useCallback(async (courseId?: string) => {
+        setIsLoadingStudents(true);
+        try {
+            const queryParams = courseId ? `?courseId=${courseId}` : "";
+            const res = await fetch(`/api/admin/users${queryParams}`);
+            const data = await res.json();
+            if (res.ok && data.users) {
+                const studentsList = data.users.filter(
+                    (u: AdminUserRecord) => u.role === "student",
+                );
+                setStudents(studentsList);
+            } else {
+                console.error("Failed to fetch users:", data.error);
+            }
+        } catch (error) {
+            console.error("Error fetching students:", error);
+        } finally {
+            setIsLoadingStudents(false);
+        }
+    }, []);
+
+    const fetchProgress = useCallback(async () => {
+        if (!selectedUserId || !selectedCourseId) {
+            setUserProgress(null);
+            return;
+        }
+
+        setIsLoadingProgress(true);
+        try {
+            const chapterParam = selectedChapterId
+                ? `&chapterId=${selectedChapterId}`
+                : "";
+            const res = await fetch(
+                `/api/admin/users/${selectedUserId}/progress?courseId=${selectedCourseId}${chapterParam}`,
+            );
+            const data = await res.json();
+            if (res.ok) {
+                setUserProgress(data);
+            } else {
+                console.error("Failed to fetch progress:", data.error);
+            }
+        } catch (error) {
+            console.error("Error fetching progress:", error);
+        } finally {
+            setIsLoadingProgress(false);
+        }
+    }, [selectedUserId, selectedCourseId, selectedChapterId]);
+
     const fetchSimulations = useCallback(async () => {
         setIsLoadingSimulations(true);
         setErrorSimulations(null);
@@ -190,6 +259,9 @@ export default function AdminDashboard() {
             if (selectedChapterId) {
                 searchParams.set("chapterId", selectedChapterId);
             }
+            if (selectedUserId) {
+                searchParams.set("userId", selectedUserId);
+            }
 
             const queryString = searchParams.toString();
             const res = await fetch(
@@ -199,6 +271,13 @@ export default function AdminDashboard() {
             if (res.ok && data.attempts) {
                 setSimulations(data.attempts);
                 setGroupedSimulations(data.groupedByChapter || []);
+                setChronologicalAttempts(
+                    [...data.attempts].sort(
+                        (a: SimulationAttempt, b: SimulationAttempt) =>
+                            new Date(b.created_at).getTime() -
+                            new Date(a.created_at).getTime(),
+                    ),
+                );
                 setIsEmptySimulations(Boolean(data._isEmpty));
             } else {
                 console.error("Failed to fetch simulations:", data.error);
@@ -214,7 +293,7 @@ export default function AdminDashboard() {
         } finally {
             setIsLoadingSimulations(false);
         }
-    }, [selectedCourseId, selectedChapterId]);
+    }, [selectedCourseId, selectedChapterId, selectedUserId]);
 
     useEffect(() => {
         fetchUserRole();
@@ -222,9 +301,10 @@ export default function AdminDashboard() {
             fetchUsers();
         } else if (activeTab === "results") {
             fetchCourses();
+            fetchStudents();
             fetchSimulations();
         }
-    }, [activeTab, fetchUsers, fetchCourses, fetchSimulations, fetchUserRole]);
+    }, [activeTab, fetchUsers, fetchCourses, fetchStudents, fetchSimulations, fetchUserRole]);
 
     useEffect(() => {
         if (activeTab !== "results") {
@@ -234,11 +314,28 @@ export default function AdminDashboard() {
         if (!selectedCourseId) {
             setChapters([]);
             setSelectedChapterId("");
+            setStudents([]);
+            setSelectedUserId("");
+            setUserProgress(null);
             return;
         }
 
         void fetchChapters(selectedCourseId);
-    }, [activeTab, fetchChapters, selectedCourseId]);
+        void fetchStudents(selectedCourseId);
+    }, [activeTab, fetchChapters, fetchStudents, selectedCourseId]);
+
+    useEffect(() => {
+        if (activeTab !== "results") {
+            return;
+        }
+
+        if (!selectedUserId || !selectedCourseId) {
+            setUserProgress(null);
+            return;
+        }
+
+        void fetchProgress();
+    }, [activeTab, fetchProgress, selectedUserId, selectedCourseId, selectedChapterId]);
 
     const isFaculty = userRole === "faculty";
     const canViewCoursesAndChapters = userRole === "admin" || userRole === "super_admin" || userRole === "faculty";
@@ -463,7 +560,7 @@ export default function AdminDashboard() {
                                         </Button>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <label className="space-y-2 text-sm">
                                             <span className="font-medium text-foreground">Course</span>
                                             <select
@@ -472,6 +569,8 @@ export default function AdminDashboard() {
                                                 onChange={(event) => {
                                                     setSelectedCourseId(event.target.value);
                                                     setSelectedChapterId("");
+                                                    setSelectedUserId("");
+                                                    setUserProgress(null);
                                                 }}
                                                 disabled={isLoadingCourses}
                                             >
@@ -508,8 +607,136 @@ export default function AdminDashboard() {
                                                 ))}
                                             </select>
                                         </label>
+
+                                        <label className="space-y-2 text-sm">
+                                            <span className="font-medium text-foreground">Student</span>
+                                            <select
+                                                className="w-full h-11 rounded-lg border border-border bg-background px-3 text-foreground shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-950/50"
+                                                value={selectedUserId}
+                                                onChange={(event) => setSelectedUserId(event.target.value)}
+                                                disabled={!selectedCourseId || isLoadingStudents}
+                                            >
+                                                <option value="">
+                                                    {!selectedCourseId
+                                                        ? "Select a course first"
+                                                        : isLoadingStudents
+                                                        ? "Loading students..."
+                                                        : "All students"}
+                                                </option>
+                                                {students.map((student) => (
+                                                    <option key={student.id} value={student.id}>
+                                                        {student.full_name?.trim() || student.email.split("@")[0]} ({student.email})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
                                     </div>
                                 </div>
+                                {selectedUserId && selectedCourseId && (
+                                    <div className="px-6 py-4 border-b border-border bg-blue-50/50 dark:bg-blue-950/20">
+                                        {isLoadingProgress ? (
+                                            <div className="flex items-center gap-3">
+                                                <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                                                <span className="text-sm text-muted-foreground">Loading progress...</span>
+                                            </div>
+                                        ) : userProgress ? (
+                                            <div className="space-y-3">
+                                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-sm font-medium text-foreground">
+                                                            Progress for {students.find(s => s.id === selectedUserId)?.full_name?.trim() || students.find(s => s.id === selectedUserId)?.email.split("@")[0]}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {userProgress.attempted} attempted, {userProgress.completed} completed, {userProgress.remaining} remaining out of {userProgress.total} total items
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-lg font-bold text-blue-600">
+                                                        {userProgress.progress}%
+                                                    </div>
+                                                </div>
+                                                {selectedChapterId && (
+                                                    <div className="space-y-1">
+                                                        <p className="text-xs text-muted-foreground">Chapter Progress</p>
+                                                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                                            <div
+                                                                className="h-full bg-blue-600 transition-all"
+                                                                style={{ width: `${userProgress.progress}%` }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {selectedChapterId && (
+                                                    <div className="flex items-center gap-4 text-xs">
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="h-2 w-2 rounded-full bg-blue-600"></div>
+                                                            <span>Attempted: {userProgress.attempted}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                                            <span>Completed: {userProgress.completed}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
+                                                            <span>Remaining: {userProgress.remaining}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div className="space-y-1">
+                                                    <p className="text-xs text-muted-foreground">Course Progress</p>
+                                                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-green-600 transition-all"
+                                                            style={{ width: `${userProgress.courseProgress}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4 text-xs">
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="h-2 w-2 rounded-full bg-blue-600"></div>
+                                                        <span>Attempted: {userProgress.courseAttempted}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                                                        <span>Completed: {userProgress.courseCompleted}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
+                                                        <span>Remaining: {userProgress.courseTotal - userProgress.courseAttempted - userProgress.courseCompleted}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">Unable to load progress data.</p>
+                                        )}
+                                    </div>
+                                )}
+                                {selectedUserId && selectedCourseId && (
+                                    <div className="px-6 py-3 border-b border-border flex items-center gap-6">
+                                        <span className="text-sm font-medium text-foreground">View:</span>
+                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="viewMode"
+                                                value="chapter"
+                                                checked={viewMode === "chapter"}
+                                                onChange={() => setViewMode("chapter")}
+                                                className="text-blue-600"
+                                            />
+                                            <span>Grouped by Chapter</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="viewMode"
+                                                value="chronological"
+                                                checked={viewMode === "chronological"}
+                                                onChange={() => setViewMode("chronological")}
+                                                className="text-blue-600"
+                                            />
+                                            <span>Chronological</span>
+                                        </label>
+                                    </div>
+                                )}
                                 {isLoadingSimulations ? (
                                     <div className="p-12 text-center text-muted-foreground">
                                         <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -539,108 +766,181 @@ export default function AdminDashboard() {
                                     </div>
                                 ) : (
                                     <div className="p-6 space-y-6 bg-muted/40">
-                                        {groupedSimulations.map((chapterGroup) => (
-                                            <section
-                                                key={chapterGroup.chapter_id}
-                                                className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
-                                            >
+                                        {viewMode === "chapter" ? (
+                                            groupedSimulations.map((chapterGroup) => (
+                                                <section
+                                                    key={chapterGroup.chapter_id}
+                                                    className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden"
+                                                >
+                                                    <div className="border-b border-border px-6 py-5 bg-muted/50">
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                                                                {chapterGroup.course_name}
+                                                            </span>
+                                                            <h4 className="text-lg font-semibold text-foreground">
+                                                                {chapterGroup.chapter_name}
+                                                            </h4>
+                                                            <span className="text-sm text-muted-foreground">
+                                                                {chapterGroup.users.length} user{chapterGroup.users.length === 1 ? "" : "s"}
+                                                            </span>
+                                                            <span className="text-sm text-muted-foreground">
+                                                                {getChapterAttemptCount(chapterGroup)} total attempt{getChapterAttemptCount(chapterGroup) === 1 ? "" : "s"}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="divide-y divide-border">
+                                                        {chapterGroup.users.map((groupedUser) => (
+                                                            <div key={groupedUser.user_id} className="px-6 py-5 space-y-4">
+                                                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                                                    <div>
+                                                                        <p className="text-base font-semibold text-foreground">
+                                                                            {groupedUser.full_name}
+                                                                        </p>
+                                                                        <p className="text-sm text-muted-foreground">
+                                                                            {groupedUser.email}
+                                                                        </p>
+                                                                        <p className="text-sm text-muted-foreground">
+                                                                            {groupedUser.questions.length} question{groupedUser.questions.length === 1 ? "" : "s"} attempted in this submodule
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                                                                    {groupedUser.questions.map((question) => (
+                                                                        <div
+                                                                            key={question.question_id}
+                                                                            className="rounded-xl border border-border bg-muted/30 overflow-hidden"
+                                                                        >
+                                                                            <div className="px-4 py-3 border-b border-border bg-background">
+                                                                                <div className="flex items-center justify-between gap-3">
+                                                                                    <p className="font-semibold text-foreground">
+                                                                                        {question.question_title}
+                                                                                    </p>
+                                                                                    <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-foreground">
+                                                                                        {question.attempt_count} attempt{question.attempt_count === 1 ? "" : "s"}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="overflow-x-auto">
+                                                                                <table className="w-full text-sm text-left">
+                                                                                    <thead className="bg-muted text-muted-foreground">
+                                                                                        <tr>
+                                                                                            <th className="px-4 py-2.5 font-medium">Attempt</th>
+                                                                                            <th className="px-4 py-2.5 font-medium">Score</th>
+                                                                                            <th className="px-4 py-2.5 font-medium">Accuracy</th>
+                                                                                            <th className="px-4 py-2.5 font-medium">Submitted At</th>
+                                                                                        </tr>
+                                                                                    </thead>
+                                                                                    <tbody className="divide-y divide-border">
+                                                                                        {question.attempts.map((attempt) => (
+                                                                                            <tr key={attempt.question_attempt_id} className="bg-background">
+                                                                                                <td className="px-4 py-3">
+                                                                                                    <span className="inline-flex items-center rounded bg-muted px-2 py-1 text-[11px] font-bold text-foreground">
+                                                                                                        #{attempt.attempt_number}
+                                                                                                    </span>
+                                                                                                </td>
+                                                                                                <td className="px-4 py-3 font-semibold text-blue-600">
+                                                                                                    {attempt.total_score}/{attempt.max_possible_score}
+                                                                                                </td>
+                                                                                                <td className="px-4 py-3">
+                                                                                                    <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                                                                                        attempt.accuracy >= 80 ? "bg-green-100 text-green-700" :
+                                                                                                        attempt.accuracy >= 50 ? "bg-amber-100 text-amber-700" :
+                                                                                                        "bg-red-100 text-red-700"
+                                                                                                    }`}>
+                                                                                                        {Math.round(attempt.accuracy)}%
+                                                                                                    </span>
+                                                                                                </td>
+                                                                                                <td className="px-4 py-3 text-muted-foreground text-xs">
+                                                                                                    {new Date(attempt.created_at).toLocaleString()}
+                                                                                                </td>
+                                                                                            </tr>
+                                                                                        ))}
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </section>
+                                            ))
+                                        ) : (
+                                            <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
                                                 <div className="border-b border-border px-6 py-5 bg-muted/50">
                                                     <div className="flex flex-wrap items-center gap-3">
                                                         <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                                                            {chapterGroup.course_name}
+                                                            Chronological View
                                                         </span>
                                                         <h4 className="text-lg font-semibold text-foreground">
-                                                            {chapterGroup.chapter_name}
+                                                            All Attempts
                                                         </h4>
                                                         <span className="text-sm text-muted-foreground">
-                                                            {chapterGroup.users.length} user{chapterGroup.users.length === 1 ? "" : "s"}
-                                                        </span>
-                                                        <span className="text-sm text-muted-foreground">
-                                                            {getChapterAttemptCount(chapterGroup)} total attempt{getChapterAttemptCount(chapterGroup) === 1 ? "" : "s"}
+                                                            {chronologicalAttempts.length} total attempt{chronologicalAttempts.length === 1 ? "" : "s"}
                                                         </span>
                                                     </div>
                                                 </div>
-
-                                                <div className="divide-y divide-border">
-                                                    {chapterGroup.users.map((groupedUser) => (
-                                                        <div key={groupedUser.user_id} className="px-6 py-5 space-y-4">
-                                                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                                                <div>
-                                                                    <p className="text-base font-semibold text-foreground">
-                                                                        {groupedUser.full_name}
-                                                                    </p>
-                                                                    <p className="text-sm text-muted-foreground">
-                                                                        {groupedUser.email}
-                                                                    </p>
-                                                                    <p className="text-sm text-muted-foreground">
-                                                                        {groupedUser.questions.length} question{groupedUser.questions.length === 1 ? "" : "s"} attempted in this submodule
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                                                                {groupedUser.questions.map((question) => (
-                                                                    <div
-                                                                        key={question.question_id}
-                                                                        className="rounded-xl border border-border bg-muted/30 overflow-hidden"
-                                                                    >
-                                                                        <div className="px-4 py-3 border-b border-border bg-background">
-                                                                            <div className="flex items-center justify-between gap-3">
-                                                                                <p className="font-semibold text-foreground">
-                                                                                    {question.question_title}
-                                                                                </p>
-                                                                                <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-foreground">
-                                                                                    {question.attempt_count} attempt{question.attempt_count === 1 ? "" : "s"}
-                                                                                </span>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div className="overflow-x-auto">
-                                                                            <table className="w-full text-sm text-left">
-                                                                                <thead className="bg-muted text-muted-foreground">
-                                                                                    <tr>
-                                                                                        <th className="px-4 py-2.5 font-medium">Attempt</th>
-                                                                                        <th className="px-4 py-2.5 font-medium">Score</th>
-                                                                                        <th className="px-4 py-2.5 font-medium">Accuracy</th>
-                                                                                        <th className="px-4 py-2.5 font-medium">Submitted At</th>
-                                                                                    </tr>
-                                                                                </thead>
-                                                                                <tbody className="divide-y divide-border">
-                                                                                    {question.attempts.map((attempt) => (
-                                                                                        <tr key={attempt.question_attempt_id} className="bg-background">
-                                                                                            <td className="px-4 py-3">
-                                                                                                <span className="inline-flex items-center rounded bg-muted px-2 py-1 text-[11px] font-bold text-foreground">
-                                                                                                    #{attempt.attempt_number}
-                                                                                                </span>
-                                                                                            </td>
-                                                                                            <td className="px-4 py-3 font-semibold text-blue-600">
-                                                                                                {attempt.total_score}/{attempt.max_possible_score}
-                                                                                            </td>
-                                                                                            <td className="px-4 py-3">
-                                                                                                <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                                                                                                    attempt.accuracy >= 80 ? "bg-green-100 text-green-700" :
-                                                                                                    attempt.accuracy >= 50 ? "bg-amber-100 text-amber-700" :
-                                                                                                    "bg-red-100 text-red-700"
-                                                                                                }`}>
-                                                                                                    {Math.round(attempt.accuracy)}%
-                                                                                                </span>
-                                                                                            </td>
-                                                                                            <td className="px-4 py-3 text-muted-foreground text-xs">
-                                                                                                {new Date(attempt.created_at).toLocaleString()}
-                                                                                            </td>
-                                                                                        </tr>
-                                                                                    ))}
-                                                                                </tbody>
-                                                                            </table>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-sm text-left">
+                                                        <thead className="bg-muted text-muted-foreground">
+                                                            <tr>
+                                                                <th className="px-4 py-2.5 font-medium">#</th>
+                                                                <th className="px-4 py-2.5 font-medium">User</th>
+                                                                <th className="px-4 py-2.5 font-medium">Course</th>
+                                                                <th className="px-4 py-2.5 font-medium">Chapter</th>
+                                                                <th className="px-4 py-2.5 font-medium">Question</th>
+                                                                <th className="px-4 py-2.5 font-medium">Score</th>
+                                                                <th className="px-4 py-2.5 font-medium">Accuracy</th>
+                                                                <th className="px-4 py-2.5 font-medium">Submitted At</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-border">
+                                                            {chronologicalAttempts.map((attempt, index) => (
+                                                                <tr key={attempt.question_attempt_id} className="bg-background">
+                                                                    <td className="px-4 py-3">
+                                                                        <span className="inline-flex items-center rounded bg-muted px-2 py-1 text-[11px] font-bold text-foreground">
+                                                                            #{index + 1}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <p className="font-medium text-foreground">{attempt.full_name}</p>
+                                                                        <p className="text-xs text-muted-foreground">{attempt.email}</p>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-foreground">
+                                                                        {attempt.course_name}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-foreground">
+                                                                        {attempt.chapter_name}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-foreground">
+                                                                        {attempt.question_title}
+                                                                    </td>
+                                                                    <td className="px-4 py-3 font-semibold text-blue-600">
+                                                                        {attempt.total_score}/{attempt.max_possible_score}
+                                                                    </td>
+                                                                    <td className="px-4 py-3">
+                                                                        <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                                                                            attempt.accuracy >= 80 ? "bg-green-100 text-green-700" :
+                                                                            attempt.accuracy >= 50 ? "bg-amber-100 text-amber-700" :
+                                                                            "bg-red-100 text-red-700"
+                                                                        }`}>
+                                                                            {Math.round(attempt.accuracy)}%
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-4 py-3 text-muted-foreground text-xs">
+                                                                        {new Date(attempt.created_at).toLocaleString()}
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
                                                 </div>
-                                            </section>
-                                        ))}
+                                            </div>
+                                        )}
 
                                         <div className="rounded-xl border border-border bg-card px-6 py-4">
                                             <p className="text-sm font-medium text-foreground">

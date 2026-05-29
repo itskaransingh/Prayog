@@ -103,6 +103,7 @@ export async function GET(request: Request) {
         const url = new URL(request.url);
         const selectedCourseId = url.searchParams.get("courseId");
         const selectedChapterId = url.searchParams.get("chapterId");
+        const selectedUserId = url.searchParams.get("userId");
 
         const supabaseAdmin = createAdminClient();
         const selectQuery = `
@@ -228,6 +229,10 @@ export async function GET(request: Request) {
                     return false;
                 }
 
+                if (selectedUserId && attempt.user_id !== selectedUserId) {
+                    return false;
+                }
+
                 return true;
             });
 
@@ -349,6 +354,7 @@ export async function GET(request: Request) {
             filters: {
                 courseId: selectedCourseId,
                 chapterId: selectedChapterId,
+                userId: selectedUserId,
             },
             _count: flatAttempts.length,
             _totalCount: totalJoinedAttempts,
