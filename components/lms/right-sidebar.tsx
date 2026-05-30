@@ -6,10 +6,12 @@ import Link from "next/link";
 
 interface LeaderboardEntry {
     rank: number;
-    user_id: string;
     name: string;
     initials: string;
-    total_xp: number;
+    user_id?: string;
+    total_xp?: number;
+    xp?: string;
+    medal?: string | null;
     isYou?: boolean;
 }
 
