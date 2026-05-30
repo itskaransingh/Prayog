@@ -46,10 +46,10 @@ export async function GET(request: Request) {
 
         const entries = leaderboardData.map((entry, index) => {
             const profile = profileMap.get(entry.user_id);
-            const name = profile?.full_name ?? `Learner ${index + 1}`;
+            const name: string = profile?.full_name ?? `Learner ${index + 1}`;
             const initials = name
                 .split(" ")
-                .map((n) => n[0])
+                .map((n: string) => n[0])
                 .slice(0, 2)
                 .join("")
                 .toUpperCase() || "??";
