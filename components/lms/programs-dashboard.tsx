@@ -243,7 +243,7 @@ export async function ProgramsDashboard() {
                                             <Progress value={item.progress} className="h-1.5 w-full" />
                                         </div>
                                         <div className="flex items-center gap-1 text-xs text-orange-500 font-semibold">
-                                             +{Math.round(item.progress * 3.5)} XP
+                                            +{Math.round(item.progress * 3.5)} XP
                                         </div>
                                         <div className="pt-1">
                                             <span className="inline-flex items-center gap-1 text-xs font-bold text-primary group-hover:underline">

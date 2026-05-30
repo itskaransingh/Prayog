@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const cookieStore = await cookies();
         const supabase = createServerClient(
@@ -42,14 +42,30 @@ export async function GET() {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
+        const url = new URL(request.url);
+        const courseId = url.searchParams.get("courseId");
+
         const supabaseAdmin = createAdminClient();
 
         let users;
         if (profile.role === "super_admin") {
-            const { data, error: fetchError } = await supabaseAdmin
+            let query = supabaseAdmin
                 .from("profiles")
                 .select("id, email, full_name, role, created_at")
                 .order("created_at", { ascending: false });
+
+            if (courseId) {
+                const { data: access } = await supabaseAdmin
+                    .from("user_course_access")
+                    .select("user_id")
+                    .eq("course_id", courseId);
+                const userIds = access?.map((a) => a.user_id) || [];
+                if (userIds.length > 0) {
+                    query = query.in("id", userIds);
+                }
+            }
+
+            const { data, error: fetchError } = await query;
 
             if (fetchError) {
                 return NextResponse.json({ error: fetchError.message }, { status: 500 });
@@ -84,11 +100,27 @@ export async function GET() {
 
             const allUserIds = new Set([...userIdsInCourses, ...createdUserIds]);
 
-            const { data: usersData, error: fetchError } = await supabaseAdmin
+            let query = supabaseAdmin
                 .from("profiles")
                 .select("id, email, full_name, role, created_at")
                 .in("id", Array.from(allUserIds))
                 .order("created_at", { ascending: false });
+
+            if (courseId) {
+                const { data: access } = await supabaseAdmin
+                    .from("user_course_access")
+                    .select("user_id")
+                    .eq("course_id", courseId);
+                const userIdsWithAccess = access?.map((a) => a.user_id) || [];
+                if (userIdsWithAccess.length > 0) {
+                    const filteredIds = Array.from(allUserIds).filter(id => userIdsWithAccess.includes(id));
+                    query = query.in("id", filteredIds);
+                } else {
+                    return NextResponse.json({ users: [] });
+                }
+            }
+
+            const { data: usersData, error: fetchError } = await query;
 
             if (fetchError) {
                 return NextResponse.json({ error: fetchError.message }, { status: 500 });

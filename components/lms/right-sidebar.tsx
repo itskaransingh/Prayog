@@ -1,16 +1,50 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Trophy, Target, Clock, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
-const LEADERBOARD = [
+interface LeaderboardEntry {
+    rank: number;
+    user_id: string;
+    name: string;
+    initials: string;
+    total_xp: number;
+    isYou?: boolean;
+}
+
+const PLACEHOLDER_LEADERBOARD = [
     { rank: 1, name: "Priya K.", xp: "2,880", medal: "🥇", initials: "PK", isYou: false },
     { rank: 2, name: "Rohan M.", xp: "2,510", medal: "", initials: "RM", isYou: false },
     { rank: 3, name: "Sneha G.", xp: "2,200", medal: "🥉", initials: "SG", isYou: false },
-    { rank: 12, name: "You", xp: "1,260", medal: null, initials: "AS", isYou: true },
+    { rank: 4, name: "You", xp: "—", medal: null, initials: "?", isYou: true },
 ];
 
 export function RightSidebar() {
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchLeaderboard() {
+            try {
+                const res = await fetch("/api/leaderboard?limit=5");
+                if (res.ok) {
+                    const data = await res.json();
+                    setLeaderboard(data.entries);
+                }
+            } catch (error) {
+                console.error("Failed to load leaderboard:", error);
+                setLeaderboard(PLACEHOLDER_LEADERBOARD);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        fetchLeaderboard();
+    }, []);
+
+    const displayLeaderboard = leaderboard.length > 0 ? leaderboard : PLACEHOLDER_LEADERBOARD;
+
     return (
         <aside className="w-64 flex-shrink-0 bg-muted/30 dark:bg-slate-900/30 border-l border-border dark:border-slate-800 overflow-y-auto">
             <div className="p-3.5 flex flex-col gap-3.5">
@@ -67,7 +101,7 @@ export function RightSidebar() {
                         className="w-full flex items-center justify-center gap-1 py-2 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                     >
                         View All Quests
-                        <ChevronRight className="w-4 h-4" />
+                        <ChevronRight className="w-4 w-4" />
                     </Link>
                 </div>
 
@@ -87,7 +121,7 @@ export function RightSidebar() {
                     </div>
 
                     <div className="space-y-1">
-                        {LEADERBOARD.map((entry) => (
+                        {displayLeaderboard.map((entry) => (
                             <div
                                 key={entry.rank}
                                 className={`flex items-center gap-2 p-2 rounded-lg ${
@@ -97,7 +131,7 @@ export function RightSidebar() {
                                 }`}
                             >
                                 <span className="w-6 text-center text-sm">
-                                    {entry.medal || `#${entry.rank}`}
+                                    {entry.medal || (entry.rank <= 3 ? "" : `#${entry.rank}`)}
                                 </span>
                                 <div
                                     className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
@@ -118,7 +152,7 @@ export function RightSidebar() {
                                     {entry.name}
                                 </span>
                                 <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                                    {entry.xp}
+                                    {typeof entry.total_xp === "number" ? `${entry.total_xp.toLocaleString()}` : entry.xp}
                                 </span>
                             </div>
                         ))}

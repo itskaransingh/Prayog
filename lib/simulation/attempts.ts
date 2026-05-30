@@ -36,7 +36,7 @@ export async function saveSimulationAttempt({
     startTime,
     endTime,
     answers,
-}: SaveSimulationAttemptInput) {
+}: SaveSimulationAttemptInput): Promise<{ success: boolean; xpEarned?: number; attemptNumber?: number }> {
     const response = await fetch("/api/simulation/attempts", {
         method: "POST",
         headers: {
@@ -55,6 +55,14 @@ export async function saveSimulationAttempt({
 
     if (!response.ok) {
         throw new Error(payload?.error || "Failed to save simulation attempt.");
+    }
+
+    if (typeof window !== "undefined" && window.dispatchEvent) {
+        window.dispatchEvent(
+            new CustomEvent("lms:course-status-change", {
+                detail: { questionId },
+            }),
+        );
     }
 
     return payload;

@@ -197,7 +197,7 @@ export default function AdminCoursesPage() {
     const [userRole, setUserRole] = useState<string>("");
 
     // Course form state
-    const [showCourseForm, setShowCourseForm] = useState(false);
+    const [isCreatingNewCourse, setIsCreatingNewCourse] = useState(false);
     const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
     const [courseForm, setCourseForm] = useState<CourseFormData>(emptyCourseForm);
     const [isSavingCourse, setIsSavingCourse] = useState(false);
@@ -268,9 +268,9 @@ export default function AdminCoursesPage() {
     // ─── Course CRUD ─────────────────────────────────────────────────
 
     const openCreateCourse = () => {
+        setIsCreatingNewCourse(true);
         setEditingCourseId(null);
         setCourseForm(emptyCourseForm);
-        setShowCourseForm(true);
     };
 
     const openEditCourse = (course: Course) => {
@@ -285,11 +285,10 @@ export default function AdminCoursesPage() {
             is_active: typeof course.is_active === "boolean" ? course.is_active : true,
             is_hidden: typeof course.is_hidden === "boolean" ? course.is_hidden : false,
         });
-        setShowCourseForm(true);
     };
 
     const cancelCourseForm = () => {
-        setShowCourseForm(false);
+        setIsCreatingNewCourse(false);
         setEditingCourseId(null);
         setCourseForm(emptyCourseForm);
     };
@@ -535,13 +534,11 @@ export default function AdminCoursesPage() {
                     </div>
                 )}
 
-                {/* Course Form (Create / Edit) */}
-                {showCourseForm && canManageCourses && (
+                {/* Add Course Form - Top Level for creating new courses */}
+                {isCreatingNewCourse && canManageCourses && (
                     <div className="mb-8 bg-card rounded-xl border border-border shadow-sm overflow-hidden">
                         <div className="px-6 py-4 bg-muted border-b border-border flex items-center justify-between">
-                            <h2 className="font-semibold text-foreground">
-                                {editingCourseId ? "Edit Course" : "New Course"}
-                            </h2>
+                            <h2 className="font-semibold text-foreground">New Course</h2>
                             <button onClick={cancelCourseForm}>
                                 <X className="h-5 w-5 text-muted-foreground hover:text-foreground" />
                             </button>
@@ -692,7 +689,7 @@ export default function AdminCoursesPage() {
                                     ) : (
                                         <Save className="h-4 w-4" />
                                     )}
-                                    {editingCourseId ? "Update" : "Create"}
+                                    Create
                                 </Button>
                             </div>
                         </div>
@@ -776,12 +773,14 @@ export default function AdminCoursesPage() {
                                                 >
                                                     {course.is_active ? "Enabled" : "Disabled"}
                                                 </Badge>
-                                                <Badge
-                                                    variant={course.is_hidden ? "destructive" : "secondary"}
-                                                    className="text-[10px]"
-                                                >
-                                                    {course.is_hidden ? "Hidden" : "Visible"}
-                                                </Badge>
+                                                {userRole === "super_admin" && (
+                                                    <Badge
+                                                        variant={course.is_hidden ? "destructive" : "secondary"}
+                                                        className="text-[10px]"
+                                                    >
+                                                        {course.is_hidden ? "Hidden" : "Visible"}
+                                                    </Badge>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                                                 <span>{course.progress} courses</span>
@@ -841,6 +840,170 @@ export default function AdminCoursesPage() {
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Edit Course Form - Inline */}
+                                    {editingCourseId === course.id && canManageCourses && (
+                                        <div className="border-t border-border bg-muted/30 px-5 py-4">
+                                            <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
+                                                <div className="px-6 py-4 bg-muted border-b border-border flex items-center justify-between">
+                                                    <h3 className="font-semibold text-foreground">Edit Course</h3>
+                                                    <button onClick={cancelCourseForm}>
+                                                        <X className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                                                    </button>
+                                                </div>
+                                                <div className="p-6 space-y-5">
+                                                    {/* Title + Slug */}
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-sm font-medium text-foreground">Title *</label>
+                                                            <Input
+                                                                value={courseForm.title}
+                                                                onChange={(e) => handleCourseTitleChange(e.target.value)}
+                                                                placeholder="e.g. Income Tax"
+                                                                className="rounded-lg"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-sm font-medium text-foreground">Slug *</label>
+                                                            <Input
+                                                                value={courseForm.slug}
+                                                                onChange={(e) =>
+                                                                    setCourseForm((prev) => ({ ...prev, slug: e.target.value }))
+                                                                }
+                                                                placeholder="e.g. income-tax"
+                                                                className="rounded-lg"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Icon + Color + Chapter Count */}
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-sm font-medium text-foreground">Icon</label>
+                                                            <select
+                                                                value={courseForm.icon_name}
+                                                                onChange={(e) =>
+                                                                    setCourseForm((prev) => ({ ...prev, icon_name: e.target.value }))
+                                                                }
+                                                                className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                                            >
+                                                                {ICON_OPTIONS.map((icon) => (
+                                                                    <option key={icon} value={icon}>
+                                                                        {icon}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-sm font-medium text-foreground">Color Theme</label>
+                                                            <select
+                                                                value={courseForm.bg_color}
+                                                                onChange={(e) => {
+                                                                    const color = COLOR_OPTIONS.find((c) => c.bg === e.target.value);
+                                                                    if (color) {
+                                                                        setCourseForm((prev) => ({
+                                                                            ...prev,
+                                                                            bg_color: color.bg,
+                                                                            text_color: color.text,
+                                                                        }));
+                                                                    }
+                                                                }}
+                                                                className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm text-foreground focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                                            >
+                                                                {COLOR_OPTIONS.map((c) => (
+                                                                    <option key={c.bg} value={c.bg}>
+                                                                        {c.label}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            <label className="text-sm font-medium text-foreground">Chapter Count</label>
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                value={courseForm.course_count}
+                                                                onChange={(e) =>
+                                                                    setCourseForm((prev) => ({
+                                                                        ...prev,
+                                                                        course_count: parseInt(e.target.value) || 0,
+                                                                    }))
+                                                                }
+                                                                className="rounded-lg"
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <label className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={courseForm.is_active}
+                                                            onChange={(e) =>
+                                                                setCourseForm((prev) => ({
+                                                                    ...prev,
+                                                                    is_active: e.target.checked,
+                                                                }))
+                                                            }
+                                                        />
+                                                        Course is enabled (visible to learners)
+                                                    </label>
+
+                                                    <label className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={courseForm.is_hidden}
+                                                            onChange={(e) =>
+                                                                setCourseForm((prev) => ({
+                                                                    ...prev,
+                                                                    is_hidden: e.target.checked,
+                                                                }))
+                                                            }
+                                                        />
+                                                        Hide from admin and faculty dashboard lists
+                                                    </label>
+
+                                                    {/* Preview */}
+                                                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted border border-border">
+                                                        <div
+                                                            className={`flex h-10 w-10 items-center justify-center rounded-lg ${safeBgText(courseForm.bg_color, courseForm.text_color).bg} ${safeBgText(courseForm.bg_color, courseForm.text_color).text}`}
+                                                        >
+                                                            {(() => {
+                                                                const PreviewIcon = IconMap[courseForm.icon_name] || BookOpen;
+                                                                return <PreviewIcon className="h-5 w-5" />;
+                                                            })()}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-foreground">
+                                                                {courseForm.title || "Course Title"}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                /{courseForm.slug || "slug"} · {courseForm.course_count} chapters · Icon: {courseForm.icon_name} · {courseForm.is_active ? "Enabled" : "Disabled"} · {courseForm.is_hidden ? "Hidden" : "Visible"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Actions */}
+                                                    <div className="flex justify-end gap-3 pt-2">
+                                                        <Button variant="outline" onClick={cancelCourseForm}>
+                                                            Cancel
+                                                        </Button>
+                                                        <Button
+                                                            onClick={saveCourse}
+                                                            disabled={isSavingCourse || !courseForm.title.trim()}
+                                                            className="gap-2"
+                                                        >
+                                                            {isSavingCourse ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                            ) : (
+                                                                <Save className="h-4 w-4" />
+                                                            )}
+                                                            Update
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Expanded: Chapters */}
                                     {isExpanded && (
