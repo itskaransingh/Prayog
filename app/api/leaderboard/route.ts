@@ -49,7 +49,7 @@ export async function GET(request: Request) {
             const name: string = profile?.full_name ?? `Learner ${index + 1}`;
             const initials = name
                 .split(" ")
-                .map((n: string) => n[0] ?? "")
+                .map((n: string) => n[0])
                 .slice(0, 2)
                 .join("")
                 .toUpperCase() || "??";
