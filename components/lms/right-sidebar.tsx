@@ -6,24 +6,38 @@ import Link from "next/link";
 
 interface LeaderboardEntry {
     rank: number;
+    user_id: string;
     name: string;
     initials: string;
-    user_id?: string;
-    total_xp?: number;
-    xp?: string;
-    medal?: string | null;
+    total_xp: number;
     isYou?: boolean;
 }
 
-const PLACEHOLDER_LEADERBOARD: LeaderboardEntry[] = [
+interface DisplayLeaderboardEntry {
+    rank: number;
+    name: string;
+    initials: string;
+    xp: string;
+    medal: string | null;
+    isYou?: boolean;
+}
+
+function getMedalForRank(rank: number): string | null {
+    if (rank === 1) return "🥇";
+    if (rank === 2) return "🥈";
+    if (rank === 3) return "🥉";
+    return null;
+}
+
+const PLACEHOLDER_LEADERBOARD: DisplayLeaderboardEntry[] = [
     { rank: 1, name: "Priya K.", xp: "2,880", medal: "🥇", initials: "PK", isYou: false },
-    { rank: 2, name: "Rohan M.", xp: "2,510", medal: "", initials: "RM", isYou: false },
+    { rank: 2, name: "Rohan M.", xp: "2,510", medal: "🥈", initials: "RM", isYou: false },
     { rank: 3, name: "Sneha G.", xp: "2,200", medal: "🥉", initials: "SG", isYou: false },
     { rank: 4, name: "You", xp: "—", medal: null, initials: "?", isYou: true },
 ];
 
 export function RightSidebar() {
-    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    const [leaderboard, setLeaderboard] = useState<DisplayLeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -32,7 +46,17 @@ export function RightSidebar() {
                 const res = await fetch("/api/leaderboard?limit=5");
                 if (res.ok) {
                     const data = await res.json();
-                    setLeaderboard(data.entries);
+                    const entries: LeaderboardEntry[] = data.entries ?? [];
+                    setLeaderboard(
+                        entries.map((entry) => ({
+                            rank: entry.rank,
+                            name: entry.name,
+                            initials: entry.initials,
+                            xp: entry.total_xp.toLocaleString(),
+                            medal: getMedalForRank(entry.rank),
+                            isYou: entry.isYou,
+                        })),
+                    );
                 }
             } catch (error) {
                 console.error("Failed to load leaderboard:", error);
@@ -154,7 +178,7 @@ export function RightSidebar() {
                                     {entry.name}
                                 </span>
                                 <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                                    {typeof entry.total_xp === "number" ? `${entry.total_xp.toLocaleString()}` : entry.xp}
+                                    {entry.xp}
                                 </span>
                             </div>
                         ))}
