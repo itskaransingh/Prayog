@@ -15,7 +15,7 @@ interface LeaderboardEntry {
     isYou?: boolean;
 }
 
-const PLACEHOLDER_LEADERBOARD = [
+const PLACEHOLDER_LEADERBOARD: LeaderboardEntry[] = [
     { rank: 1, name: "Priya K.", xp: "2,880", medal: "🥇", initials: "PK", isYou: false },
     { rank: 2, name: "Rohan M.", xp: "2,510", medal: "", initials: "RM", isYou: false },
     { rank: 3, name: "Sneha G.", xp: "2,200", medal: "🥉", initials: "SG", isYou: false },
