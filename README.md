@@ -11,6 +11,7 @@ Before running the application, you need to configure your local environment var
    - `NEXT_PUBLIC_SUPABASE_URL`: Your project URL.
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your project's `anon` / `public` key.
    - `SUPABASE_SERVICE_ROLE_KEY`: Your project's `service_role` secret (Do **NOT** expose this to the browser/client-side).
+   - 
 
 
 
