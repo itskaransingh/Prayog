@@ -42,6 +42,9 @@ _Avoid_: Points, score, credits
 **Completion**: The completion rate for a Course or Chapter, calculated as completed items divided by total items.
 _Avoid_: Progress, attempt rate
 
+**Analytics Dashboard**: The admin Results view that summarizes chapter performance, score spread, and student trends for a selected course or chapter.
+_Avoid_: Reporting dashboard, insights panel
+
 **Achievement**: A course-specific milestone that recognizes student progress, consistency, or mastery and awards a small XP bonus.
 _Avoid_: Badge, trophy, medal
 

@@ -9,9 +9,11 @@ import {
     ArrowLeft,
     BookOpen,
     FileText,
-    History
+    History,
+    ChevronDown,
 } from "lucide-react";
 import { CreateUserForm } from "@/components/admin/create-user-form";
+import { ResultsAnalytics } from "@/components/admin/results-analytics";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
@@ -88,6 +90,30 @@ interface UserProgress {
     courseTotal: number;
 }
 
+interface ResultsAnalyticsPayload {
+    chapterDifficulty: Array<{
+        chapter_id: string;
+        chapter_name: string;
+        course_name: string;
+        average_score: number;
+    }>;
+    scoreDistribution: Array<{ label: string; count: number }>;
+    completionRate: Array<{
+        chapter_id: string;
+        chapter_name: string;
+        course_name: string;
+        completion_rate: number;
+    }>;
+    sparklines: Array<{
+        user_id: string;
+        full_name: string;
+        email: string;
+        average_score: number;
+        attempt_count: number;
+        trend: Array<{ x: number; y: number; trendY: number }>;
+    }>;
+}
+
 function getCompletionSummary(progress: UserProgress) {
     return `${progress.completed} completed, ${progress.remaining} remaining (${progress.attempted} attempted)`;
 }
@@ -137,6 +163,9 @@ export default function AdminDashboard() {
     const [isLoadingProgress, setIsLoadingProgress] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("chapter");
     const [chronologicalAttempts, setChronologicalAttempts] = useState<SimulationAttempt[]>([]);
+    const [analytics, setAnalytics] = useState<ResultsAnalyticsPayload | null>(null);
+    const [resultsMode, setResultsMode] = useState<"course" | "chapter">("course");
+    const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
 
     const fetchUsers = useCallback(async () => {
         setIsLoadingUsers(true);
@@ -275,6 +304,8 @@ export default function AdminDashboard() {
             if (res.ok && data.attempts) {
                 setSimulations(data.attempts);
                 setGroupedSimulations(data.groupedByChapter || []);
+                setAnalytics(data.analytics || null);
+                setResultsMode(data.mode || (selectedChapterId ? "chapter" : "course"));
                 setChronologicalAttempts(
                     [...data.attempts].sort(
                         (a: SimulationAttempt, b: SimulationAttempt) =>
@@ -293,6 +324,7 @@ export default function AdminDashboard() {
             setErrorSimulations(
                 error instanceof Error ? error.message : String(error),
             );
+            setAnalytics(null);
             setIsEmptySimulations(false);
         } finally {
             setIsLoadingSimulations(false);
@@ -323,7 +355,6 @@ export default function AdminDashboard() {
             setUserProgress(null);
             return;
         }
-
         void fetchChapters(selectedCourseId);
         void fetchStudents(selectedCourseId);
     }, [activeTab, fetchChapters, fetchStudents, selectedCourseId]);
@@ -635,7 +666,40 @@ export default function AdminDashboard() {
                                             </select>
                                         </label>
                                     </div>
+                                    <div className="mt-4">
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsAnalyticsOpen((current) => !current)}
+                                            disabled={!selectedCourseId}
+                                            className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+                                                selectedCourseId
+                                                    ? "border-border bg-muted/20 hover:bg-muted/40"
+                                                    : "border-dashed border-border bg-muted/10 text-muted-foreground cursor-not-allowed"
+                                            }`}
+                                        >
+                                            <div>
+                                                <p className="text-sm font-semibold text-foreground">Analytics</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {selectedCourseId
+                                                        ? "Open to view charts for the selected course"
+                                                        : "Select a course to enable analytics"}
+                                                </p>
+                                            </div>
+                                            <ChevronDown className={`h-4 w-4 transition-transform ${isAnalyticsOpen ? "rotate-180" : ""}`} />
+                                        </button>
+                                    </div>
                                 </div>
+                                {selectedCourseId && isAnalyticsOpen && (
+                                    <div className="px-6 pb-6">
+                                        <ResultsAnalytics
+                                            analytics={analytics}
+                                            isLoading={isLoadingSimulations}
+                                            error={errorSimulations}
+                                            isEmpty={isEmptySimulations || simulations.length === 0}
+                                            mode={resultsMode}
+                                        />
+                                    </div>
+                                )}
                                 {selectedUserId && selectedCourseId && (
                                     <div className="px-6 py-4 border-b border-border bg-blue-50/50 dark:bg-blue-950/20">
                                         {isLoadingProgress ? (
