@@ -5,6 +5,39 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserCourseAccess } from "@/lib/supabase/admin-auth";
 
+type ProgressSnapshot = {
+    attempted: number;
+    completed: number;
+    remaining: number;
+    total: number;
+    progress: number;
+};
+
+function buildProgressSnapshot(
+    questions: { id: string; type: string | null; chapter_id: string }[],
+    attemptedIds: Set<string>,
+    completedIds: Set<string>,
+): ProgressSnapshot {
+    const total = questions.length;
+    let attempted = 0;
+    let completed = 0;
+
+    for (const question of questions) {
+        if (question.type === "question") {
+            if (attemptedIds.has(question.id)) {
+                attempted++;
+            }
+        } else if (completedIds.has(question.id)) {
+            completed++;
+        }
+    }
+
+    const remaining = Math.max(total - completed, 0);
+    const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    return { attempted, completed, remaining, total, progress };
+}
+
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ userId: string }> }
@@ -78,159 +111,88 @@ export async function GET(
             }
         }
 
-        let questionsQuery = supabaseAdmin
-            .from("questions")
-            .select("id, type, chapter_id")
-            .eq("is_active", true);
+        const { data: courseChapters } = await supabaseAdmin
+            .from("chapters")
+            .select("id")
+            .eq("course_id", courseId);
 
-        if (chapterId) {
-            questionsQuery = questionsQuery.eq("chapter_id", chapterId);
-        } else {
-            const { data: chapters } = await supabaseAdmin
-                .from("chapters")
-                .select("id")
-                .eq("course_id", courseId);
-            const chapterIds = chapters?.map((c) => c.id) || [];
-            if (chapterIds.length > 0) {
-                questionsQuery = questionsQuery.in("chapter_id", chapterIds);
-            } else {
-                return NextResponse.json({
-                    attempted: 0,
-                    completed: 0,
-                    remaining: 0,
-                    total: 0,
-                    progress: 0,
-                    courseProgress: 0,
-                });
-            }
-        }
-
-        const { data: questions } = await questionsQuery;
-
-        const questionIds = (questions ?? []).map((q) => q.id);
-        const total = questionIds.length;
-
-        if (total === 0) {
+        const chapterIds = (courseChapters ?? []).map((c) => c.id);
+        if (chapterIds.length === 0) {
             return NextResponse.json({
                 attempted: 0,
                 completed: 0,
                 remaining: 0,
                 total: 0,
                 progress: 0,
+                courseAttempted: 0,
+                courseCompleted: 0,
+                courseRemaining: 0,
+                courseTotal: 0,
+                courseProgress: 0,
+            });
+        }
+
+        const { data: courseQuestions } = await supabaseAdmin
+            .from("questions")
+            .select("id, type, chapter_id")
+            .in("chapter_id", chapterIds);
+
+        const courseQuestionIds = (courseQuestions ?? []).map((q) => q.id);
+        if (courseQuestionIds.length === 0) {
+            return NextResponse.json({
+                attempted: 0,
+                completed: 0,
+                remaining: 0,
+                total: 0,
+                progress: 0,
+                courseAttempted: 0,
+                courseCompleted: 0,
+                courseRemaining: 0,
+                courseTotal: 0,
                 courseProgress: 0,
             });
         }
 
         const { data: attempts } = await supabaseAdmin
             .from("user_question_attempts")
-            .select("id, question_id, is_correct")
-            .eq("user_id", userId)
-            .in("question_id", questionIds);
+            .select("question_id, user_simulation_attempts!attempt_id!inner(user_id)")
+            .eq("user_simulation_attempts.user_id", userId)
+            .in("question_id", courseQuestionIds);
 
         const { data: completions } = await supabaseAdmin
             .from("user_question_completions")
             .select("id, question_id")
             .eq("user_id", userId)
-            .in("question_id", questionIds);
+            .in("question_id", courseQuestionIds);
 
-        const attemptedQuestionIds = new Set(
-            (attempts ?? []).map((a) => a.question_id),
+        const attemptedQuestionIds = new Set((attempts ?? []).map((a) => a.question_id));
+        const completedQuestionIds = new Set((completions ?? []).map((c) => c.question_id));
+
+        const courseSnapshot = buildProgressSnapshot(
+            courseQuestions ?? [],
+            attemptedQuestionIds,
+            completedQuestionIds,
         );
-        const completedQuestionIds = new Set(
-            (completions ?? []).map((c) => c.question_id),
-        );
 
-        let attempted = 0;
-        let completed = 0;
+        const chapterQuestions = chapterId
+            ? (courseQuestions ?? []).filter((question) => question.chapter_id === chapterId)
+            : (courseQuestions ?? []);
 
-        for (const q of questions ?? []) {
-            if (q.type === "question") {
-                if (attemptedQuestionIds.has(q.id)) {
-                    attempted++;
-                }
-            } else {
-                if (completedQuestionIds.has(q.id)) {
-                    completed++;
-                }
-            }
-        }
-
-        const remaining = total - attempted - completed;
-        const progress =
-            total > 0 ? Math.round(((attempted + completed) / total) * 100) : 0;
-
-        let courseAttempted = 0;
-        let courseCompleted = 0;
-        let courseTotal = 0;
-
-        if (!chapterId) {
-            const { data: courseChapters } = await supabaseAdmin
-                .from("chapters")
-                .select("id")
-                .eq("course_id", courseId);
-            const courseChapterIds = courseChapters?.map((c) => c.id) || [];
-
-            if (courseChapterIds.length > 0) {
-                const { data: courseQuestions } = await supabaseAdmin
-                    .from("questions")
-                    .select("id, type")
-                    .eq("is_active", true)
-                    .in("chapter_id", courseChapterIds);
-
-                courseTotal = (courseQuestions ?? []).length;
-
-                if (courseTotal > 0) {
-                    const { data: allAttempts } = await supabaseAdmin
-                        .from("user_question_attempts")
-                        .select("id, question_id")
-                        .eq("user_id", userId)
-                        .in("question_id", (courseQuestions ?? []).map((q) => q.id));
-
-                    const { data: allCompletions } = await supabaseAdmin
-                        .from("user_question_completions")
-                        .select("id, question_id")
-                        .eq("user_id", userId)
-                        .in("question_id", (courseQuestions ?? []).map((q) => q.id));
-
-                    const allAttemptedIds = new Set(
-                        (allAttempts ?? []).map((a) => a.question_id),
-                    );
-                    const allCompletedIds = new Set(
-                        (allCompletions ?? []).map((c) => c.question_id),
-                    );
-
-                    for (const q of courseQuestions ?? []) {
-                        if (q.type === "question") {
-                            if (allAttemptedIds.has(q.id)) {
-                                courseAttempted++;
-                            }
-                        } else {
-                            if (allCompletedIds.has(q.id)) {
-                                courseCompleted++;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        const courseProgress =
-            courseTotal > 0
-                ? Math.round(
-                      ((courseAttempted + courseCompleted) / courseTotal) * 100,
-                  )
-                : 0;
+        const chapterSnapshot = chapterId
+            ? buildProgressSnapshot(chapterQuestions, attemptedQuestionIds, completedQuestionIds)
+            : courseSnapshot;
 
         return NextResponse.json({
-            attempted,
-            completed,
-            remaining,
-            total,
-            progress,
-            courseProgress,
-            courseAttempted,
-            courseCompleted,
-            courseTotal,
+            attempted: chapterSnapshot.attempted,
+            completed: chapterSnapshot.completed,
+            remaining: chapterSnapshot.remaining,
+            total: chapterSnapshot.total,
+            progress: chapterSnapshot.progress,
+            courseAttempted: courseSnapshot.attempted,
+            courseCompleted: courseSnapshot.completed,
+            courseRemaining: courseSnapshot.remaining,
+            courseTotal: courseSnapshot.total,
+            courseProgress: courseSnapshot.progress,
         });
     } catch (error) {
         console.error("User progress fetch error:", error);

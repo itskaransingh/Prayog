@@ -39,6 +39,9 @@ _Avoid_: Simulation mode, exercise type
 **XP**: Experience points earned by completing Tasks. Reward decreases with repeated attempts (50 → 25 → 15 → 10).
 _Avoid_: Points, score, credits
 
+**Completion**: The completion rate for a Course or Chapter, calculated as completed items divided by total items.
+_Avoid_: Progress, attempt rate
+
 **Achievement**: A course-specific milestone that recognizes student progress, consistency, or mastery and awards a small XP bonus.
 _Avoid_: Badge, trophy, medal
 
@@ -84,3 +87,4 @@ _Avoid_: Enrollment, permission, assignment
 - "Question" and "Simulation Task" are now unified under **Task** — they remain separate in the database but are treated as one unit in the UI
 - "Admin" now refers to the middle-tier role; the former "Admin" is now **Super Admin**
 - "User" role is now **Student**
+- "Progress" in the admin Results panel now means **Completion**; attempted counts are informational only

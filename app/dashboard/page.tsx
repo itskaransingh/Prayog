@@ -88,6 +88,10 @@ interface UserProgress {
     courseTotal: number;
 }
 
+function getCompletionSummary(progress: UserProgress) {
+    return `${progress.completed} completed, ${progress.remaining} remaining (${progress.attempted} attempted)`;
+}
+
 type ViewMode = "chapter" | "chronological";
 
 function getChapterAttemptCount(group: GroupedChapter) {
@@ -644,45 +648,38 @@ export default function AdminDashboard() {
                                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                                     <div>
                                                         <p className="text-sm font-medium text-foreground">
-                                                            Progress for {students.find(s => s.id === selectedUserId)?.full_name?.trim() || students.find(s => s.id === selectedUserId)?.email.split("@")[0]}
+                                                            Completion for {students.find(s => s.id === selectedUserId)?.full_name?.trim() || students.find(s => s.id === selectedUserId)?.email.split("@")[0]}
                                                         </p>
                                                         <p className="text-xs text-muted-foreground">
-                                                            {userProgress.attempted} attempted, {userProgress.completed} completed, {userProgress.remaining} remaining out of {userProgress.total} total items
+                                                            {getCompletionSummary(userProgress)} out of {userProgress.total} total items
                                                         </p>
                                                     </div>
-                                                    <div className="text-lg font-bold text-blue-600">
-                                                        {userProgress.progress}%
+                                                    <div className="text-lg font-bold text-green-600">
+                                                        {userProgress.progress}% Completion
                                                     </div>
                                                 </div>
                                                 {selectedChapterId && (
                                                     <div className="space-y-1">
-                                                        <p className="text-xs text-muted-foreground">Chapter Progress</p>
+                                                        <p className="text-xs text-muted-foreground">Chapter Completion</p>
                                                         <div className="h-2 rounded-full bg-muted overflow-hidden">
                                                             <div
-                                                                className="h-full bg-blue-600 transition-all"
+                                                                className="h-full bg-green-600 transition-all"
                                                                 style={{ width: `${userProgress.progress}%` }}
                                                             />
                                                         </div>
                                                     </div>
                                                 )}
                                                 {selectedChapterId && (
-                                                    <div className="flex items-center gap-4 text-xs">
-                                                        <div className="flex items-center gap-1">
-                                                            <div className="h-2 w-2 rounded-full bg-blue-600"></div>
-                                                            <span>Attempted: {userProgress.attempted}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1">
-                                                            <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                                            <span>Completed: {userProgress.completed}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1">
-                                                            <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
-                                                            <span>Remaining: {userProgress.remaining}</span>
-                                                        </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        <span>Completed: {userProgress.completed}</span>
+                                                        <span className="mx-2">•</span>
+                                                        <span>Remaining: {userProgress.remaining}</span>
+                                                        <span className="mx-2">•</span>
+                                                        <span>({userProgress.attempted} attempted)</span>
                                                     </div>
                                                 )}
                                                 <div className="space-y-1">
-                                                    <p className="text-xs text-muted-foreground">Course Progress</p>
+                                                    <p className="text-xs text-muted-foreground">Course Completion</p>
                                                     <div className="h-2 rounded-full bg-muted overflow-hidden">
                                                         <div
                                                             className="h-full bg-green-600 transition-all"
@@ -690,19 +687,12 @@ export default function AdminDashboard() {
                                                         />
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-4 text-xs">
-                                                    <div className="flex items-center gap-1">
-                                                        <div className="h-2 w-2 rounded-full bg-blue-600"></div>
-                                                        <span>Attempted: {userProgress.courseAttempted}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                                                        <span>Completed: {userProgress.courseCompleted}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <div className="h-2 w-2 rounded-full bg-muted-foreground"></div>
-                                                        <span>Remaining: {userProgress.courseTotal - userProgress.courseAttempted - userProgress.courseCompleted}</span>
-                                                    </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    <span>Completed: {userProgress.courseCompleted}</span>
+                                                    <span className="mx-2">•</span>
+                                                    <span>Remaining: {userProgress.courseRemaining}</span>
+                                                    <span className="mx-2">•</span>
+                                                    <span>({userProgress.courseAttempted} attempted)</span>
                                                 </div>
                                             </div>
                                         ) : (
