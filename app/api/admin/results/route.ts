@@ -29,6 +29,7 @@ type JoinedAttemptRow = {
                     id: string;
                     title: string | null;
                     course_id: string;
+                    sort_order: number | null;
                     courses: {
                         id: string;
                         title: string | null;
@@ -37,6 +38,27 @@ type JoinedAttemptRow = {
             } | null;
         } | null;
     } | null;
+};
+
+type AnalyticsChapterRow = {
+    id: string;
+    title: string | null;
+    course_id: string;
+    sort_order: number | null;
+    courses: {
+        id: string;
+        title: string | null;
+    } | null;
+};
+
+type AnalyticsQuestionRow = {
+    id: string;
+    chapter_id: string;
+};
+
+type AnalyticsCompletionRow = {
+    question_id: string;
+    user_id: string;
 };
 
 function deriveFullName(email: string | null | undefined) {
@@ -53,6 +75,65 @@ function getFirst<T>(value: T | T[] | null | undefined): T | null {
     }
 
     return value ?? null;
+}
+
+function clamp(value: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, value));
+}
+
+function toPercent(score: number, maxPossible: number) {
+    return maxPossible > 0 ? (score / maxPossible) * 100 : 0;
+}
+
+function buildLinearRegression(points: Array<{ x: number; y: number }>) {
+    if (points.length < 2) {
+        return points.map((point) => ({ ...point, trendY: point.y }));
+    }
+
+    const n = points.length;
+    const sumX = points.reduce((sum, point) => sum + point.x, 0);
+    const sumY = points.reduce((sum, point) => sum + point.y, 0);
+    const sumXY = points.reduce((sum, point) => sum + point.x * point.y, 0);
+    const sumXX = points.reduce((sum, point) => sum + point.x * point.x, 0);
+    const denominator = n * sumXX - sumX * sumX;
+    const slope = denominator === 0 ? 0 : (n * sumXY - sumX * sumY) / denominator;
+    const intercept = (sumY - slope * sumX) / n;
+
+    return points.map((point) => ({
+        ...point,
+        trendY: slope * point.x + intercept,
+    }));
+}
+
+function buildHistogram(values: number[]) {
+    if (values.length === 0) {
+        return [];
+    }
+
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    if (min === max) {
+        return [{ label: `${min.toFixed(0)}`, count: values.length }];
+    }
+
+    const bucketCount = Math.min(8, Math.max(4, Math.ceil(Math.sqrt(values.length))));
+    const step = (max - min) / bucketCount;
+    const buckets = Array.from({ length: bucketCount }, (_, index) => ({
+        start: min + step * index,
+        end: index === bucketCount - 1 ? max : min + step * (index + 1),
+        count: 0,
+    }));
+
+    for (const value of values) {
+        const index = clamp(Math.floor((value - min) / step), 0, bucketCount - 1);
+        buckets[index].count += 1;
+    }
+
+    return buckets.map((bucket) => ({
+        label: `${bucket.start.toFixed(0)}-${bucket.end.toFixed(0)}`,
+        count: bucket.count,
+    }));
 }
 
 export async function GET(request: Request) {
@@ -93,17 +174,21 @@ export async function GET(request: Request) {
             .eq("id", requester.id)
             .single();
 
-        if (profileError || !profile || (profile.role !== "super_admin" && profile.role !== "admin" && profile.role !== "faculty")) {
-            return NextResponse.json(
-                { error: "Forbidden" },
-                { status: 403 },
-            );
+        if (
+            profileError ||
+            !profile ||
+            (profile.role !== "super_admin" &&
+                profile.role !== "admin" &&
+                profile.role !== "faculty")
+        ) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         const url = new URL(request.url);
         const selectedCourseId = url.searchParams.get("courseId");
         const selectedChapterId = url.searchParams.get("chapterId");
         const selectedUserId = url.searchParams.get("userId");
+        const mode = selectedChapterId ? "chapter" : "course";
 
         const supabaseAdmin = createAdminClient();
         const selectQuery = `
@@ -131,6 +216,7 @@ export async function GET(request: Request) {
                             id,
                             title,
                             course_id,
+                            sort_order,
                             courses!course_id (
                                 id,
                                 title
@@ -207,6 +293,7 @@ export async function GET(request: Request) {
                     course_name: courseRecord?.title || "Unknown",
                     chapter_id: chapter.id,
                     chapter_name: chapter.title || "Unknown",
+                    chapter_sort_order: chapter.sort_order ?? Number.MAX_SAFE_INTEGER,
                     question_id: question.id,
                     question_title: question.title || "Untitled Question",
                     task_id: simulationAttempt.task_id,
@@ -344,13 +431,161 @@ export async function GET(request: Request) {
                 left.chapter_name.localeCompare(right.chapter_name),
             );
 
+        const chapterIds = Array.from(new Set(flatAttempts.map((attempt) => attempt.chapter_id)));
+        const questionIds = Array.from(new Set(flatAttempts.map((attempt) => attempt.question_id)));
+        const filteredUserIds = Array.from(new Set(flatAttempts.map((attempt) => attempt.user_id)));
+
+        const chapterRows: AnalyticsChapterRow[] = [];
+        if (chapterIds.length > 0) {
+            let chapterQuery = supabaseAdmin
+                .from("chapters")
+                .select("id, title, course_id, sort_order, courses!course_id ( id, title )")
+                .in("id", chapterIds);
+
+            if (selectedCourseId) {
+                chapterQuery = chapterQuery.eq("course_id", selectedCourseId);
+            }
+
+            const { data: chaptersData } = await chapterQuery.order("sort_order", { ascending: true });
+            chapterRows.push(...((chaptersData ?? []) as unknown as AnalyticsChapterRow[]));
+        }
+
+        const { data: questionsData } = questionIds.length > 0
+            ? await supabaseAdmin
+                .from("questions")
+                .select("id, chapter_id")
+                .in("id", questionIds)
+            : { data: [] as AnalyticsQuestionRow[] };
+
+        const { data: completionsData } = questionIds.length > 0 && filteredUserIds.length > 0
+            ? await supabaseAdmin
+                .from("user_question_completions")
+                .select("question_id, user_id")
+                .in("question_id", questionIds)
+                .in("user_id", filteredUserIds)
+            : { data: [] as AnalyticsCompletionRow[] };
+
+        const questionsByChapter = new Map<string, AnalyticsQuestionRow[]>();
+        for (const question of (questionsData ?? []) as AnalyticsQuestionRow[]) {
+            const existing = questionsByChapter.get(question.chapter_id) ?? [];
+            existing.push(question);
+            questionsByChapter.set(question.chapter_id, existing);
+        }
+
+        const completionsByQuestion = new Map<string, Set<string>>();
+        for (const completion of (completionsData ?? []) as AnalyticsCompletionRow[]) {
+            const existing = completionsByQuestion.get(completion.question_id) ?? new Set<string>();
+            existing.add(completion.user_id);
+            completionsByQuestion.set(completion.question_id, existing);
+        }
+
+        const analyticsChapterDifficulty = chapterRows.map((chapter) => {
+            const chapterAttempts = flatAttempts.filter((attempt) => attempt.chapter_id === chapter.id);
+            const averageScore = chapterAttempts.length > 0
+                ? chapterAttempts.reduce((sum, attempt) => sum + toPercent(attempt.total_score, attempt.max_possible_score), 0) /
+                    chapterAttempts.length
+                : 0;
+
+            return {
+                chapter_id: chapter.id,
+                chapter_name: chapter.title || "Untitled Chapter",
+                course_id: chapter.course_id,
+                course_name: chapter.courses?.title || "Unknown",
+                sort_order: chapter.sort_order ?? Number.MAX_SAFE_INTEGER,
+                average_score: Number(averageScore.toFixed(2)),
+            };
+        }).sort((left, right) => {
+            if (left.course_id !== right.course_id) {
+                return left.course_name.localeCompare(right.course_name);
+            }
+
+            return left.sort_order - right.sort_order || left.chapter_name.localeCompare(right.chapter_name);
+        });
+
+        const analyticsCompletionRate = chapterRows.map((chapter) => {
+            const questions = questionsByChapter.get(chapter.id) ?? [];
+            const totalQuestionCompletions = questions.reduce((sum, question) => {
+                const completedUsers = completionsByQuestion.get(question.id);
+                return sum + (completedUsers ? completedUsers.size : 0);
+            }, 0);
+
+            const completionRate =
+                questions.length > 0 && filteredUserIds.length > 0
+                    ? (totalQuestionCompletions / (questions.length * filteredUserIds.length)) * 100
+                    : 0;
+
+            return {
+                chapter_id: chapter.id,
+                chapter_name: chapter.title || "Untitled Chapter",
+                course_id: chapter.course_id,
+                course_name: chapter.courses?.title || "Unknown",
+                completion_rate: Number(completionRate.toFixed(2)),
+            };
+        }).sort((left, right) => {
+            if (left.course_id !== right.course_id) {
+                return left.course_name.localeCompare(right.course_name);
+            }
+
+            return left.chapter_name.localeCompare(right.chapter_name);
+        });
+
+        const analyticsScoreDistribution = buildHistogram(
+            flatAttempts.map((attempt) => toPercent(attempt.total_score, attempt.max_possible_score)),
+        );
+
+        const analyticsSparklineUsers = Array.from(
+            flatAttempts.reduce((map, attempt) => {
+                const existing = map.get(attempt.user_id) ?? {
+                    user_id: attempt.user_id,
+                    full_name: attempt.full_name,
+                    email: attempt.email,
+                    attempts: [] as typeof flatAttempts,
+                };
+
+                existing.attempts.push(attempt);
+                map.set(attempt.user_id, existing);
+                return map;
+            }, new Map<string, { user_id: string; full_name: string; email: string; attempts: typeof flatAttempts }>())
+                .values(),
+        ).map((user) => {
+            const points = user.attempts
+                .slice()
+                .sort((left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime())
+                .map((attempt, index) => ({
+                    x: index + 1,
+                    y: Number(toPercent(attempt.total_score, attempt.max_possible_score).toFixed(2)),
+                }));
+
+            const trend = buildLinearRegression(points);
+            const averageScore =
+                points.length > 0
+                    ? points.reduce((sum, point) => sum + point.y, 0) / points.length
+                    : 0;
+
+            return {
+                user_id: user.user_id,
+                full_name: user.full_name,
+                email: user.email,
+                average_score: Number(averageScore.toFixed(2)),
+                attempt_count: points.length,
+                trend,
+            };
+        }).sort((left, right) => left.average_score - right.average_score);
+
         return NextResponse.json({
+            mode,
             attempts: [...flatAttempts].sort(
                 (left, right) =>
                     new Date(right.created_at).getTime() -
                     new Date(left.created_at).getTime(),
             ),
             groupedByChapter,
+            analytics: {
+                chapterDifficulty: analyticsChapterDifficulty,
+                scoreDistribution: analyticsScoreDistribution,
+                completionRate: mode === "chapter" ? [] : analyticsCompletionRate,
+                sparklines: analyticsSparklineUsers,
+            },
             filters: {
                 courseId: selectedCourseId,
                 chapterId: selectedChapterId,
